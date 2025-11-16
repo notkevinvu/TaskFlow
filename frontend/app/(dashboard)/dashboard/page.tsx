@@ -1,12 +1,18 @@
 'use client';
 
+import { useState } from 'react';
 import { useTasks, useBumpTask, useCompleteTask, useAtRiskTasks } from '@/hooks/useTasks';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TaskDetailsSidebar } from "@/components/TaskDetailsSidebar";
+import { CreateTaskDialog } from "@/components/CreateTaskDialog";
+import { Plus } from "lucide-react";
 
 export default function DashboardPage() {
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const { data: tasksData, isLoading } = useTasks();
   const { data: atRiskData } = useAtRiskTasks();
   const bumpTask = useBumpTask();
@@ -43,13 +49,21 @@ export default function DashboardPage() {
   const totalTasks = tasks.length;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold">Today's Priorities</h2>
-        <p className="text-muted-foreground">
-          Tasks sorted by intelligent priority algorithm
-        </p>
-      </div>
+    <div className={`transition-all duration-[180ms] ${selectedTaskId ? 'lg:pr-96' : ''}`}>
+      {/* Main Content */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold">Today's Priorities</h2>
+            <p className="text-muted-foreground">
+              Tasks sorted by intelligent priority algorithm
+            </p>
+          </div>
+          <Button onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Quick Add
+          </Button>
+        </div>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -109,7 +123,11 @@ export default function DashboardPage() {
           </Card>
         ) : (
           tasks.map((task) => (
-            <Card key={task.id} className="hover:shadow-md transition-shadow">
+            <Card
+              key={task.id}
+              className="hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => setSelectedTaskId(task.id)}
+            >
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -161,14 +179,20 @@ export default function DashboardPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => bumpTask.mutate({ id: task.id })}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        bumpTask.mutate({ id: task.id });
+                      }}
                       disabled={bumpTask.isPending}
                     >
                       Bump
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => completeTask.mutate(task.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        completeTask.mutate(task.id);
+                      }}
                       disabled={completeTask.isPending}
                     >
                       Complete
@@ -181,5 +205,20 @@ export default function DashboardPage() {
         )}
       </div>
     </div>
-  );
+
+    {/* Task Details Sidebar */}
+    {selectedTaskId && (
+      <TaskDetailsSidebar
+        taskId={selectedTaskId}
+        onClose={() => setSelectedTaskId(null)}
+      />
+    )}
+
+    {/* Create Task Dialog */}
+    <CreateTaskDialog
+      open={createDialogOpen}
+      onOpenChange={setCreateDialogOpen}
+    />
+  </div>
+);
 }

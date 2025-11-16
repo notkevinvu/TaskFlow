@@ -16,6 +16,7 @@ interface AuthStore {
   register: (email: string, name: string, password: string) => Promise<void>;
   logout: () => void;
   checkAuth: () => Promise<void>;
+  setMockUser: (user: User) => void;
 }
 
 export const useAuth = create<AuthStore>((set) => ({
@@ -66,5 +67,9 @@ export const useAuth = create<AuthStore>((set) => ({
       localStorage.removeItem('token');
       set({ user: null, isLoading: false });
     }
+  },
+
+  setMockUser: (user: User) => {
+    set({ user, isLoading: false });
   },
 }));

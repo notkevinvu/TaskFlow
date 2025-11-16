@@ -499,6 +499,138 @@ See `architecture-overview.md` for details.
 
 ---
 
+## Design System Improvements (Future Work)
+
+### Current State
+
+The application uses a **solid foundation** with shadcn/ui components and CSS variables:
+- OKLCH color space for modern, perceptually uniform colors
+- Semantic tokens (`--primary`, `--destructive`, etc.)
+- Light/dark mode ready
+- 9 shadcn/ui components using design tokens correctly
+
+### Issues Identified
+
+**Inconsistent Token Usage (15 instances)**
+- Hardcoded colors in application code (`text-red-600`, `bg-gray-50`, etc.)
+- Missing semantic tokens: `success`, `warning`, `info`
+- No standardized gray scale tokens
+
+**Affected Files:**
+- `app/(dashboard)/dashboard/page.tsx` (3 hardcoded colors)
+- `app/(dashboard)/analytics/page.tsx` (4 hardcoded colors)
+- `app/(dashboard)/layout.tsx` (5 hardcoded colors)
+- `components/TaskDetailsSidebar.tsx` (2 hardcoded colors)
+- `app/(auth)/login/page.tsx` (3 hardcoded colors)
+- `app/(auth)/register/page.tsx` (3 hardcoded colors)
+
+### Recommended Improvements
+
+#### Option A: Quick Token Cleanup (3-4 hours)
+**Scope:** Minimal design system refinement before Figma integration
+
+1. **Add Missing Color Tokens** (30 minutes)
+   ```css
+   /* Add to globals.css */
+   --success: oklch(0.7 0.15 145);        /* Green */
+   --success-foreground: oklch(0.98 0 0);
+   --warning: oklch(0.75 0.15 85);        /* Amber */
+   --warning-foreground: oklch(0.2 0 0);
+   --info: oklch(0.65 0.15 250);          /* Blue */
+   --info-foreground: oklch(0.98 0 0);
+   --surface: oklch(0.98 0 0);            /* Replaces bg-gray-50 */
+   --surface-variant: oklch(0.96 0 0);    /* Replaces bg-gray-100 */
+   ```
+
+2. **Replace Hardcoded Colors** (1 hour)
+   - Update 6 files listed above
+   - Use semantic tokens instead of direct colors
+
+3. **Create Token Documentation** (1 hour)
+   - Color palette reference
+   - Component usage guidelines
+   - When to use which variant
+
+4. **Add ESLint Rule** (30 minutes)
+   - Prevent future hardcoded colors
+   - Enforce design token usage
+
+5. **Cross-mode Testing** (1 hour)
+   - Verify light/dark mode consistency
+   - Test all color combinations
+
+#### Option B: Full Design System with Figma Integration (12-20 hours)
+**Scope:** Comprehensive design system aligned with Figma designs
+
+1. **Token Extraction & Mapping** (3-4 hours)
+   - Export design tokens from Figma (using Figma API or plugins like Figma Tokens)
+   - Map to CSS variables
+   - Create comprehensive token system:
+     - **Colors:** Full semantic palette + all variants
+     - **Typography:** Font families, sizes, weights, line heights
+     - **Spacing:** 4px/8px grid system with semantic names
+     - **Shadows:** Elevation system (sm, md, lg, xl)
+     - **Borders:** Radius and width tokens
+     - **Animations:** Duration and easing functions
+
+2. **Component Updates** (4-6 hours)
+   - Update all 6 files with hardcoded values
+   - Add new shadcn/ui components if Figma has different patterns
+   - Create custom components for Figma-specific designs
+   - Ensure all components consume tokens
+
+3. **Design System Documentation** (2-3 hours)
+   - Set up Storybook for component library
+   - Token reference documentation
+   - Component usage guidelines
+   - Accessibility guidelines
+   - Design principles
+
+4. **Figma Sync Tooling** (3-5 hours)
+   - Set up Figma token sync (Style Dictionary or Figma Tokens plugin)
+   - Create build pipeline: Figma tokens → CSS variables
+   - Document workflow for design updates
+   - Automate token extraction where possible
+
+5. **Testing & Refinement** (2-3 hours)
+   - Visual regression testing setup
+   - Cross-browser testing
+   - Responsive testing at all breakpoints
+   - Accessibility audit
+
+### Image-Based Design Changes (if Figma not available)
+
+**Effort Estimates:**
+- **Simple style updates** (colors/spacing): 2-4 hours
+- **Component redesigns**: 1-2 hours per component
+- **Full page redesigns**: 3-5 hours per page
+- **New patterns/components**: 2-4 hours each
+
+**Note:** Static images require manual translation to code. Figma provides:
+- Exact measurements via inspect mode
+- CSS export for some properties
+- Token extraction plugins
+- Easier iteration and collaboration
+
+### Decision Matrix
+
+| Approach | Effort | Best For | When to Use |
+|----------|--------|----------|-------------|
+| **Option A** | 3-4 hours | Quick consistency fix | Before Phase 2, minimal design changes expected |
+| **Option B** | 12-20 hours | Full design system | When Figma files available, major redesign planned |
+| **Images Only** | Variable | One-off changes | Ad-hoc design updates, no comprehensive redesign |
+
+### Recommendation
+
+**Phase 1 Completion:** Defer design system work (Option A or B) until Figma files or design direction is provided.
+
+**Future Phase:** Implement Option B (Full Design System) when:
+- Figma designs are finalized
+- Design direction is clear
+- Ready for comprehensive UI polish
+
+---
+
 ## Appendix
 
 ### Related Documents
