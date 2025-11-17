@@ -39,6 +39,28 @@ services:
       postgres:
         condition: service_healthy
 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: taskflow-backend
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      GIN_MODE: release
+      DATABASE_URL: postgres://taskflow_user:taskflow_dev_password@postgres:5432/taskflow?sslmode=disable
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production-minimum-32-characters
+      JWT_EXPIRY_HOURS: 24
+      RATE_LIMIT_REQUESTS_PER_MINUTE: 100
+      ALLOWED_ORIGINS: http://localhost:3000
+    ports:
+      - "8080:8080"
+    networks:
+      - taskflow-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:
     driver: local
