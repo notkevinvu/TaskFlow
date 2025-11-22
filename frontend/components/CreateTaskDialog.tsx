@@ -127,10 +127,10 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="small">Small (< 1 hour)</SelectItem>
+                  <SelectItem value="small">Small (&lt; 1 hour)</SelectItem>
                   <SelectItem value="medium">Medium (1-4 hours)</SelectItem>
                   <SelectItem value="large">Large (4-8 hours)</SelectItem>
-                  <SelectItem value="xlarge">X-Large (> 8 hours)</SelectItem>
+                  <SelectItem value="xlarge">X-Large (&gt; 8 hours)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
