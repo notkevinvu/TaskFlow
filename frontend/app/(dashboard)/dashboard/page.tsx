@@ -9,8 +9,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TaskDetailsSidebar } from "@/components/TaskDetailsSidebar";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { EditTaskDialog } from "@/components/EditTaskDialog";
+import { Calendar } from "@/components/Calendar";
 import { Plus, Trash2, Pencil } from "lucide-react";
-import { Task } from "@/lib/api";
+import { Task, CalendarDayData } from "@/lib/api";
 
 export default function DashboardPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -117,19 +118,32 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Task List */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Your Tasks</h3>
-        {tasks.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <p className="text-muted-foreground">
-                No tasks yet. Create your first task to get started!
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          tasks.map((task) => (
+      {/* Calendar and Task List - Responsive Layout */}
+      <div className="grid grid-cols-1 xl:grid-cols-[450px,1fr] gap-6">
+        {/* Calendar */}
+        <div className="xl:sticky xl:top-6 xl:self-start">
+          <Calendar
+            onDayClick={(date, dayData) => {
+              // For now, just show console log
+              // Later we'll add popover/dialog here
+              console.log('Day clicked:', date, dayData);
+            }}
+          />
+        </div>
+
+        {/* Task List */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Your Tasks</h3>
+          {tasks.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <p className="text-muted-foreground">
+                  No tasks yet. Create your first task to get started!
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            tasks.map((task) => (
             <Card
               key={task.id}
               className="hover:shadow-md transition-shadow cursor-pointer"
@@ -239,7 +253,8 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           ))
-        )}
+          )}
+        </div>
       </div>
     </div>
 
