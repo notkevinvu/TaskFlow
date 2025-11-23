@@ -119,7 +119,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Calendar and Task List - Responsive Layout */}
-      <div className="grid grid-cols-1 xl:grid-cols-[450px,1fr] gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-[280px,1fr] gap-6">
         {/* Calendar */}
         <div className="xl:sticky xl:top-6 xl:self-start">
           <Calendar
