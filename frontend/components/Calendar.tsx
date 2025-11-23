@@ -33,36 +33,24 @@ export function Calendar({ onDayClick }: CalendarProps) {
     setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
-  const handleDayClick = (date: Date) => {
+  const handleDayClick = (date: Date | undefined) => {
+    if (!date) return;
     const dateKey = format(date, 'yyyy-MM-dd');
     const dayData = calendarData?.dates[dateKey];
     onDayClick?.(date, dayData);
   };
 
-  // Custom day content renderer to show badges
-  const renderDay = (date: Date) => {
-    const dateKey = format(date, 'yyyy-MM-dd');
-    const dayData = calendarData?.dates[dateKey];
+  // Get days with tasks for styling
+  const getDayModifiers = () => {
+    if (!calendarData) return {};
 
-    return (
-      <div className="relative w-full h-full flex items-center justify-center">
-        <span>{date.getDate()}</span>
-        {dayData && dayData.count > 0 && (
-          <div
-            className={`
-              absolute -top-1 -right-1 min-w-[18px] h-[18px]
-              flex items-center justify-center
-              rounded-full text-[10px] font-semibold text-white
-              ${dayData.badge_color === 'red' ? 'bg-red-500' : ''}
-              ${dayData.badge_color === 'yellow' ? 'bg-yellow-500' : ''}
-              ${dayData.badge_color === 'blue' ? 'bg-blue-500' : ''}
-            `}
-          >
-            {dayData.count}
-          </div>
-        )}
-      </div>
-    );
+    const daysWithTasks: Date[] = [];
+    Object.keys(calendarData.dates).forEach(dateKey => {
+      const [year, month, day] = dateKey.split('-').map(Number);
+      daysWithTasks.push(new Date(year, month - 1, day));
+    });
+
+    return { hasTasks: daysWithTasks };
   };
 
   if (error) {
@@ -104,28 +92,75 @@ export function Calendar({ onDayClick }: CalendarProps) {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
         </div>
       ) : (
-        <DayPicker
-          mode="single"
-          month={currentMonth}
-          onMonthChange={setCurrentMonth}
-          onDayClick={handleDayClick}
-          components={{
-            Day: ({ date }) => renderDay(date),
-          }}
-          classNames={{
-            months: 'w-full',
-            month: 'w-full',
-            caption: 'hidden', // We use custom navigation
-            table: 'w-full border-collapse',
-            head_row: 'flex w-full',
-            head_cell: 'flex-1 text-center text-sm font-medium text-gray-500 dark:text-gray-400 pb-2',
-            row: 'flex w-full',
-            cell: 'flex-1 aspect-square p-0 relative',
-            day: 'w-full h-full flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors text-sm',
-            day_today: 'bg-blue-50 dark:bg-blue-900/30 font-bold',
-            day_outside: 'text-gray-300 dark:text-gray-600',
-          }}
-        />
+        <div className="relative">
+          <DayPicker
+            mode="single"
+            month={currentMonth}
+            onMonthChange={setCurrentMonth}
+            onDayClick={handleDayClick}
+            modifiers={getDayModifiers()}
+            classNames={{
+              months: 'w-full',
+              month: 'w-full',
+              caption: 'hidden', // We use custom navigation
+              table: 'w-full border-collapse',
+              head_row: 'flex w-full',
+              head_cell: 'flex-1 text-center text-sm font-medium text-gray-500 dark:text-gray-400 pb-2',
+              row: 'flex w-full',
+              cell: 'flex-1 aspect-square p-0 relative [&:has([aria-selected])]:bg-transparent',
+              day: 'w-full h-full flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors text-sm',
+              day_today: 'bg-blue-50 dark:bg-blue-900/30 font-bold',
+              day_outside: 'text-gray-300 dark:text-gray-600',
+              day_selected: 'bg-transparent',
+            }}
+          />
+
+          {/* Task Badges Overlay */}
+          {calendarData && (
+            <div className="absolute inset-0 pointer-events-none">
+              {Object.entries(calendarData.dates).map(([dateKey, dayData]) => {
+                const [year, month, day] = dateKey.split('-').map(Number);
+                const date = new Date(year, month - 1, day);
+
+                // Skip if date is not in current month
+                if (date.getMonth() !== currentMonth.getMonth()) return null;
+
+                // Calculate position in grid
+                const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+                const dayOfWeek = (date.getDay() + 6) % 7; // Adjust for Monday start
+                const weekNumber = Math.floor((date.getDate() + firstDay.getDay() - 1) / 7);
+
+                return (
+                  <div
+                    key={dateKey}
+                    className="absolute pointer-events-none"
+                    style={{
+                      top: `calc(${weekNumber * 14.28}% + 2.5rem)`,
+                      left: `calc(${dayOfWeek * 14.28}%)`,
+                      width: '14.28%',
+                      height: '14.28%',
+                    }}
+                  >
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      <div
+                        className={`
+                          absolute -top-1 -right-1 min-w-[18px] h-[18px]
+                          flex items-center justify-center
+                          rounded-full text-[10px] font-semibold text-white
+                          ${dayData.badge_color === 'red' ? 'bg-red-500' : ''}
+                          ${dayData.badge_color === 'yellow' ? 'bg-yellow-500' : ''}
+                          ${dayData.badge_color === 'blue' ? 'bg-blue-500' : ''}
+                        `}
+                      >
+                        {dayData.count}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
