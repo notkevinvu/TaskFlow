@@ -208,3 +208,19 @@ export function useAtRiskTasks() {
     },
   });
 }
+
+export function useCalendarTasks(params: {
+  start_date: string; // YYYY-MM-DD
+  end_date: string;   // YYYY-MM-DD
+  status?: string;
+}) {
+  return useQuery({
+    queryKey: ['tasks', 'calendar', params.start_date, params.end_date, params.status],
+    queryFn: async () => {
+      const response = await taskAPI.getCalendar(params);
+      return response.data;
+    },
+    enabled: !!params.start_date && !!params.end_date,
+    staleTime: 5 * 60 * 1000, // 5 minutes - calendar data doesn't need to refetch as often
+  });
+}
