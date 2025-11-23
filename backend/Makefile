@@ -1,4 +1,4 @@
-.PHONY: help run build test clean deps
+.PHONY: help run build test migrate-up migrate-down migrate-create clean deps
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
