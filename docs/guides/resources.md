@@ -11,8 +11,8 @@ Curated resources for mastering the technologies in this stack.
 - [Frontend (Next.js & React)](#frontend-nextjs--react)
 - [TypeScript](#typescript)
 - [PostgreSQL](#postgresql)
+- [Supabase](#supabase)
 - [Architecture & Design Patterns](#architecture--design-patterns)
-- [DevOps & Docker](#devops--docker)
 - [YouTube Channels](#youtube-channels)
 - [Practice Projects](#practice-projects)
 
@@ -273,31 +273,29 @@ Curated resources for mastering the technologies in this stack.
 
 ---
 
-## DevOps & Docker
+## Supabase
 
-### Docker
+### Official Documentation
+- **Supabase Docs** - https://supabase.com/docs
+  - Getting started guide
+  - Database management
+  - Connection pooling (PgBouncer)
+  - SQL Editor
 
-**Official Documentation:**
-- https://docs.docker.com/get-started/
-  - Official getting started
-  - Best practices
+### Tutorials
+- **Supabase YouTube Channel** - https://www.youtube.com/@Supabase
+  - Official tutorials
+  - Feature walkthroughs
+- **Database Connection Strings** - https://supabase.com/docs/guides/database/connecting-to-postgres
+  - Connection options
+  - SSL configuration
+  - Pooling vs direct connections
 
-**Courses:**
-
-1. **"Docker Mastery"** (Udemy)
-   - Comprehensive
-   - Practical projects
-
-2. **"Play with Docker"**
-   - https://labs.play-with-docker.com/
-   - FREE browser-based practice
-   - No installation needed
-
-### Kubernetes (for later)
-
-- **Kubernetes Documentation** - https://kubernetes.io/docs/
-- **"Kubernetes Patterns"** book
-- Wait until you actually need K8s (probably not for MVP)
+### Features
+- **Database** - Managed PostgreSQL 16
+- **Dashboard** - Web-based database management (replaces pgAdmin)
+- **Auto Backups** - Point-in-time recovery
+- **Free Tier** - 500MB database, 2GB bandwidth
 
 ---
 
@@ -426,9 +424,9 @@ Curated resources for mastering the technologies in this stack.
 - Add more complex features
 
 **Week 11-12:**
-- Docker & docker-compose
-- Deployment basics
+- Supabase cloud deployment
 - Performance optimization
+- Production best practices
 
 ---
 
@@ -473,8 +471,8 @@ Curated resources for mastering the technologies in this stack.
 
 **General:**
 - GitLens
-- Docker
 - Thunder Client (API testing)
+- Database Client (SQLTools)
 
 ### CLI Tools
 
@@ -483,15 +481,14 @@ Curated resources for mastering the technologies in this stack.
 go install golang.org/x/tools/cmd/goimports@latest
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
-# Database
-brew install postgresql@16  # Mac
-apt install postgresql-16    # Linux
-
-# Docker
-# Download from docker.com
+# Database client (optional - use Supabase dashboard)
+brew install postgresql@16  # Mac (for psql CLI tool)
+apt install postgresql-client-16  # Linux
 
 # Node/npm (for frontend)
 # Use nvm (Node Version Manager)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+nvm install 20
 ```
 
 ---

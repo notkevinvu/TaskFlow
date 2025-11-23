@@ -31,8 +31,8 @@ func NewTaskService(taskRepo *repository.TaskRepository, taskHistoryRepo *reposi
 func (s *TaskService) Create(ctx context.Context, userID string, dto *domain.CreateTaskDTO) (*domain.Task, error) {
 	now := time.Now()
 
-	// Set default user priority if not provided
-	userPriority := 50
+	// Set default user priority if not provided (1-10 scale)
+	userPriority := 5
 	if dto.UserPriority != nil {
 		userPriority = *dto.UserPriority
 	}

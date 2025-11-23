@@ -34,7 +34,7 @@ export interface CreateTaskDTO {
   title: string;
   description?: string;
   user_priority?: number;
-  due_date?: string;
+  due_date?: string; // RFC3339/ISO 8601 format (e.g., "2025-11-25T00:00:00Z")
   estimated_effort?: 'small' | 'medium' | 'large' | 'xlarge';
   category?: string;
   context?: string;

@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTask } from '@/hooks/useTasks';
+import { useTask, useBumpTask, useCompleteTask, useDeleteTask } from '@/hooks/useTasks';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { X } from 'lucide-react';
+import { X, Pencil, Trash2 } from 'lucide-react';
+import { EditTaskDialog } from '@/components/EditTaskDialog';
 
 interface TaskDetailsSidebarProps {
   taskId: string;
@@ -16,6 +17,10 @@ interface TaskDetailsSidebarProps {
 export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps) {
   const { data: task, isLoading } = useTask(taskId);
   const [isVisible, setIsVisible] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const bumpTask = useBumpTask();
+  const completeTask = useCompleteTask();
+  const deleteTask = useDeleteTask();
 
   useEffect(() => {
     // Trigger slide-in animation after component mounts
@@ -34,11 +39,11 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
       />
 
       {/* Sidebar */}
-      <div className={`fixed top-0 right-0 h-screen w-full sm:w-96 lg:w-96 bg-white shadow-xl z-50 overflow-y-auto flex-shrink-0 transform transition-transform duration-[180ms] ease-in-out lg:border-l ${
+      <div className={`fixed top-0 right-0 h-screen w-full sm:w-96 lg:w-96 bg-white dark:bg-gray-900 shadow-xl z-50 overflow-y-auto flex-shrink-0 transform transition-transform duration-[180ms] ease-in-out lg:border-l dark:border-gray-800 ${
         isVisible ? 'translate-x-0' : 'translate-x-full'
       }`}>
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between z-10">
+        <div className="sticky top-0 bg-white dark:bg-gray-900 border-b dark:border-gray-800 p-4 flex items-center justify-between z-10">
           <h2 className="text-lg font-semibold">Task Details</h2>
           <Button
             variant="ghost"
@@ -91,6 +96,61 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                 </div>
               </div>
 
+              {/* Action Buttons */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Actions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditDialogOpen(true)}
+                      className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => bumpTask.mutate({ id: taskId })}
+                      disabled={bumpTask.isPending}
+                      className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
+                    >
+                      Bump
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        completeTask.mutate(taskId);
+                        onClose();
+                      }}
+                      disabled={completeTask.isPending}
+                      className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
+                    >
+                      Complete
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to delete this task?')) {
+                          deleteTask.mutate(taskId);
+                          onClose();
+                        }
+                      }}
+                      disabled={deleteTask.isPending}
+                      className="transition-all hover:scale-105 hover:shadow-lg cursor-pointer"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Description */}
               {task.description && (
                 <Card>
@@ -139,7 +199,7 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">User Priority</span>
-                    <span className="text-sm font-medium">{task.user_priority}/100</span>
+                    <span className="text-sm font-medium">{task.user_priority}/10</span>
                   </div>
                 </CardContent>
               </Card>
@@ -201,7 +261,7 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                     The priority score is calculated using our intelligent algorithm that considers:
                   </p>
                   <ul className="list-disc list-inside space-y-1 ml-2">
-                    <li>Your set priority ({task.user_priority}/100)</li>
+                    <li>Your set priority ({task.user_priority}/10)</li>
                     <li>Time since creation (time decay)</li>
                     <li>Number of delays ({task.bump_count} bumps)</li>
                     <li>Due date proximity</li>
@@ -220,6 +280,15 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
           )}
         </div>
       </div>
+
+      {/* Edit Task Dialog */}
+      {task && (
+        <EditTaskDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          task={task}
+        />
+      )}
     </>
   );
 }

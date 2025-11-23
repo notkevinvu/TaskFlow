@@ -103,10 +103,6 @@ export function useTasks() {
   return useQuery({
     queryKey: ['tasks'],
     queryFn: async () => {
-      // In development, return mock data
-      if (process.env.NODE_ENV === 'development') {
-        return { tasks: mockTasks, total_count: mockTasks.length };
-      }
       const response = await taskAPI.list({ limit: 100, offset: 0 });
       return response.data;
     },
@@ -117,14 +113,6 @@ export function useTask(id: string) {
   return useQuery({
     queryKey: ['tasks', id],
     queryFn: async () => {
-      // In development, return mock data
-      if (process.env.NODE_ENV === 'development') {
-        const task = mockTasks.find(t => t.id === id);
-        if (!task) {
-          throw new Error('Task not found');
-        }
-        return task;
-      }
       const response = await taskAPI.getById(id);
       return response.data;
     },
@@ -143,6 +131,22 @@ export function useCreateTask() {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to create task');
+    },
+  });
+}
+
+export function useUpdateTask() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateTaskDTO> }) =>
+      taskAPI.update(id, data),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast.success(`Task updated! New priority: ${Math.round(response.data.priority_score)}`);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to update task');
     },
   });
 }
@@ -197,13 +201,10 @@ export function useAtRiskTasks() {
   return useQuery({
     queryKey: ['tasks', 'at-risk'],
     queryFn: async () => {
-      // In development, return mock at-risk tasks
-      if (process.env.NODE_ENV === 'development') {
-        const atRiskTasks = mockTasks.filter(t => t.bump_count >= 3);
-        return { tasks: atRiskTasks, count: atRiskTasks.length };
-      }
-      const response = await taskAPI.getAtRisk();
-      return response.data;
+      // Get all tasks and filter for at-risk ones
+      const response = await taskAPI.list({ limit: 100, offset: 0 });
+      const atRiskTasks = response.data.tasks.filter(t => t.bump_count >= 3);
+      return { tasks: atRiskTasks, count: atRiskTasks.length };
     },
   });
 }

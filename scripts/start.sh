@@ -22,6 +22,26 @@ if [ ! -f "backend/.env" ]; then
     exit 1
 fi
 
+# Check and kill processes on port 8080 (Backend)
+echo "[0/3] Checking ports..."
+if command -v lsof &> /dev/null; then
+    BACKEND_PID_ON_PORT=$(lsof -ti:8080 2>/dev/null)
+    if [ ! -z "$BACKEND_PID_ON_PORT" ]; then
+        echo "Killing process on port 8080 (PID: $BACKEND_PID_ON_PORT)..."
+        kill -9 $BACKEND_PID_ON_PORT 2>/dev/null
+    fi
+
+    # Check and kill processes on port 3000 (Frontend)
+    FRONTEND_PID_ON_PORT=$(lsof -ti:3000 2>/dev/null)
+    if [ ! -z "$FRONTEND_PID_ON_PORT" ]; then
+        echo "Killing process on port 3000 (PID: $FRONTEND_PID_ON_PORT)..."
+        kill -9 $FRONTEND_PID_ON_PORT 2>/dev/null
+    fi
+fi
+
+echo "Ports 8080 and 3000 are now available."
+echo ""
+
 # Cleanup function
 cleanup() {
     echo ""
