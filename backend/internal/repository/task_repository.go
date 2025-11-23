@@ -335,8 +335,18 @@ func (r *TaskRepository) FindByDateRange(ctx context.Context, userID string, fil
 
 	// Optional status filter
 	if len(filter.Status) > 0 {
-		query += fmt.Sprintf(" AND status = ANY($%d)", argNum)
-		args = append(args, filter.Status)
+		// Build OR conditions for each status
+		statusConditions := ""
+		for i, status := range filter.Status {
+			if i == 0 {
+				statusConditions = fmt.Sprintf("status = $%d", argNum)
+			} else {
+				statusConditions += fmt.Sprintf(" OR status = $%d", argNum)
+			}
+			args = append(args, status)
+			argNum++
+		}
+		query += fmt.Sprintf(" AND (%s)", statusConditions)
 	}
 
 	// Order by due date, then priority
