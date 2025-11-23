@@ -21,6 +21,30 @@ if not exist "backend\.env" (
     exit /b 1
 )
 
+REM Check and kill processes on port 8080 (Backend)
+echo [0/3] Checking ports...
+
+REM Kill backend port 8080
+netstat -ano | findstr ":8080" | findstr "LISTENING" > nul 2>&1
+if %errorlevel% equ 0 (
+    echo Found process on port 8080, killing...
+    for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8080" ^| findstr "LISTENING"') do (
+        taskkill /F /PID %%a >nul 2>&1
+    )
+)
+
+REM Kill frontend port 3000
+netstat -ano | findstr ":3000" | findstr "LISTENING" > nul 2>&1
+if %errorlevel% equ 0 (
+    echo Found process on port 3000, killing...
+    for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":3000" ^| findstr "LISTENING"') do (
+        taskkill /F /PID %%a >nul 2>&1
+    )
+)
+
+echo Ports 8080 and 3000 are now available.
+echo.
+
 echo [1/3] Starting Backend (Go + Supabase)...
 start "TaskFlow Backend" cmd /k "cd /d %CD%\backend && go run cmd/server/main.go"
 

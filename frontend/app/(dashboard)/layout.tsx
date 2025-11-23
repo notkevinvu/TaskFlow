@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { useEffect } from 'react';
 
 const navigation = [
@@ -65,10 +66,10 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden">
       {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
-        <div className="p-6 border-b border-gray-200 flex-shrink-0">
+      <div className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col flex-shrink-0">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
           <h1 className="text-2xl font-bold text-primary">TaskFlow</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Intelligent Prioritization
@@ -87,7 +88,7 @@ export default function DashboardLayout({
                   ${
                     isActive
                       ? 'bg-primary text-primary-foreground'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }
                 `}
               >
@@ -97,19 +98,22 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        <div className="p-4 border-t border-gray-200 flex-shrink-0">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
           <div className="mb-3">
             <p className="text-sm font-medium">{user.name}</p>
             <p className="text-xs text-muted-foreground">{user.email}</p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleLogout}
-            className="w-full"
-          >
-            Sign Out
-          </Button>
+          <div className="flex gap-2 mb-2">
+            <ThemeToggle />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              className="flex-1 transition-all hover:scale-105 hover:shadow-md cursor-pointer"
+            >
+              Sign Out
+            </Button>
+          </div>
         </div>
       </div>
 

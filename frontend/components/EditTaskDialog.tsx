@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useCreateTask } from '@/hooks/useTasks';
+import { useState, useEffect } from 'react';
+import { useUpdateTask } from '@/hooks/useTasks';
 import {
   Dialog,
   DialogContent,
@@ -21,23 +21,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Task } from '@/lib/api';
 
-interface CreateTaskDialogProps {
+interface EditTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  task: Task;
 }
 
-export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) {
-  const createTask = useCreateTask();
+export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps) {
+  const updateTask = useUpdateTask();
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: '',
-    estimated_effort: 'medium' as 'small' | 'medium' | 'large' | 'xlarge',
-    user_priority: 5,
-    due_date: '',
-    context: '',
+    title: task.title,
+    description: task.description || '',
+    category: task.category || '',
+    estimated_effort: task.estimated_effort || 'medium' as 'small' | 'medium' | 'large' | 'xlarge',
+    user_priority: task.user_priority,
+    due_date: task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
+    context: task.context || '',
   });
+
+  // Update form data when task changes
+  useEffect(() => {
+    if (task) {
+      setFormData({
+        title: task.title,
+        description: task.description || '',
+        category: task.category || '',
+        estimated_effort: task.estimated_effort || 'medium',
+        user_priority: task.user_priority,
+        due_date: task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
+        context: task.context || '',
+      });
+    }
+  }, [task]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,29 +65,22 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
         ? new Date(formData.due_date).toISOString()
         : undefined;
 
-      await createTask.mutateAsync({
-        title: formData.title,
-        description: formData.description || undefined,
-        category: formData.category || undefined,
-        estimated_effort: formData.estimated_effort,
-        user_priority: formData.user_priority,
-        due_date: dueDate,
-        context: formData.context || undefined,
+      await updateTask.mutateAsync({
+        id: task.id,
+        data: {
+          title: formData.title,
+          description: formData.description || undefined,
+          category: formData.category || undefined,
+          estimated_effort: formData.estimated_effort,
+          user_priority: formData.user_priority,
+          due_date: dueDate,
+          context: formData.context || undefined,
+        },
       });
 
-      // Reset form and close dialog
-      setFormData({
-        title: '',
-        description: '',
-        category: '',
-        estimated_effort: 'medium',
-        user_priority: 5,
-        due_date: '',
-        context: '',
-      });
       onOpenChange(false);
     } catch (error) {
-      console.error('Failed to create task:', error);
+      console.error('Failed to update task:', error);
     }
   };
 
@@ -79,9 +89,9 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
       <DialogContent className="sm:max-w-[525px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Create New Task</DialogTitle>
+            <DialogTitle>Edit Task</DialogTitle>
             <DialogDescription>
-              Add a new task to your list. The priority will be calculated automatically.
+              Update task details. Priority will be recalculated automatically.
             </DialogDescription>
           </DialogHeader>
 
@@ -193,12 +203,12 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={createTask.isPending}
+              disabled={updateTask.isPending}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={createTask.isPending || !formData.title}>
-              {createTask.isPending ? 'Creating...' : 'Create Task'}
+            <Button type="submit" disabled={updateTask.isPending || !formData.title}>
+              {updateTask.isPending ? 'Updating...' : 'Update Task'}
             </Button>
           </DialogFooter>
         </form>

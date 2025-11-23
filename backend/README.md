@@ -41,54 +41,46 @@ backend/
 ## Prerequisites
 
 - Go 1.23+
-- PostgreSQL 16
+- Supabase account (free tier available)
 - (Optional) golang-migrate for running migrations
-- (Optional) Docker & Docker Compose
 
 ## Quick Start
 
-### 1. Using Docker Compose (Recommended)
-
-```bash
-# From project root
-docker-compose up -d
-
-# Backend will be available at http://localhost:8080
-# PostgreSQL at localhost:5432
-# PgAdmin at http://localhost:5050
-```
-
-### 2. Local Development
-
-#### Install Dependencies
+### Install Dependencies
 
 ```bash
 cd backend
-make deps
+go mod download
 ```
 
-#### Set Up Environment
+### Set Up Environment
+
+1. **Create Supabase Project**
+   - Sign up at [supabase.com](https://supabase.com)
+   - Create a new project
+   - Get your database connection string from **Settings → Database**
+
+2. **Configure Backend**
+   ```bash
+   # Copy example env file
+   cp .env.example .env
+
+   # Edit .env and set your Supabase DATABASE_URL
+   # Also configure JWT_SECRET (min 32 characters)
+   ```
+
+### Run the Server
+
+Migrations run automatically on startup:
 
 ```bash
-# Copy example env file
-cp .env.example .env
+# Run directly
+go run cmd/server/main.go
 
-# Edit .env and configure your settings
-```
-
-#### Run Database Migrations
-
-```bash
-# Make sure PostgreSQL is running
-make migrate-up
-```
-
-#### Run the Server
-
-```bash
+# Or use make command
 make run
 
-# Or build and run
+# Or build and run binary
 make build
 ./bin/server
 ```
@@ -148,23 +140,18 @@ ALLOWED_ORIGINS=http://localhost:3000
 
 ## Database Migrations
 
-### Create New Migration
+Migrations are automatically applied when the backend starts. The migration files are in `migrations/`.
 
-```bash
-make migrate-create name=add_new_feature
-```
+**How it works:**
+- On startup, the server checks which migrations have been applied
+- Pending migrations are run in order
+- Migration status is logged to console
 
-### Run Migrations
+**Migration files:**
+- `001_init_schema.up.sql` - Creates users, tasks, task_history tables
+- `001_init_schema.down.sql` - Rollback script (if needed)
 
-```bash
-make migrate-up
-```
-
-### Rollback Migrations
-
-```bash
-make migrate-down
-```
+**Note:** Migrations only run once. The database tracks which migrations have been applied using the `schema_migrations` table.
 
 ## Testing
 
@@ -255,19 +242,26 @@ HTTP middleware:
 ### Database Connection Issues
 
 ```bash
-# Check PostgreSQL is running
-docker ps | grep postgres
+# Test Supabase connection
+psql "YOUR_SUPABASE_CONNECTION_STRING"
 
-# Test connection
-psql -h localhost -U taskflow_user -d taskflow
+# Verify connection in logs
+go run cmd/server/main.go
+# Look for "Connected to database" message
 ```
 
 ### Migration Errors
 
+Migrations run automatically on startup. Check the logs for migration status:
 ```bash
-# Reset database (CAUTION: deletes all data)
-make migrate-down
-make migrate-up
+go run cmd/server/main.go
+# Look for "Migration X applied successfully" messages
+```
+
+To manually verify your database schema:
+```bash
+psql "YOUR_SUPABASE_CONNECTION_STRING"
+\dt  # List tables - should see: users, tasks, task_history
 ```
 
 ### JWT Token Errors

@@ -1,22 +1,26 @@
 'use client';
 
 import { useState } from 'react';
-import { useTasks, useBumpTask, useCompleteTask, useAtRiskTasks } from '@/hooks/useTasks';
+import { useTasks, useBumpTask, useCompleteTask, useDeleteTask, useAtRiskTasks } from '@/hooks/useTasks';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TaskDetailsSidebar } from "@/components/TaskDetailsSidebar";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
-import { Plus } from "lucide-react";
+import { EditTaskDialog } from "@/components/EditTaskDialog";
+import { Plus, Trash2, Pencil } from "lucide-react";
+import { Task } from "@/lib/api";
 
 export default function DashboardPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const { data: tasksData, isLoading } = useTasks();
   const { data: atRiskData } = useAtRiskTasks();
   const bumpTask = useBumpTask();
   const completeTask = useCompleteTask();
+  const deleteTask = useDeleteTask();
 
   if (isLoading) {
     return (
@@ -59,7 +63,10 @@ export default function DashboardPage() {
               Tasks sorted by intelligent priority algorithm
             </p>
           </div>
-          <Button onClick={() => setCreateDialogOpen(true)}>
+          <Button
+            onClick={() => setCreateDialogOpen(true)}
+            className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
+          >
             <Plus className="mr-2 h-4 w-4" />
             Quick Add
           </Button>
@@ -181,9 +188,21 @@ export default function DashboardPage() {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
+                        setEditingTask(task);
+                      }}
+                      className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
                         bumpTask.mutate({ id: task.id });
                       }}
                       disabled={bumpTask.isPending}
+                      className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
                     >
                       Bump
                     </Button>
@@ -194,8 +213,26 @@ export default function DashboardPage() {
                         completeTask.mutate(task.id);
                       }}
                       disabled={completeTask.isPending}
+                      className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
                     >
                       Complete
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm('Are you sure you want to delete this task?')) {
+                          deleteTask.mutate(task.id);
+                          if (selectedTaskId === task.id) {
+                            setSelectedTaskId(null);
+                          }
+                        }
+                      }}
+                      disabled={deleteTask.isPending}
+                      className="transition-all hover:scale-105 hover:shadow-lg cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -219,6 +256,15 @@ export default function DashboardPage() {
       open={createDialogOpen}
       onOpenChange={setCreateDialogOpen}
     />
+
+    {/* Edit Task Dialog */}
+    {editingTask && (
+      <EditTaskDialog
+        open={!!editingTask}
+        onOpenChange={(open) => !open && setEditingTask(null)}
+        task={editingTask}
+      />
+    )}
   </div>
 );
 }

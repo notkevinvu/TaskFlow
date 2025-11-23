@@ -18,7 +18,9 @@ func NewCalculator() *Calculator {
 // Calculate computes the priority score for a task
 // Formula: (UserPriority × 0.4 + TimeDecay × 0.3 + DeadlineUrgency × 0.2 + BumpPenalty × 0.1) × EffortBoost
 func (calc *Calculator) Calculate(task *domain.Task) int {
-	userPriority := float64(task.UserPriority)
+	// Scale user priority from 1-10 to 0-100 for calculation
+	// 1 → 10, 5 → 50, 10 → 100
+	userPriority := float64(task.UserPriority * 10)
 	timeDecay := calc.calculateTimeDecay(task.CreatedAt)
 	deadlineUrgency := calc.calculateDeadlineUrgency(task.DueDate)
 	bumpPenalty := calc.calculateBumpPenalty(task.BumpCount)

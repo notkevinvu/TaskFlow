@@ -38,7 +38,7 @@ type Task struct {
 	Title           string     `json:"title"`
 	Description     *string    `json:"description,omitempty"`
 	Status          TaskStatus `json:"status"`
-	UserPriority    int        `json:"user_priority"`     // 0-100
+	UserPriority    int        `json:"user_priority"`     // 1-10
 	DueDate         *time.Time `json:"due_date,omitempty"`
 	EstimatedEffort *TaskEffort `json:"estimated_effort,omitempty"`
 	Category        *string    `json:"category,omitempty"`
@@ -55,7 +55,7 @@ type Task struct {
 type CreateTaskDTO struct {
 	Title           string      `json:"title" binding:"required,max=200"`
 	Description     *string     `json:"description,omitempty" binding:"omitempty,max=2000"`
-	UserPriority    *int        `json:"user_priority,omitempty" binding:"omitempty,min=0,max=100"`
+	UserPriority    *int        `json:"user_priority,omitempty" binding:"omitempty,min=1,max=10"`
 	DueDate         *time.Time  `json:"due_date,omitempty"`
 	EstimatedEffort *TaskEffort `json:"estimated_effort,omitempty"`
 	Category        *string     `json:"category,omitempty" binding:"omitempty,max=50"`
@@ -68,7 +68,7 @@ type UpdateTaskDTO struct {
 	Title           *string     `json:"title,omitempty" binding:"omitempty,max=200"`
 	Description     *string     `json:"description,omitempty" binding:"omitempty,max=2000"`
 	Status          *TaskStatus `json:"status,omitempty"`
-	UserPriority    *int        `json:"user_priority,omitempty" binding:"omitempty,min=0,max=100"`
+	UserPriority    *int        `json:"user_priority,omitempty" binding:"omitempty,min=1,max=10"`
 	DueDate         *time.Time  `json:"due_date,omitempty"`
 	EstimatedEffort *TaskEffort `json:"estimated_effort,omitempty"`
 	Category        *string     `json:"category,omitempty" binding:"omitempty,max=50"`
