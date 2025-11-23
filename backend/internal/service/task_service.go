@@ -259,6 +259,71 @@ func (s *TaskService) GetAtRiskTasks(ctx context.Context, userID string) ([]*dom
 	return s.taskRepo.FindAtRiskTasks(ctx, userID)
 }
 
+// GetCalendar retrieves tasks grouped by date for calendar view
+func (s *TaskService) GetCalendar(ctx context.Context, userID string, filter *domain.CalendarFilter) (*domain.CalendarResponse, error) {
+	// Fetch tasks in date range
+	tasks, err := s.taskRepo.FindByDateRange(ctx, userID, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Group tasks by date
+	dateMap := make(map[string]*domain.CalendarDayData)
+	for _, task := range tasks {
+		if task.DueDate == nil {
+			continue
+		}
+
+		// Format date as YYYY-MM-DD
+		dateKey := task.DueDate.Format("2006-01-02")
+
+		// Initialize day data if not exists
+		if _, exists := dateMap[dateKey]; !exists {
+			dateMap[dateKey] = &domain.CalendarDayData{
+				Count:      0,
+				BadgeColor: "blue",
+				Tasks:      []*domain.Task{},
+			}
+		}
+
+		// Add task to day
+		dateMap[dateKey].Tasks = append(dateMap[dateKey].Tasks, task)
+		dateMap[dateKey].Count++
+	}
+
+	// Calculate badge color for each day based on highest priority
+	for _, dayData := range dateMap {
+		dayData.BadgeColor = s.calculateBadgeColor(dayData.Tasks)
+	}
+
+	return &domain.CalendarResponse{
+		Dates: dateMap,
+	}, nil
+}
+
+// calculateBadgeColor determines badge color based on highest priority task
+func (s *TaskService) calculateBadgeColor(tasks []*domain.Task) string {
+	if len(tasks) == 0 {
+		return "blue"
+	}
+
+	maxPriority := 0
+	for _, task := range tasks {
+		if task.PriorityScore > maxPriority {
+			maxPriority = task.PriorityScore
+		}
+	}
+
+	// Color thresholds
+	if maxPriority >= 70 {
+		return "red"
+	}
+	if maxPriority >= 40 {
+		return "yellow"
+	}
+	return "blue"
+}
+
 // logHistory creates a history entry with full task data
 func (s *TaskService) logHistory(ctx context.Context, userID, taskID string, eventType domain.TaskHistoryEventType, oldTask, newTask *domain.Task) error {
 	var oldValue, newValue *string

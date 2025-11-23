@@ -90,6 +90,7 @@ func main() {
 		{
 			tasks.POST("", taskHandler.Create)
 			tasks.GET("", taskHandler.List)
+			tasks.GET("/calendar", taskHandler.GetCalendar)
 			tasks.GET("/:id", taskHandler.Get)
 			tasks.PUT("/:id", taskHandler.Update)
 			tasks.DELETE("/:id", taskHandler.Delete)

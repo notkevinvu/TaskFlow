@@ -156,24 +156,26 @@ When clicking a day with no tasks:
 
 ### Backend Tasks
 
-- [ ] Create calendar endpoint handler in `backend/internal/handler/task_handler.go`
-  - [ ] Add `GetTasksCalendar(c *gin.Context)` method
-  - [ ] Parse start_date and end_date query params
-  - [ ] Validate date range (max 90 days)
-  - [ ] Call service layer to fetch tasks
-- [ ] Implement service layer method in `backend/internal/service/task_service.go`
-  - [ ] Add `GetCalendarTasks(ctx, userID, startDate, endDate, status)` method
-  - [ ] Call repository to fetch tasks in date range
-  - [ ] Group tasks by due_date
-  - [ ] Calculate badge color for each date
-  - [ ] Format response structure
-- [ ] Add repository method in `backend/internal/repository/task_repository.go`
-  - [ ] Add `GetTasksByDateRange(ctx, userID, startDate, endDate)` query
-  - [ ] Use date range filter: `due_date >= $1 AND due_date <= $2`
-  - [ ] Order by due_date, calculated_priority DESC
-- [ ] Register route in `backend/cmd/server/main.go`
-  - [ ] Add route: `tasksGroup.GET("/calendar", taskHandler.GetTasksCalendar)`
-- [ ] Test endpoint with curl/Postman
+- [x] Create calendar endpoint handler in `backend/internal/handler/task_handler.go`
+  - [x] Add `GetCalendar(c *gin.Context)` method
+  - [x] Parse start_date and end_date query params
+  - [x] Validate date range (max 90 days)
+  - [x] Call service layer to fetch tasks
+- [x] Implement service layer method in `backend/internal/service/task_service.go`
+  - [x] Add `GetCalendar(ctx, userID, filter)` method
+  - [x] Call repository to fetch tasks in date range
+  - [x] Group tasks by due_date
+  - [x] Calculate badge color for each date
+  - [x] Format response structure
+- [x] Add repository method in `backend/internal/repository/task_repository.go`
+  - [x] Add `FindByDateRange(ctx, userID, filter)` query
+  - [x] Use date range filter: `due_date >= $1 AND due_date <= $2`
+  - [x] Order by due_date, calculated_priority DESC
+- [x] Register route in `backend/cmd/server/main.go`
+  - [x] Add route: `tasks.GET("/calendar", taskHandler.GetCalendar)`
+- [x] Add domain types (CalendarFilter, CalendarDayData, CalendarResponse, ParseDate)
+- [x] Build backend successfully (no compilation errors)
+- [ ] Test endpoint with curl/Postman (requires running server)
 
 ### Frontend Tasks
 
