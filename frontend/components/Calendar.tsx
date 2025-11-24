@@ -57,9 +57,9 @@ export function Calendar({ onDayClick }: CalendarProps) {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-3">
+    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-3 w-fit">
       {/* Month Navigation */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 gap-2">
         <button
           onClick={handlePreviousMonth}
           className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
@@ -68,8 +68,8 @@ export function Calendar({ onDayClick }: CalendarProps) {
           <ChevronLeft className="w-4 h-4" />
         </button>
 
-        <h3 className="text-sm font-semibold">
-          {format(currentMonth, 'MMMM yyyy')}
+        <h3 className="text-sm font-semibold whitespace-nowrap">
+          {format(currentMonth, 'MMM yyyy')}
         </h3>
 
         <button
@@ -87,14 +87,14 @@ export function Calendar({ onDayClick }: CalendarProps) {
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 dark:border-white"></div>
         </div>
       ) : (
-        <table className="w-full border-collapse">
+        <table className="border-collapse">
           {/* Day Headers */}
           <thead>
             <tr>
               {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
                 <th
                   key={i}
-                  className="text-[10px] font-medium text-gray-500 dark:text-gray-400 pb-1 text-center"
+                  className="text-[10px] font-medium text-gray-500 dark:text-gray-400 pb-1 text-center w-8"
                 >
                   {day}
                 </th>
