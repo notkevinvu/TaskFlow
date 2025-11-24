@@ -119,9 +119,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Calendar and Task List - Responsive Layout */}
-      <div className="grid grid-cols-1 xl:grid-cols-[auto,1fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[auto,1fr] gap-6">
         {/* Calendar */}
-        <div className="xl:sticky xl:top-6 xl:self-start xl:justify-self-start">
+        <div className="lg:sticky lg:top-6 lg:self-start lg:justify-self-start">
           <Calendar
             onDayClick={(date, dayData) => {
               // For now, just show console log
