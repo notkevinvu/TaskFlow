@@ -85,6 +85,25 @@ type TaskListFilter struct {
 	Offset   int
 }
 
+// CalendarFilter is used for filtering calendar tasks
+type CalendarFilter struct {
+	StartDate time.Time
+	EndDate   time.Time
+	Status    []TaskStatus // Optional: filter by status
+}
+
+// CalendarDayData represents tasks for a specific day
+type CalendarDayData struct {
+	Count      int     `json:"count"`
+	BadgeColor string  `json:"badge_color"` // "red", "yellow", or "blue"
+	Tasks      []*Task `json:"tasks"`
+}
+
+// CalendarResponse represents the calendar API response
+type CalendarResponse struct {
+	Dates map[string]*CalendarDayData `json:"dates"` // key format: "2025-11-23"
+}
+
 // Validate validates the task status
 func (s TaskStatus) Validate() error {
 	switch s {
@@ -119,4 +138,9 @@ func (e TaskEffort) GetEffortMultiplier() float64 {
 	default:
 		return 1.0
 	}
+}
+
+// ParseDate parses a date string in YYYY-MM-DD format
+func ParseDate(dateStr string) (time.Time, error) {
+	return time.Parse("2006-01-02", dateStr)
 }

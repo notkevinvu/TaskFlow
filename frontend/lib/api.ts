@@ -60,6 +60,17 @@ export interface Task {
   completed_at?: string;
 }
 
+// Calendar Types
+export interface CalendarDayData {
+  count: number;
+  badge_color: 'red' | 'yellow' | 'blue';
+  tasks: Task[];
+}
+
+export interface CalendarResponse {
+  dates: Record<string, CalendarDayData>; // key format: "2025-11-23"
+}
+
 // Task API
 export const taskAPI = {
   // Create a new task
@@ -93,4 +104,12 @@ export const taskAPI = {
   // Get at-risk tasks (bumped 3+ times)
   getAtRisk: () =>
     api.get<{ tasks: Task[]; count: number }>('/api/v1/tasks/at-risk'),
+
+  // Get calendar data for date range
+  getCalendar: (params: {
+    start_date: string; // YYYY-MM-DD format
+    end_date: string;   // YYYY-MM-DD format
+    status?: string;    // Optional: comma-separated statuses (e.g., "todo,in_progress")
+  }) =>
+    api.get<CalendarResponse>('/api/v1/tasks/calendar', { params }),
 };

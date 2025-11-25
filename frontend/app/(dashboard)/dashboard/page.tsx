@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTasks, useBumpTask, useCompleteTask, useDeleteTask, useAtRiskTasks } from '@/hooks/useTasks';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { Plus, Trash2, Pencil } from "lucide-react";
 import { Task } from "@/lib/api";
 
 export default function DashboardPage() {
+  const searchParams = useSearchParams();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -21,6 +23,14 @@ export default function DashboardPage() {
   const bumpTask = useBumpTask();
   const completeTask = useCompleteTask();
   const deleteTask = useDeleteTask();
+
+  // Read taskId from URL query params
+  useEffect(() => {
+    const taskId = searchParams.get('taskId');
+    if (taskId) {
+      setSelectedTaskId(taskId);
+    }
+  }, [searchParams]);
 
   if (isLoading) {
     return (
@@ -119,17 +129,17 @@ export default function DashboardPage() {
 
       {/* Task List */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Your Tasks</h3>
-        {tasks.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <p className="text-muted-foreground">
-                No tasks yet. Create your first task to get started!
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          tasks.map((task) => (
+          <h3 className="text-lg font-semibold">Your Tasks</h3>
+          {tasks.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <p className="text-muted-foreground">
+                  No tasks yet. Create your first task to get started!
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            tasks.map((task) => (
             <Card
               key={task.id}
               className="hover:shadow-md transition-shadow cursor-pointer"
@@ -239,8 +249,8 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           ))
-        )}
-      </div>
+          )}
+        </div>
     </div>
 
     {/* Task Details Sidebar */}

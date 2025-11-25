@@ -5,7 +5,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { useEffect } from 'react';
+import { Calendar } from '@/components/Calendar';
+import { CreateTaskDialog } from '@/components/CreateTaskDialog';
+import { useEffect, useState } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard' },
@@ -20,6 +22,8 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, checkAuth, setMockUser } = useAuth();
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [initialDueDate, setInitialDueDate] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     // Development mode: Auto-login with mock user
@@ -68,7 +72,7 @@ export default function DashboardLayout({
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden">
       {/* Sidebar */}
-      <div className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col flex-shrink-0">
+      <div className="w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col flex-shrink-0">
         <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
           <h1 className="text-2xl font-bold text-primary">TaskFlow</h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -76,7 +80,7 @@ export default function DashboardLayout({
           </p>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        <nav className="p-4 space-y-2 flex-shrink-0">
           {navigation.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -97,6 +101,23 @@ export default function DashboardLayout({
             );
           })}
         </nav>
+
+        {/* Spacer */}
+        <div className="flex-1"></div>
+
+        {/* Calendar */}
+        <div className="px-4 pb-4 flex-shrink-0">
+          <Calendar
+            onTaskClick={(taskId) => {
+              // Navigate to dashboard with task selected
+              router.push(`/dashboard?taskId=${taskId}`);
+            }}
+            onCreateTask={(dueDate) => {
+              setInitialDueDate(dueDate);
+              setCreateDialogOpen(true);
+            }}
+          />
+        </div>
 
         <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
           <div className="mb-3">
@@ -123,6 +144,16 @@ export default function DashboardLayout({
           {children}
         </div>
       </main>
+
+      {/* Create Task Dialog */}
+      <CreateTaskDialog
+        open={createDialogOpen}
+        onOpenChange={(open) => {
+          setCreateDialogOpen(open);
+          if (!open) setInitialDueDate(undefined);
+        }}
+        initialDueDate={initialDueDate}
+      />
     </div>
   );
 }

@@ -317,3 +317,73 @@ func (r *TaskRepository) GetCategories(ctx context.Context, userID string) ([]st
 
 	return categories, rows.Err()
 }
+
+// FindByDateRange retrieves tasks within a date range
+func (r *TaskRepository) FindByDateRange(ctx context.Context, userID string, filter *domain.CalendarFilter) ([]*domain.Task, error) {
+	query := `
+		SELECT id, user_id, title, description, status, user_priority,
+			   due_date, estimated_effort, category, context, related_people,
+			   priority_score, bump_count, created_at, updated_at, completed_at
+		FROM tasks
+		WHERE user_id = $1
+		  AND due_date IS NOT NULL
+		  AND due_date >= $2
+		  AND due_date <= $3
+	`
+	args := []interface{}{userID, filter.StartDate, filter.EndDate}
+	argNum := 4
+
+	// Optional status filter
+	if len(filter.Status) > 0 {
+		// Build OR conditions for each status
+		statusConditions := ""
+		for i, status := range filter.Status {
+			if i == 0 {
+				statusConditions = fmt.Sprintf("status = $%d", argNum)
+			} else {
+				statusConditions += fmt.Sprintf(" OR status = $%d", argNum)
+			}
+			args = append(args, status)
+			argNum++
+		}
+		query += fmt.Sprintf(" AND (%s)", statusConditions)
+	}
+
+	// Order by due date, then priority
+	query += " ORDER BY due_date ASC, priority_score DESC"
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tasks []*domain.Task
+	for rows.Next() {
+		var task domain.Task
+		err := rows.Scan(
+			&task.ID,
+			&task.UserID,
+			&task.Title,
+			&task.Description,
+			&task.Status,
+			&task.UserPriority,
+			&task.DueDate,
+			&task.EstimatedEffort,
+			&task.Category,
+			&task.Context,
+			&task.RelatedPeople,
+			&task.PriorityScore,
+			&task.BumpCount,
+			&task.CreatedAt,
+			&task.UpdatedAt,
+			&task.CompletedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, &task)
+	}
+
+	return tasks, rows.Err()
+}
