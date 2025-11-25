@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCreateTask } from '@/hooks/useTasks';
 import {
   Dialog,
@@ -25,9 +25,10 @@ import {
 interface CreateTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialDueDate?: string; // YYYY-MM-DD format
 }
 
-export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) {
+export function CreateTaskDialog({ open, onOpenChange, initialDueDate }: CreateTaskDialogProps) {
   const createTask = useCreateTask();
   const [formData, setFormData] = useState({
     title: '',
@@ -35,9 +36,16 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
     category: '',
     estimated_effort: 'medium' as 'small' | 'medium' | 'large' | 'xlarge',
     user_priority: 5,
-    due_date: '',
+    due_date: initialDueDate || '',
     context: '',
   });
+
+  // Update due_date when initialDueDate changes or dialog opens
+  useEffect(() => {
+    if (open && initialDueDate) {
+      setFormData(prev => ({ ...prev, due_date: initialDueDate }));
+    }
+  }, [open, initialDueDate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

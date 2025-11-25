@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTasks, useBumpTask, useCompleteTask, useDeleteTask, useAtRiskTasks } from '@/hooks/useTasks';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,11 +10,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TaskDetailsSidebar } from "@/components/TaskDetailsSidebar";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { EditTaskDialog } from "@/components/EditTaskDialog";
-import { Calendar } from "@/components/Calendar";
 import { Plus, Trash2, Pencil } from "lucide-react";
-import { Task, CalendarDayData } from "@/lib/api";
+import { Task } from "@/lib/api";
 
 export default function DashboardPage() {
+  const searchParams = useSearchParams();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -22,6 +23,14 @@ export default function DashboardPage() {
   const bumpTask = useBumpTask();
   const completeTask = useCompleteTask();
   const deleteTask = useDeleteTask();
+
+  // Read taskId from URL query params
+  useEffect(() => {
+    const taskId = searchParams.get('taskId');
+    if (taskId) {
+      setSelectedTaskId(taskId);
+    }
+  }, [searchParams]);
 
   if (isLoading) {
     return (
@@ -118,21 +127,8 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Calendar and Task List - Responsive Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-[auto,1fr] gap-6">
-        {/* Calendar */}
-        <div className="lg:sticky lg:top-6 lg:self-start lg:justify-self-start">
-          <Calendar
-            onDayClick={(date, dayData) => {
-              // For now, just show console log
-              // Later we'll add popover/dialog here
-              console.log('Day clicked:', date, dayData);
-            }}
-          />
-        </div>
-
-        {/* Task List */}
-        <div className="space-y-4">
+      {/* Task List */}
+      <div className="space-y-4">
           <h3 className="text-lg font-semibold">Your Tasks</h3>
           {tasks.length === 0 ? (
             <Card>
@@ -255,7 +251,6 @@ export default function DashboardPage() {
           ))
           )}
         </div>
-      </div>
     </div>
 
     {/* Task Details Sidebar */}
