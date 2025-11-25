@@ -111,6 +111,7 @@ Phase 4: Advanced Features             [░░░░░░░░░░░░░�
 
 **Deferred features awaiting Phase 3 completion:**
 
+- **Anonymous user support** (Phase 3.5 or early Phase 4) - Allow trial without registration
 - Background jobs & workers
 - Advanced analytics (ML predictions)
 - Performance optimization

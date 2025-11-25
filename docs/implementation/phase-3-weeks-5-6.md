@@ -753,3 +753,78 @@ jobs:
 - Performance optimization
 - Kubernetes deployment
 - Monitoring & alerting (Prometheus, Grafana)
+
+---
+
+## Deferred Feature: Anonymous User Support
+
+**Added:** 2025-11-25
+**Priority:** Medium (Phase 3.5 or Phase 4)
+**Effort:** ~3-5 days
+
+### Goal
+Allow users to try TaskFlow without registering, then optionally create an account to save their data.
+
+### Research Summary
+
+**Recommended Approach:** Cookie-based anonymous sessions with database records
+
+**Architecture:**
+```
+1. User visits site → Backend creates anonymous user + secure cookie
+2. Tasks are created normally, belong to anonymous user
+3. User registers → Migrate all anonymous tasks to new registered account
+4. Cleanup job deletes old anonymous users after 30 days
+```
+
+**Database Changes:**
+```sql
+-- Migration: Add anonymous user support
+ALTER TABLE users ADD COLUMN is_anonymous BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN anonymous_expires_at TIMESTAMPTZ;
+CREATE INDEX idx_users_anonymous ON users(is_anonymous, anonymous_expires_at);
+```
+
+**Backend Implementation:**
+- [ ] Add anonymous session middleware (create cookie if not present)
+- [ ] Create anonymous user endpoint (auto-called by middleware)
+- [ ] Add `POST /auth/convert-anonymous` endpoint (migrate data on registration)
+- [ ] Add cleanup job to delete expired anonymous users (30 days)
+- [ ] Cookie configuration: httpOnly, Secure, SameSite=Strict
+
+**Frontend Implementation:**
+- [ ] Show "Create account to save your tasks" banner for anonymous users
+- [ ] Handle anonymous → registered conversion flow
+- [ ] No other changes needed (cookies handled automatically)
+
+**Security Considerations:**
+- [ ] Cookie must be httpOnly (prevent XSS)
+- [ ] Cookie must be Secure in production (HTTPS only)
+- [ ] Rate limit anonymous user creation (prevent abuse)
+- [ ] Set cookie expiry (30 days)
+- [ ] Clean up old anonymous users regularly
+
+**Testing:**
+- [ ] Test anonymous user creation
+- [ ] Test task creation as anonymous user
+- [ ] Test registration + data migration
+- [ ] Test cookie persistence across sessions
+- [ ] Test cleanup job
+
+**Notes:**
+- Defer until Phase 3.5 or Phase 4
+- Requires cookie middleware (not currently implemented)
+- Consider privacy implications (GDPR, data retention)
+- May need "Export data" feature for anonymous users
+
+---
+
+**Updated:** Phase ordering adjusted to include anonymous support
+
+**Next Phase:** Advanced features and optimization (Phase 4)
+- Anonymous user support (Phase 3.5 or early Phase 4)
+- Background jobs & workers
+- Advanced analytics
+- Performance optimization
+- Kubernetes deployment
+- Monitoring & alerting (Prometheus, Grafana)

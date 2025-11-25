@@ -51,10 +51,12 @@
 
 #### Morning: Security & Positioning
 **Tasks:**
-- [ ] **Security Fix:** Remove JWT_SECRET defaults in `backend/internal/config/config.go`
-  - [ ] Make JWT_SECRET required (panic if missing)
-  - [ ] Update `.env.example` with clear documentation
-  - [ ] Test that backend crashes on missing secret
+- [x] **Security Fix:** Remove JWT_SECRET defaults in `backend/internal/config/config.go`
+  - [x] Make JWT_SECRET required (panic if missing)
+  - [x] Update `.env.example` with clear documentation
+  - [x] Test that backend crashes on missing secret
+  - [x] Also made DATABASE_URL required
+  - [x] Added comprehensive unit tests
 
 - [ ] **Calendar Popover Fix:** Improve positioning
   - [ ] Update `frontend/components/calendar/MiniCalendar.tsx` (or relevant component)
