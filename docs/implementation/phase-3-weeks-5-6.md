@@ -1,20 +1,109 @@
-# Phase 3: Testing, Observability & Production Ready (Weeks 5-6)
+# Phase 3: Production Readiness & Infrastructure (Weeks 5-6)
 
-**Goal:** Add testing, logging, monitoring, and production-ready features.
+**Goal:** Harden the application for production deployment with comprehensive testing, observability, and scalability improvements.
 
-**By the end of this phase:**
-- ✅ Unit and integration tests
+**Prerequisites:** Complete Phase 2.5 (Quick Wins + Core Features Sprint)
+
+**By the end of this phase, you will have:**
+- ✅ Comprehensive test coverage (unit + integration)
 - ✅ Structured logging with slog
-- ✅ Error handling patterns
-- ✅ Docker multi-stage builds
+- ✅ Production-grade error handling
+- ✅ Multi-stage Docker builds for efficient deployment
+- ✅ Interface-based dependency injection (testable architecture)
+- ✅ Redis-backed rate limiting (scalable)
+- ✅ Health check endpoints
 - ✅ Environment-based configuration
-- ✅ Basic observability setup
+- ✅ CI/CD pipeline (GitHub Actions)
+
+**What you're building:** A production-grade backend that can scale to multiple instances, with comprehensive testing and observability.
 
 ---
 
-## Week 5: Testing
+## Current Status Checklist
 
-### Backend Testing
+### ✅ Completed (Phase 1 & 2)
+- [x] Next.js + React frontend
+- [x] Go backend with Clean Architecture
+- [x] PostgreSQL database with Supabase
+- [x] JWT authentication
+- [x] Priority calculation algorithm
+- [x] Bump tracking system
+- [x] Dark mode support
+- [x] Calendar widget
+
+### ✅ Completed (Phase 2.5)
+- [ ] JWT_SECRET security fix
+- [ ] Calendar popover positioning
+- [ ] Categories dropdown
+- [ ] Search & filtering
+- [ ] Analytics dashboard with charts
+- [ ] Design system documentation
+
+---
+
+## Implementation Roadmap
+
+### Priority 1: Critical Backend Fixes (From Architecture Analysis)
+*Reference: `docs/architecture/backend-analysis-report.md`*
+
+- [ ] **Interface-based Dependency Injection** (testability improvement)
+- [ ] **Redis Rate Limiting Migration** (scalability fix)
+- [ ] **Structured Logging with slog** (observability)
+
+### Priority 2: Testing Infrastructure
+- [ ] Backend unit tests (services, priority calculator)
+- [ ] Backend integration tests (repositories with testcontainers)
+- [ ] Frontend component tests
+- [ ] Coverage reporting
+
+### Priority 3: Production Infrastructure
+- [ ] Multi-stage Docker builds
+- [ ] Docker Compose production config
+- [ ] Health check endpoints
+- [ ] CI/CD pipeline (GitHub Actions)
+
+---
+
+## Week 5: Backend Hardening & Testing
+
+### Day 1-2: Interface-Based Dependency Injection
+
+**Goal:** Refactor constructors to accept interfaces instead of concrete types, enabling proper unit testing with mocks.
+
+**Current Issue:**
+```go
+// handlers currently depend on concrete service types
+func NewTaskHandler(s *TaskService) *TaskHandler
+// Makes unit testing handlers impossible without real services
+```
+
+**Solution:**
+```go
+// handlers depend on service interfaces
+type TaskService interface {
+    Create(ctx context.Context, userID uuid.UUID, req *CreateTaskRequest) (*Task, error)
+    // ... other methods
+}
+func NewTaskHandler(s TaskService) *TaskHandler
+```
+
+**Tasks:**
+- [ ] Create service interfaces in `internal/ports/services.go` (may already exist)
+- [ ] Update handler constructors to accept interfaces
+- [ ] Update service constructors to accept repository interfaces
+- [ ] Update `cmd/server/main.go` to wire dependencies
+- [ ] Verify app still compiles and runs
+
+**Checklist:**
+- [ ] `internal/handler/task_handler.go` uses `ports.TaskService` interface
+- [ ] `internal/handler/auth_handler.go` uses `ports.AuthService` interface
+- [ ] `internal/service/task_service.go` uses `ports.TaskRepository` interface
+- [ ] `internal/service/auth_service.go` uses `ports.UserRepository` interface
+- [ ] All tests pass (if any exist)
+
+---
+
+### Day 3-4: Backend Testing Infrastructure
 
 **Install Testing Dependencies:**
 
@@ -25,7 +114,23 @@ go get github.com/testcontainers/testcontainers-go
 go get github.com/testcontainers/testcontainers-go/modules/postgres
 ```
 
-**Unit Test Example (`internal/services/auth_service_test.go`):**
+**Tasks:**
+- [ ] Create mock implementations of interfaces using testify/mock
+- [ ] Write unit tests for `PriorityService` (algorithm testing)
+- [ ] Write unit tests for `TaskService` (business logic)
+- [ ] Write unit tests for `AuthService` (authentication logic)
+- [ ] Write integration tests for repositories using testcontainers
+- [ ] Configure test coverage reporting
+
+**Checklist:**
+- [ ] `internal/service/priority_service_test.go` created with test cases
+- [ ] `internal/service/task_service_test.go` created with mocks
+- [ ] `internal/service/auth_service_test.go` created with mocks
+- [ ] `internal/repository/task_repository_test.go` integration tests
+- [ ] Test coverage > 70% on services
+- [ ] All tests pass: `go test ./internal/...`
+
+**Unit Test Example (`internal/service/auth_service_test.go`):**
 
 ```go
 package services
@@ -201,9 +306,108 @@ describe('Button', () => {
 
 ---
 
-## Week 6: Observability & Production
+## Week 6: Observability & Production Infrastructure
 
-### Structured Logging
+### Day 1-2: Redis Rate Limiting Migration
+
+**Current Issue:** In-memory rate limiter (`pkg/middleware/rate_limit.go`) uses a Go map that doesn't scale across multiple server instances.
+
+**Goal:** Migrate to Redis-backed rate limiting for horizontal scalability.
+
+**Tasks:**
+- [ ] Add Redis to `docker-compose.yml`
+- [ ] Install Redis client: `go get github.com/redis/go-redis/v9`
+- [ ] Create `pkg/ratelimit/redis_limiter.go`
+- [ ] Update rate limit middleware to use Redis
+- [ ] Test with multiple requests
+- [ ] Update configuration for Redis URL
+
+**Checklist:**
+- [ ] Redis container running in docker-compose
+- [ ] Rate limiter uses Redis instead of memory
+- [ ] Rate limits persist across server restarts
+- [ ] Multiple instances share same rate limit counters
+- [ ] Graceful fallback if Redis is unavailable (optional)
+
+**Add to `docker-compose.yml`:**
+```yaml
+redis:
+  image: redis:7-alpine
+  ports:
+    - "6379:6379"
+  volumes:
+    - redis_data:/data
+  healthcheck:
+    test: ["CMD", "redis-cli", "ping"]
+    interval: 5s
+    timeout: 3s
+    retries: 5
+
+volumes:
+  redis_data:
+```
+
+**Example Redis Rate Limiter:**
+```go
+package ratelimit
+
+import (
+    "context"
+    "fmt"
+    "time"
+    "github.com/redis/go-redis/v9"
+)
+
+type RedisLimiter struct {
+    client *redis.Client
+}
+
+func NewRedisLimiter(redisURL string) *RedisLimiter {
+    client := redis.NewClient(&redis.Options{
+        Addr: redisURL,
+    })
+    return &RedisLimiter{client: client}
+}
+
+func (l *RedisLimiter) Allow(key string, limit int, window time.Duration) (bool, error) {
+    ctx := context.Background()
+
+    // Increment counter
+    count, err := l.client.Incr(ctx, key).Result()
+    if err != nil {
+        return false, err
+    }
+
+    // Set expiry on first request
+    if count == 1 {
+        l.client.Expire(ctx, key, window)
+    }
+
+    return count <= int64(limit), nil
+}
+```
+
+---
+
+### Day 3-4: Structured Logging with slog
+
+**Goal:** Replace `log.Println` with structured logging using Go's built-in `slog` package for better observability.
+
+**Tasks:**
+- [ ] Create `pkg/logger/logger.go` with slog configuration
+- [ ] Add logger to handlers (inject via constructor)
+- [ ] Replace all `log.Println` calls with `logger.Info/Error/Debug`
+- [ ] Add request logging middleware
+- [ ] Configure JSON logging for production
+- [ ] Test log output locally and verify JSON format
+
+**Checklist:**
+- [ ] `pkg/logger/logger.go` created
+- [ ] All handlers accept logger in constructor
+- [ ] No more `log.Println` in codebase
+- [ ] Request logging middleware logs all requests
+- [ ] JSON logs in production, text logs in development
+- [ ] Logs include structured fields (user_id, request_id, etc.)
 
 **Update Backend Logger (`pkg/logger/logger.go`):**
 
@@ -232,7 +436,7 @@ func New(env string) *slog.Logger {
 }
 ```
 
-**Use in Handlers:**
+**Update Handlers to Accept Logger:**
 
 ```go
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -423,13 +627,129 @@ router.GET("/health", func(c *gin.Context) {
 
 ---
 
+### Day 5-6: CI/CD Pipeline & Final Polish
+
+**Goal:** Automate testing and deployment with GitHub Actions.
+
+**Tasks:**
+- [ ] Create `.github/workflows/test.yml` for automated testing
+- [ ] Create `.github/workflows/deploy.yml` for deployment
+- [ ] Configure test coverage reporting
+- [ ] Add build status badge to README
+- [ ] Final testing pass of all features
+
+**Checklist:**
+- [ ] GitHub Actions workflow runs tests on PR
+- [ ] Tests must pass before merge
+- [ ] Coverage report generated and uploaded
+- [ ] All Phase 3 features working end-to-end
+
+**Example GitHub Actions Workflow (`.github/workflows/test.yml`):**
+```yaml
+name: Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      - name: Run tests
+        working-directory: ./backend
+        run: |
+          go test ./... -v -coverprofile=coverage.out
+          go tool cover -func=coverage.out
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+      - name: Run tests
+        working-directory: ./frontend
+        run: npm test
+```
+
+---
+
+## Phase 3 Completion Checklist
+
+### Backend Architecture
+- [ ] Interface-based DI implemented
+- [ ] All constructors accept interfaces
+- [ ] Codebase compiles and runs with new architecture
+
+### Testing
+- [ ] Priority service unit tests written
+- [ ] Task service unit tests with mocks
+- [ ] Auth service unit tests with mocks
+- [ ] Repository integration tests with testcontainers
+- [ ] Frontend component tests configured
+- [ ] Test coverage > 70% on backend services
+- [ ] All tests passing
+
+### Observability
+- [ ] Structured logging with slog implemented
+- [ ] All `log.Println` replaced with structured logs
+- [ ] Request logging middleware added
+- [ ] JSON logs in production mode
+- [ ] Error handling middleware added
+
+### Scalability
+- [ ] Redis rate limiting implemented
+- [ ] In-memory rate limiter removed
+- [ ] Rate limits work across multiple instances
+
+### Production Infrastructure
+- [ ] Multi-stage Docker builds created
+- [ ] Production docker-compose configured
+- [ ] Health check endpoints implemented
+- [ ] Redis integrated for rate limiting
+- [ ] Environment variables properly configured
+
+### CI/CD
+- [ ] GitHub Actions workflow for testing
+- [ ] Tests run automatically on PR
+- [ ] Build status visible in README
+
+---
+
 ## Summary
 
-**You've added:**
-- ✅ Unit and integration tests
-- ✅ Structured logging
-- ✅ Error handling
-- ✅ Production Docker builds
-- ✅ Health checks
+**Phase 3 Achievements:**
 
-**Next:** Advanced features and scaling (Phase 4)!
+1. **Testability:** Refactored to interface-based DI, enabling proper unit testing
+2. **Test Coverage:** >70% coverage on business logic with unit and integration tests
+3. **Observability:** Structured logging with slog, request/error logging middleware
+4. **Scalability:** Redis rate limiting for horizontal scaling
+5. **Production Ready:** Docker builds, health checks, proper configuration
+6. **Automation:** CI/CD pipeline for continuous testing
+
+**Production Readiness Score:** 8/10
+- ✅ Horizontal scalability (Redis)
+- ✅ Observability (structured logs)
+- ✅ Testing (automated tests)
+- ✅ Security (JWT enforcement from Phase 2.5)
+- ✅ Containerization (Docker)
+- ⚠️  Monitoring/Alerting (defer to Phase 4)
+- ⚠️  Distributed tracing (defer to Phase 4)
+
+**Next Phase:** Advanced features and optimization (Phase 4)
+- Background jobs & workers
+- Advanced analytics
+- Performance optimization
+- Kubernetes deployment
+- Monitoring & alerting (Prometheus, Grafana)

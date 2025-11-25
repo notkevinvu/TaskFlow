@@ -18,12 +18,13 @@ type Config struct {
 }
 
 // Load reads configuration from environment variables
+// Panics if required environment variables are missing
 func Load() *Config {
 	return &Config{
 		Port:            getEnv("PORT", "8080"),
 		GinMode:         getEnv("GIN_MODE", "debug"),
-		DatabaseURL:     getEnv("DATABASE_URL", "postgres://taskflow_user:taskflow_dev_password@localhost:5432/taskflow?sslmode=disable"),
-		JWTSecret:       getEnv("JWT_SECRET", "your-super-secret-jwt-key-change-this-in-production-minimum-32-characters"),
+		DatabaseURL:     getEnvRequired("DATABASE_URL"),
+		JWTSecret:       getEnvRequired("JWT_SECRET"),
 		JWTExpiryHours:  getEnvAsInt("JWT_EXPIRY_HOURS", 24),
 		RateLimitRPM:    getEnvAsInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 100),
 		AllowedOrigins:  getEnvAsSlice("ALLOWED_ORIGINS", []string{"http://localhost:3000"}),
@@ -51,4 +52,14 @@ func getEnvAsSlice(key string, defaultValue []string) []string {
 		return defaultValue
 	}
 	return strings.Split(valueStr, ",")
+}
+
+// getEnvRequired gets an environment variable or panics if not set
+// Use this for critical configuration that should prevent app startup if missing
+func getEnvRequired(key string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		panic("FATAL: Required environment variable " + key + " is not set. Application cannot start.")
+	}
+	return value
 }
