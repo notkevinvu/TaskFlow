@@ -57,14 +57,47 @@
 - [ ] Backend unit tests (services, priority calculator, handlers)
 - [ ] Backend integration tests (repositories with testcontainers)
 - [ ] Category handler tests (rename, delete, validation)
+- [ ] **Search & filter tests** (Phase 2.5 follow-up):
+  - [ ] Backend: Filter combination tests (search + category + priority)
+  - [ ] Backend: Edge case tests (min_priority > max_priority, invalid dates)
+  - [ ] Frontend: Debounce behavior tests
+  - [ ] Frontend: Filter chip removal tests
+  - [ ] E2E: Search → filter → clear flow
 - [ ] Frontend component tests
 - [ ] Coverage reporting and enforcement (target >80%)
 
-### Priority 3: Production Infrastructure
+### Priority 3: Production Infrastructure & Database Optimization
+- [ ] **Database indexes for search performance** (Phase 2.5 follow-up):
+  - [ ] `CREATE INDEX idx_tasks_priority_score ON tasks(priority_score)`
+  - [ ] `CREATE INDEX idx_tasks_due_date ON tasks(due_date)`
+  - [ ] `CREATE INDEX idx_tasks_category ON tasks(category)`
+  - [ ] Verify query performance with EXPLAIN ANALYZE
 - [ ] Multi-stage Docker builds
 - [ ] Docker Compose production config
 - [ ] Health check endpoints
 - [ ] CI/CD pipeline (GitHub Actions)
+
+### Priority 4: Search & Filter Enhancements (Phase 2.5 follow-up)
+- [ ] **Date range picker UI** for due date filtering
+  - [ ] Install date picker library (e.g., `react-day-picker` already installed)
+  - [ ] Create DateRangePicker component
+  - [ ] Add to TaskFilters component
+  - [ ] Wire up to backend `due_date_start` and `due_date_end` params
+- [ ] **Filter presets** for common queries
+  - [ ] "High Priority" preset (priority >= 75)
+  - [ ] "Due This Week" preset (due_date_start = today, due_date_end = +7 days)
+  - [ ] "At Risk" preset (bump_count >= 3)
+  - [ ] "Quick Wins" preset (effort = small, bump_count = 0)
+  - [ ] Add preset dropdown to TaskFilters
+- [ ] **Filter URL persistence** for shareable links
+  - [ ] Sync filters to URL query params
+  - [ ] Parse URL params on page load
+  - [ ] Update URL without page reload (Next.js router)
+- [ ] **Saved searches** (optional)
+  - [ ] Save custom filter combinations
+  - [ ] Backend endpoint to store user searches
+  - [ ] Quick access dropdown
+
 
 ---
 

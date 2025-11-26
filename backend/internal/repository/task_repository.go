@@ -118,6 +118,30 @@ func (r *TaskRepository) List(ctx context.Context, userID string, filter *domain
 		argNum++
 	}
 
+	if filter.MinPriority != nil {
+		query += fmt.Sprintf(" AND priority_score >= $%d", argNum)
+		args = append(args, *filter.MinPriority)
+		argNum++
+	}
+
+	if filter.MaxPriority != nil {
+		query += fmt.Sprintf(" AND priority_score <= $%d", argNum)
+		args = append(args, *filter.MaxPriority)
+		argNum++
+	}
+
+	if filter.DueDateStart != nil {
+		query += fmt.Sprintf(" AND due_date >= $%d", argNum)
+		args = append(args, *filter.DueDateStart)
+		argNum++
+	}
+
+	if filter.DueDateEnd != nil {
+		query += fmt.Sprintf(" AND due_date <= $%d", argNum)
+		args = append(args, *filter.DueDateEnd)
+		argNum++
+	}
+
 	// Order by priority score descending
 	query += " ORDER BY priority_score DESC, created_at DESC"
 

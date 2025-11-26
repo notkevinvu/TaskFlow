@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useTasks, useBumpTask, useCompleteTask, useDeleteTask, useAtRiskTasks } from '@/hooks/useTasks';
+import { useTasks, useBumpTask, useCompleteTask, useDeleteTask, useAtRiskTasks, type TaskFilters as TaskFiltersType } from '@/hooks/useTasks';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,9 @@ import { TaskDetailsSidebar } from "@/components/TaskDetailsSidebar";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { EditTaskDialog } from "@/components/EditTaskDialog";
 import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
-import { Plus, Trash2, Pencil, FolderKanban } from "lucide-react";
+import { TaskSearch } from "@/components/TaskSearch";
+import { TaskFilters, type TaskFilterState } from "@/components/TaskFilters";
+import { Plus, Trash2, Pencil, FolderKanban, Loader2 } from "lucide-react";
 import { Task } from "@/lib/api";
 
 export default function DashboardPage() {
@@ -20,7 +22,19 @@ export default function DashboardPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const { data: tasksData, isLoading } = useTasks();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState<TaskFilterState>({});
+
+  // Build filter params for API
+  const filterParams: TaskFiltersType = {
+    search: searchQuery || undefined,
+    status: filters.status,
+    category: filters.category,
+    min_priority: filters.minPriority,
+    max_priority: filters.maxPriority,
+  };
+
+  const { data: tasksData, isLoading, isFetching } = useTasks(filterParams);
   const { data: atRiskData } = useAtRiskTasks();
   const bumpTask = useBumpTask();
   const completeTask = useCompleteTask();
@@ -34,7 +48,40 @@ export default function DashboardPage() {
     }
   }, [searchParams]);
 
-  if (isLoading) {
+  const tasks = tasksData?.tasks || [];
+  const atRiskCount = atRiskData?.count || 0;
+  const quickWins = tasks.filter(
+    (t) => t.estimated_effort === 'small' && t.bump_count === 0
+  ).length;
+  const totalTasks = tasks.length;
+
+  // Extract unique categories from tasks (memoized to avoid recalculation)
+  const availableCategories = useMemo(() => {
+    return Array.from(
+      new Set(
+        tasks
+          .map((task) => task.category)
+          .filter((cat): cat is string => !!cat)
+      )
+    ).sort();
+  }, [tasks]);
+
+  // Memoize handlers to prevent unnecessary re-renders
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+  }, []);
+
+  const handleFiltersChange = useCallback((newFilters: TaskFilterState) => {
+    setFilters(newFilters);
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
+    setFilters({});
+    setSearchQuery('');
+  }, []);
+
+  // Show full skeleton only on initial load (no data yet)
+  if (isLoading && !tasksData) {
     return (
       <div className="space-y-6">
         <div>
@@ -56,13 +103,6 @@ export default function DashboardPage() {
       </div>
     );
   }
-
-  const tasks = tasksData?.tasks || [];
-  const atRiskCount = atRiskData?.count || 0;
-  const quickWins = tasks.filter(
-    (t) => t.estimated_effort === 'small' && t.bump_count === 0
-  ).length;
-  const totalTasks = tasks.length;
 
   return (
     <div className={`transition-all duration-[180ms] ${selectedTaskId ? 'lg:pr-96' : ''}`}>
@@ -92,6 +132,20 @@ export default function DashboardPage() {
               Quick Add
             </Button>
           </div>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="space-y-4">
+          <TaskSearch
+            value={searchQuery}
+            onChange={handleSearchChange}
+          />
+          <TaskFilters
+            filters={filters}
+            onChange={handleFiltersChange}
+            onClear={handleClearFilters}
+            availableCategories={availableCategories}
+          />
         </div>
 
       {/* Stats */}
@@ -141,13 +195,43 @@ export default function DashboardPage() {
 
       {/* Task List */}
       <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Your Tasks</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Your Tasks</h3>
+            <div className="flex items-center gap-2">
+              {isFetching && (
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Updating...</span>
+                </div>
+              )}
+              {tasks.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Showing {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className={`space-y-4 transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
           {tasks.length === 0 ? (
             <Card>
               <CardContent className="pt-6 text-center">
-                <p className="text-muted-foreground">
-                  No tasks yet. Create your first task to get started!
-                </p>
+                {searchQuery || Object.keys(filters).length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-muted-foreground">
+                      No tasks match your search or filters.
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={handleClearFilters}
+                    >
+                      Clear filters
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">
+                    No tasks yet. Create your first task to get started!
+                  </p>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -266,6 +350,7 @@ export default function DashboardPage() {
             </Card>
           ))
           )}
+          </div>
         </div>
     </div>
 
