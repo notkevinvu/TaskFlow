@@ -58,17 +58,18 @@
   - [x] Also made DATABASE_URL required
   - [x] Added comprehensive unit tests
 
-- [ ] **Calendar Popover Fix:** Improve positioning
-  - [ ] Update `frontend/components/calendar/MiniCalendar.tsx` (or relevant component)
-  - [ ] Add collision detection to popover
-  - [ ] Set `side="top"` or `align="end"` to prevent bottom overflow
-  - [ ] Test on various screen sizes
+- [x] **Calendar Popover Fix:** Improve positioning
+  - [x] Found component: `frontend/components/CalendarTaskPopover.tsx`
+  - [x] Add collision detection with `collisionPadding={16}`
+  - [x] Explicitly enable `avoidCollisions={true}` for automatic repositioning
+  - [x] Popover will now flip to avoid viewport overflow
+  - [ ] Test on various screen sizes (manual testing needed)
   - [ ] Document in design system
 
 **Acceptance Criteria:**
 - ✅ Backend refuses to start without JWT_SECRET
-- ✅ Calendar popover stays within viewport bounds
-- ✅ No console errors or visual glitches
+- ✅ Calendar popover has collision detection configured
+- ⏳ Visual testing needed (requires running dev server)
 
 ---
 
