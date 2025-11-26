@@ -89,6 +89,14 @@
   - [x] Moved category from text to prominent badge display
   - [ ] Update design system docs (deferred)
 
+- [x] **BONUS: Category Management Dialog**
+  - [x] Created `ManageCategoriesDialog.tsx` modal component
+  - [x] Lists all categories with task counts
+  - [x] Rename category (inline edit with Enter/Escape support)
+  - [x] Delete category with confirmation (removes from tasks)
+  - [x] Backend endpoints: PUT /api/v1/categories/rename, DELETE /api/v1/categories/:name
+  - [x] Added "Manage Categories" button to dashboard
+
 **Acceptance Criteria:**
 - ✅ Can select category when creating/editing task
 - ✅ Can create custom category via text input
