@@ -49,12 +49,16 @@
 - [ ] **Interface-based Dependency Injection** (testability improvement)
 - [ ] **Redis Rate Limiting Migration** (scalability fix)
 - [ ] **Structured Logging with slog** (observability)
+- [ ] **Custom Error Types & Error Handling** (production-grade error management)
+- [ ] **Input Validation Improvements** (special characters, sanitization)
 
 ### Priority 2: Testing Infrastructure
-- [ ] Backend unit tests (services, priority calculator)
+- [ ] Audit existing code coverage and identify gaps
+- [ ] Backend unit tests (services, priority calculator, handlers)
 - [ ] Backend integration tests (repositories with testcontainers)
+- [ ] Category handler tests (rename, delete, validation)
 - [ ] Frontend component tests
-- [ ] Coverage reporting
+- [ ] Coverage reporting and enforcement (target >80%)
 
 ### Priority 3: Production Infrastructure
 - [ ] Multi-stage Docker builds
@@ -105,6 +109,33 @@ func NewTaskHandler(s TaskService) *TaskHandler
 
 ### Day 3-4: Backend Testing Infrastructure
 
+**Day 3 Morning: Code Coverage Audit**
+
+**Tasks:**
+- [ ] Run coverage analysis: `go test ./... -coverprofile=coverage.out`
+- [ ] Generate coverage report: `go tool cover -html=coverage.out`
+- [ ] Identify untested packages and functions
+- [ ] Create testing roadmap for missing coverage
+- [ ] Document coverage gaps in testing plan
+
+**Target Areas for Testing:**
+- [ ] `internal/handler/category_handler.go` (new code, needs tests)
+- [ ] `internal/handler/task_handler.go` (validate all endpoints)
+- [ ] `internal/handler/auth_handler.go` (security-critical)
+- [ ] `internal/service/task_service.go` (business logic)
+- [ ] `internal/service/auth_service.go` (authentication logic)
+- [ ] `internal/domain/priority/calculator.go` (algorithm correctness)
+- [ ] `internal/repository/*` (data integrity)
+
+**Checklist:**
+- [ ] Coverage baseline documented
+- [ ] Critical gaps identified (handlers, services, domain logic)
+- [ ] Testing plan prioritized by risk and impact
+
+---
+
+**Day 3 Afternoon - Day 4: Implement Tests**
+
 **Install Testing Dependencies:**
 
 ```bash
@@ -116,18 +147,24 @@ go get github.com/testcontainers/testcontainers-go/modules/postgres
 
 **Tasks:**
 - [ ] Create mock implementations of interfaces using testify/mock
+- [ ] Write unit tests for `CategoryHandler` (rename, delete, validation edge cases)
+- [ ] Write unit tests for `TaskHandler` (all CRUD operations)
+- [ ] Write unit tests for `AuthHandler` (login, register, token validation)
 - [ ] Write unit tests for `PriorityService` (algorithm testing)
-- [ ] Write unit tests for `TaskService` (business logic)
+- [ ] Write unit tests for `TaskService` (business logic, including category operations)
 - [ ] Write unit tests for `AuthService` (authentication logic)
 - [ ] Write integration tests for repositories using testcontainers
 - [ ] Configure test coverage reporting
 
 **Checklist:**
+- [ ] `internal/handler/category_handler_test.go` created (validation, edge cases)
+- [ ] `internal/handler/task_handler_test.go` created with comprehensive tests
+- [ ] `internal/handler/auth_handler_test.go` created (security validation)
 - [ ] `internal/service/priority_service_test.go` created with test cases
 - [ ] `internal/service/task_service_test.go` created with mocks
 - [ ] `internal/service/auth_service_test.go` created with mocks
 - [ ] `internal/repository/task_repository_test.go` integration tests
-- [ ] Test coverage > 70% on services
+- [ ] Test coverage > 80% on handlers and services
 - [ ] All tests pass: `go test ./internal/...`
 
 **Unit Test Example (`internal/service/auth_service_test.go`):**
@@ -308,7 +345,128 @@ describe('Button', () => {
 
 ## Week 6: Observability & Production Infrastructure
 
-### Day 1-2: Redis Rate Limiting Migration
+### Day 1: Custom Error Types & Input Validation
+
+**Goal:** Implement production-grade error handling with custom error types and comprehensive input validation.
+
+**Tasks:**
+
+**Custom Error Types:**
+- [ ] Create `internal/domain/errors.go` with custom error types
+- [ ] Add error types for validation, authentication, authorization, not found, conflict
+- [ ] Update handlers to return specific error types instead of generic errors
+- [ ] Create error middleware to map error types to HTTP status codes
+- [ ] Add structured error logging with error context
+
+**Input Validation Improvements:**
+- [ ] Create `internal/validation/validator.go` utility package
+- [ ] Add text sanitization functions (trim whitespace, normalize Unicode)
+- [ ] Add validation for special characters in text fields (optional allowlist/blocklist)
+- [ ] Validate all user-input text fields consistently:
+  - Title (max 200 chars, no control characters)
+  - Description (max 2000 chars)
+  - Category (max 50 chars) ✅ Already implemented
+  - Context (max 500 chars)
+  - Related people names (reasonable length)
+- [ ] Add validation for email format (RFC 5322 compliance)
+- [ ] Add validation for password strength (optional: min length, complexity)
+- [ ] Update all handlers to use validation utilities
+
+**Special Character Handling Strategy:**
+- Allow most printable Unicode characters for international support
+- Trim leading/trailing whitespace automatically
+- Reject control characters (0x00-0x1F, 0x7F-0x9F)
+- Optional: Reject zero-width characters and combining marks if they cause issues
+- Validate length in runes/characters, not bytes (Unicode support)
+
+**Checklist:**
+- [ ] `internal/domain/errors.go` created with error types
+- [ ] Error middleware maps errors to HTTP status codes
+- [ ] `internal/validation/validator.go` created with utilities
+- [ ] All text input fields validated consistently
+- [ ] Control characters rejected
+- [ ] Unicode support maintained (international users)
+- [ ] Error responses include helpful messages (not just "invalid input")
+
+**Example Custom Errors (`internal/domain/errors.go`):**
+```go
+package domain
+
+import "fmt"
+
+type ValidationError struct {
+    Field   string
+    Message string
+}
+
+func (e *ValidationError) Error() string {
+    return fmt.Sprintf("validation error: %s - %s", e.Field, e.Message)
+}
+
+type NotFoundError struct {
+    Resource string
+    ID       string
+}
+
+func (e *NotFoundError) Error() string {
+    return fmt.Sprintf("%s not found: %s", e.Resource, e.ID)
+}
+
+type ConflictError struct {
+    Message string
+}
+
+func (e *ConflictError) Error() string {
+    return fmt.Sprintf("conflict: %s", e.Message)
+}
+
+type UnauthorizedError struct {
+    Message string
+}
+
+func (e *UnauthorizedError) Error() string {
+    return e.Message
+}
+```
+
+**Example Validation Utilities (`internal/validation/validator.go`):**
+```go
+package validation
+
+import (
+    "strings"
+    "unicode"
+)
+
+// SanitizeText trims whitespace and rejects control characters
+func SanitizeText(text string, maxLength int) (string, error) {
+    text = strings.TrimSpace(text)
+
+    if len([]rune(text)) > maxLength {
+        return "", fmt.Errorf("text exceeds maximum length of %d characters", maxLength)
+    }
+
+    // Check for control characters
+    for _, r := range text {
+        if unicode.IsControl(r) {
+            return "", fmt.Errorf("text contains invalid control characters")
+        }
+    }
+
+    return text, nil
+}
+
+// ValidateEmail checks if email format is valid
+func ValidateEmail(email string) error {
+    // Use regex or library for RFC 5322 validation
+    // ...
+    return nil
+}
+```
+
+---
+
+### Day 2: Redis Rate Limiting Migration
 
 **Current Issue:** In-memory rate limiter (`pkg/middleware/rate_limit.go`) uses a Go map that doesn't scale across multiple server instances.
 
@@ -389,7 +547,7 @@ func (l *RedisLimiter) Allow(key string, limit int, window time.Duration) (bool,
 
 ---
 
-### Day 3-4: Structured Logging with slog
+### Day 3: Structured Logging with slog
 
 **Goal:** Replace `log.Println` with structured logging using Go's built-in `slog` package for better observability.
 
@@ -627,7 +785,7 @@ router.GET("/health", func(c *gin.Context) {
 
 ---
 
-### Day 5-6: CI/CD Pipeline & Final Polish
+### Day 4-6: Testing, CI/CD Pipeline & Final Polish
 
 **Goal:** Automate testing and deployment with GitHub Actions.
 

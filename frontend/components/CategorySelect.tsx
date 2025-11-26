@@ -79,8 +79,11 @@ export function CategorySelect({ value, onChange, id }: CategorySelectProps) {
 
   const handleCustomInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
-    setCustomValue(newValue);
-    onChange(newValue);
+    // Limit to 50 characters (matching backend validation)
+    if (newValue.length <= 50) {
+      setCustomValue(newValue);
+      onChange(newValue);
+    }
   };
 
   const handleBackToSelect = () => {
@@ -109,8 +112,12 @@ export function CategorySelect({ value, onChange, id }: CategorySelectProps) {
           value={customValue}
           onChange={handleCustomInputChange}
           placeholder="Enter category name..."
+          maxLength={50}
           autoFocus
         />
+        <p className="text-xs text-muted-foreground">
+          {customValue.length}/50 characters
+        </p>
       </div>
     );
   }

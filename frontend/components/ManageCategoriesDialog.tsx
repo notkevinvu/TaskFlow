@@ -151,6 +151,7 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
                           if (e.key === 'Escape') handleCancelEdit();
                         }}
                         className="flex-1"
+                        maxLength={50}
                         autoFocus
                         disabled={isRenaming}
                       />

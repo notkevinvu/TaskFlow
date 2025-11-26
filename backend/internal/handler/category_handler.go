@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/notkevinvu/taskflow/backend/internal/middleware"
@@ -45,6 +46,20 @@ func (h *CategoryHandler) Rename(c *gin.Context) {
 		return
 	}
 
+	// Trim whitespace and validate length (matching domain validation: max 50 chars)
+	req.NewName = strings.TrimSpace(req.NewName)
+	req.OldName = strings.TrimSpace(req.OldName)
+
+	if len(req.NewName) > 50 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Category name too long (maximum 50 characters)"})
+		return
+	}
+
+	if req.NewName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Category name cannot be empty or whitespace only"})
+		return
+	}
+
 	if req.OldName == req.NewName {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Old and new category names are the same"})
 		return
@@ -72,9 +87,14 @@ func (h *CategoryHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	categoryName := c.Param("name")
+	categoryName := strings.TrimSpace(c.Param("name"))
 	if categoryName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Category name is required"})
+		return
+	}
+
+	if len(categoryName) > 50 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Category name too long (maximum 50 characters)"})
 		return
 	}
 
