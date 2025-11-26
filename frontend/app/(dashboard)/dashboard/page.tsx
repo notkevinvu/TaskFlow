@@ -154,10 +154,10 @@ export default function DashboardPage() {
             tasks.map((task) => (
             <Card
               key={task.id}
-              className="hover:shadow-md transition-shadow cursor-pointer"
+              className="hover:shadow-md transition-shadow cursor-pointer py-0"
               onClick={() => setSelectedTaskId(task.id)}
             >
-              <CardContent className="p-4">
+              <CardContent className="pt-4 px-6 pb-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
