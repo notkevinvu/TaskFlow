@@ -357,3 +357,15 @@ func (s *TaskService) logHistorySimple(ctx context.Context, userID, taskID strin
 
 	return s.taskHistoryRepo.Create(ctx, history)
 }
+
+// RenameCategory renames a category for all tasks belonging to the user
+// Returns the number of tasks updated
+func (s *TaskService) RenameCategory(ctx context.Context, userID, oldName, newName string) (int, error) {
+	return s.taskRepo.RenameCategoryForUser(ctx, userID, oldName, newName)
+}
+
+// DeleteCategory removes a category from all tasks belonging to the user
+// Returns the number of tasks updated
+func (s *TaskService) DeleteCategory(ctx context.Context, userID, categoryName string) (int, error) {
+	return s.taskRepo.DeleteCategoryForUser(ctx, userID, categoryName)
+}

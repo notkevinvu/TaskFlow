@@ -10,13 +10,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TaskDetailsSidebar } from "@/components/TaskDetailsSidebar";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { EditTaskDialog } from "@/components/EditTaskDialog";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
+import { Plus, Trash2, Pencil, FolderKanban } from "lucide-react";
 import { Task } from "@/lib/api";
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const { data: tasksData, isLoading } = useTasks();
   const { data: atRiskData } = useAtRiskTasks();
@@ -73,13 +75,23 @@ export default function DashboardPage() {
               Tasks sorted by intelligent priority algorithm
             </p>
           </div>
-          <Button
-            onClick={() => setCreateDialogOpen(true)}
-            className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Quick Add
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setManageCategoriesOpen(true)}
+              className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
+            >
+              <FolderKanban className="mr-2 h-4 w-4" />
+              Manage Categories
+            </Button>
+            <Button
+              onClick={() => setCreateDialogOpen(true)}
+              className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Quick Add
+            </Button>
+          </div>
         </div>
 
       {/* Stats */}
@@ -279,6 +291,12 @@ export default function DashboardPage() {
         task={editingTask}
       />
     )}
+
+    {/* Manage Categories Dialog */}
+    <ManageCategoriesDialog
+      open={manageCategoriesOpen}
+      onOpenChange={setManageCategoriesOpen}
+    />
   </div>
 );
 }

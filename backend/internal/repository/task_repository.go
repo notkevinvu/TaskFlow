@@ -387,3 +387,38 @@ func (r *TaskRepository) FindByDateRange(ctx context.Context, userID string, fil
 
 	return tasks, rows.Err()
 }
+
+// RenameCategoryForUser renames a category for all tasks belonging to a user
+// Returns the number of tasks updated
+func (r *TaskRepository) RenameCategoryForUser(ctx context.Context, userID, oldName, newName string) (int, error) {
+	query := `
+		UPDATE tasks
+		SET category = $1, updated_at = NOW()
+		WHERE user_id = $2 AND category = $3 AND status != 'done'
+	`
+
+	result, err := r.db.Exec(ctx, query, newName, userID, oldName)
+	if err != nil {
+		return 0, err
+	}
+
+	return int(result.RowsAffected()), nil
+}
+
+// DeleteCategoryForUser removes a category from all tasks belonging to a user
+// Sets category to NULL for affected tasks
+// Returns the number of tasks updated
+func (r *TaskRepository) DeleteCategoryForUser(ctx context.Context, userID, categoryName string) (int, error) {
+	query := `
+		UPDATE tasks
+		SET category = NULL, updated_at = NOW()
+		WHERE user_id = $1 AND category = $2 AND status != 'done'
+	`
+
+	result, err := r.db.Exec(ctx, query, userID, categoryName)
+	if err != nil {
+		return 0, err
+	}
+
+	return int(result.RowsAffected()), nil
+}

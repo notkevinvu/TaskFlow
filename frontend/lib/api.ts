@@ -113,3 +113,14 @@ export const taskAPI = {
   }) =>
     api.get<CalendarResponse>('/api/v1/tasks/calendar', { params }),
 };
+
+// Category API
+export const categoryAPI = {
+  // Rename a category (updates all tasks with old category to new category)
+  rename: (oldName: string, newName: string) =>
+    api.put('/api/v1/categories/rename', { old_name: oldName, new_name: newName }),
+
+  // Delete a category (removes category from all tasks)
+  delete: (name: string) =>
+    api.delete(`/api/v1/categories/${encodeURIComponent(name)}`),
+};
