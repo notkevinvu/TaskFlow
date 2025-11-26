@@ -188,7 +188,7 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
-          <div className={`transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
+          <div className={`space-y-4 transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
           {tasks.length === 0 ? (
             <Card>
               <CardContent className="pt-6 text-center">
