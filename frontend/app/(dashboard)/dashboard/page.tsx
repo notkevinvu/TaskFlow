@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTasks, useBumpTask, useCompleteTask, useDeleteTask, useAtRiskTasks, type TaskFilters as TaskFiltersType } from '@/hooks/useTasks';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,6 +54,31 @@ export default function DashboardPage() {
     (t) => t.estimated_effort === 'small' && t.bump_count === 0
   ).length;
   const totalTasks = tasks.length;
+
+  // Extract unique categories from tasks (memoized to avoid recalculation)
+  const availableCategories = useMemo(() => {
+    return Array.from(
+      new Set(
+        tasks
+          .map((task) => task.category)
+          .filter((cat): cat is string => !!cat)
+      )
+    ).sort();
+  }, [tasks]);
+
+  // Memoize handlers to prevent unnecessary re-renders
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+  }, []);
+
+  const handleFiltersChange = useCallback((newFilters: TaskFilterState) => {
+    setFilters(newFilters);
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
+    setFilters({});
+    setSearchQuery('');
+  }, []);
 
   // Show full skeleton only on initial load (no data yet)
   if (isLoading && !tasksData) {
@@ -113,15 +138,13 @@ export default function DashboardPage() {
         <div className="space-y-4">
           <TaskSearch
             value={searchQuery}
-            onChange={setSearchQuery}
+            onChange={handleSearchChange}
           />
           <TaskFilters
             filters={filters}
-            onChange={setFilters}
-            onClear={() => {
-              setFilters({});
-              setSearchQuery('');
-            }}
+            onChange={handleFiltersChange}
+            onClear={handleClearFilters}
+            availableCategories={availableCategories}
           />
         </div>
 
@@ -199,10 +222,7 @@ export default function DashboardPage() {
                     </p>
                     <Button
                       variant="outline"
-                      onClick={() => {
-                        setFilters({});
-                        setSearchQuery('');
-                      }}
+                      onClick={handleClearFilters}
                     >
                       Clear filters
                     </Button>

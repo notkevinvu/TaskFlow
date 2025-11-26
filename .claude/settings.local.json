@@ -30,7 +30,10 @@
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
       "Bash(git push:*)",
-      "Bash(tail:*)"
+      "Bash(tail:*)",
+      "Bash(git -C \"D:\\Projects-Coding\\TaskFlow\" stash pop)",
+      "Bash(git -C \"D:\\Projects-Coding\\TaskFlow\" diff .claude/settings.local.json)",
+      "Bash(git -C:*)"
     ],
     "deny": [],
     "ask": []

@@ -11,7 +11,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
-import { useTasks } from '@/hooks/useTasks';
 
 export interface TaskFilterState {
   status?: string;
@@ -24,20 +23,11 @@ interface TaskFiltersProps {
   filters: TaskFilterState;
   onChange: (filters: TaskFilterState) => void;
   onClear: () => void;
+  availableCategories: string[]; // Categories passed from parent to avoid duplicate fetch
 }
 
-export function TaskFilters({ filters, onChange, onClear }: TaskFiltersProps) {
+export function TaskFilters({ filters, onChange, onClear, availableCategories }: TaskFiltersProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { data: tasksData } = useTasks();
-
-  // Extract unique categories from tasks
-  const categories = Array.from(
-    new Set(
-      tasksData?.tasks
-        ?.map((task) => task.category)
-        .filter((cat): cat is string => !!cat) || []
-    )
-  ).sort();
 
   const updateFilter = (key: keyof TaskFilterState, value: any) => {
     onChange({ ...filters, [key]: value });
@@ -168,12 +158,12 @@ export function TaskFilters({ filters, onChange, onClear }: TaskFiltersProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All categories</SelectItem>
-                {categories.length === 0 ? (
+                {availableCategories.length === 0 ? (
                   <div className="px-2 py-6 text-center text-sm text-muted-foreground">
                     No categories yet
                   </div>
                 ) : (
-                  categories.map((category) => (
+                  availableCategories.map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}
                     </SelectItem>

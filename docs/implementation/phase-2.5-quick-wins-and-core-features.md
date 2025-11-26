@@ -157,6 +157,13 @@
 - ✅ Filters update results immediately
 - ✅ Search is performant (debounced)
 
+**Follow-up Items (Phase 3):**
+- [ ] Add database indexes for filter performance (`priority_score`, `due_date`, `category`)
+- [ ] Implement date range picker UI for due date filtering
+- [ ] Add comprehensive test coverage (backend filter combinations, edge cases)
+- [ ] Consider filter presets for common queries (e.g., "High Priority", "Due This Week", "At Risk")
+- [ ] Add filter URL persistence for shareable links
+
 ---
 
 ### 📊 Days 4-6: Analytics Dashboard

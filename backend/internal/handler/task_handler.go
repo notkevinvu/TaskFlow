@@ -85,27 +85,55 @@ func (h *TaskHandler) List(c *gin.Context) {
 	}
 
 	if minPriorityStr := c.Query("min_priority"); minPriorityStr != "" {
-		if minPriority, err := strconv.Atoi(minPriorityStr); err == nil && minPriority >= 0 && minPriority <= 100 {
-			filter.MinPriority = &minPriority
+		minPriority, err := strconv.Atoi(minPriorityStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "min_priority must be a number"})
+			return
 		}
+		if minPriority < 0 || minPriority > 100 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "min_priority must be between 0 and 100"})
+			return
+		}
+		filter.MinPriority = &minPriority
 	}
 
 	if maxPriorityStr := c.Query("max_priority"); maxPriorityStr != "" {
-		if maxPriority, err := strconv.Atoi(maxPriorityStr); err == nil && maxPriority >= 0 && maxPriority <= 100 {
-			filter.MaxPriority = &maxPriority
+		maxPriority, err := strconv.Atoi(maxPriorityStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "max_priority must be a number"})
+			return
+		}
+		if maxPriority < 0 || maxPriority > 100 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "max_priority must be between 0 and 100"})
+			return
+		}
+		filter.MaxPriority = &maxPriority
+	}
+
+	// Validate priority range if both are specified
+	if filter.MinPriority != nil && filter.MaxPriority != nil {
+		if *filter.MinPriority > *filter.MaxPriority {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "min_priority cannot be greater than max_priority"})
+			return
 		}
 	}
 
 	if dueDateStartStr := c.Query("due_date_start"); dueDateStartStr != "" {
-		if dueDateStart, err := domain.ParseDate(dueDateStartStr); err == nil {
-			filter.DueDateStart = &dueDateStart
+		dueDateStart, err := domain.ParseDate(dueDateStartStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "due_date_start must be in YYYY-MM-DD format"})
+			return
 		}
+		filter.DueDateStart = &dueDateStart
 	}
 
 	if dueDateEndStr := c.Query("due_date_end"); dueDateEndStr != "" {
-		if dueDateEnd, err := domain.ParseDate(dueDateEndStr); err == nil {
-			filter.DueDateEnd = &dueDateEnd
+		dueDateEnd, err := domain.ParseDate(dueDateEndStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "due_date_end must be in YYYY-MM-DD format"})
+			return
 		}
+		filter.DueDateEnd = &dueDateEnd
 	}
 
 	tasks, err := h.taskService.List(c.Request.Context(), userID, filter)
