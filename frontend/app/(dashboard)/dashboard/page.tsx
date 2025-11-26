@@ -157,7 +157,7 @@ export default function DashboardPage() {
               className="hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => setSelectedTaskId(task.id)}
             >
-              <CardContent className="pt-6">
+              <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
