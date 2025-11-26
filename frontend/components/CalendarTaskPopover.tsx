@@ -37,6 +37,8 @@ export function CalendarTaskPopover({
         align="start"
         side="right"
         sideOffset={8}
+        collisionPadding={16}
+        avoidCollisions={true}
       >
         <div className="space-y-3">
           {/* Header */}
