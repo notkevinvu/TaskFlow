@@ -75,22 +75,25 @@
 
 #### Afternoon: Categories Dropdown
 **Tasks:**
-- [ ] **Backend:** Verify category field exists in Task model (already done)
-- [ ] **Frontend:** Create categories select component
-  - [ ] Add to `frontend/components/tasks/TaskForm.tsx`
-  - [ ] Use shadcn Select component
-  - [ ] Define default categories: `["Work", "Personal", "Meeting", "Code Review", "Bug Fix", "Documentation", "Planning", "Other"]`
-  - [ ] Allow custom category input
-  - [ ] Add category to create/edit task forms
+- [x] **Backend:** Verify category field exists in Task model (already done)
+- [x] **Frontend:** Create categories select component
+  - [x] Created `CategorySelect.tsx` component
+  - [x] Uses shadcn Select component
+  - [x] Shows existing categories from user's tasks
+  - [x] Includes common categories (Work, Personal, Code Review, Bug Fix, etc.)
+  - [x] "Create custom category..." option reveals text input
+  - [x] Added to CreateTaskDialog and EditTaskDialog
 
-- [ ] **UI Polish:**
-  - [ ] Add category badges to task cards
-  - [ ] Color-code categories (optional)
-  - [ ] Update design system docs
+- [x] **UI Polish:**
+  - [x] Add category badges to task cards (blue styling)
+  - [x] Moved category from text to prominent badge display
+  - [ ] Update design system docs (deferred)
 
 **Acceptance Criteria:**
 - ✅ Can select category when creating/editing task
-- ✅ Category displays on task cards
+- ✅ Can create custom category via text input
+- ✅ Category displays as badge on task cards
+- ✅ Existing categories auto-populate dropdown
 - ✅ Category saves to database correctly
 
 ---
