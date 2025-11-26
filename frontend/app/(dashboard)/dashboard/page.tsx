@@ -161,6 +161,11 @@ export default function DashboardPage() {
                       >
                         {Math.round(task.priority_score)}
                       </Badge>
+                      {task.category && (
+                        <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                          {task.category}
+                        </Badge>
+                      )}
                       {task.bump_count > 0 && (
                         <Badge variant="outline" className="text-yellow-600 border-yellow-600">
                           ⚠️ Bumped {task.bump_count}x
@@ -183,7 +188,6 @@ export default function DashboardPage() {
                       </p>
                     )}
                     <div className="flex gap-4 text-sm text-muted-foreground">
-                      {task.category && <span>📁 {task.category}</span>}
                       {task.due_date && (
                         <span>📅 Due: {new Date(task.due_date).toLocaleDateString()}</span>
                       )}
