@@ -13,7 +13,7 @@ import { EditTaskDialog } from "@/components/EditTaskDialog";
 import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
 import { TaskSearch } from "@/components/TaskSearch";
 import { TaskFilters, type TaskFilterState } from "@/components/TaskFilters";
-import { Plus, Trash2, Pencil, FolderKanban } from "lucide-react";
+import { Plus, Trash2, Pencil, FolderKanban, Loader2 } from "lucide-react";
 import { Task } from "@/lib/api";
 
 export default function DashboardPage() {
@@ -34,7 +34,7 @@ export default function DashboardPage() {
     max_priority: filters.maxPriority,
   };
 
-  const { data: tasksData, isLoading } = useTasks(filterParams);
+  const { data: tasksData, isLoading, isFetching } = useTasks(filterParams);
   const { data: atRiskData } = useAtRiskTasks();
   const bumpTask = useBumpTask();
   const completeTask = useCompleteTask();
@@ -48,7 +48,15 @@ export default function DashboardPage() {
     }
   }, [searchParams]);
 
-  if (isLoading) {
+  const tasks = tasksData?.tasks || [];
+  const atRiskCount = atRiskData?.count || 0;
+  const quickWins = tasks.filter(
+    (t) => t.estimated_effort === 'small' && t.bump_count === 0
+  ).length;
+  const totalTasks = tasks.length;
+
+  // Show full skeleton only on initial load (no data yet)
+  if (isLoading && !tasksData) {
     return (
       <div className="space-y-6">
         <div>
@@ -70,13 +78,6 @@ export default function DashboardPage() {
       </div>
     );
   }
-
-  const tasks = tasksData?.tasks || [];
-  const atRiskCount = atRiskData?.count || 0;
-  const quickWins = tasks.filter(
-    (t) => t.estimated_effort === 'small' && t.bump_count === 0
-  ).length;
-  const totalTasks = tasks.length;
 
   return (
     <div className={`transition-all duration-[180ms] ${selectedTaskId ? 'lg:pr-96' : ''}`}>
@@ -173,12 +174,21 @@ export default function DashboardPage() {
       <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">Your Tasks</h3>
-            {tasks.length > 0 && (
-              <p className="text-sm text-muted-foreground">
-                Showing {tasks.length} task{tasks.length !== 1 ? 's' : ''}
-              </p>
-            )}
+            <div className="flex items-center gap-2">
+              {isFetching && (
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Updating...</span>
+                </div>
+              )}
+              {tasks.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Showing {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
           </div>
+          <div className={`transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
           {tasks.length === 0 ? (
             <Card>
               <CardContent className="pt-6 text-center">
@@ -320,6 +330,7 @@ export default function DashboardPage() {
             </Card>
           ))
           )}
+          </div>
         </div>
     </div>
 
