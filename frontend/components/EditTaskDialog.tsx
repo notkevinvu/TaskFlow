@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Task } from '@/lib/api';
+import { CategorySelect } from '@/components/CategorySelect';
 
 interface EditTaskDialogProps {
   open: boolean;
@@ -123,11 +124,10 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
             {/* Category */}
             <div className="grid gap-2">
               <Label htmlFor="category">Category</Label>
-              <Input
+              <CategorySelect
                 id="category"
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                placeholder="e.g., Work, Personal, Bug Fix"
+                onChange={(value) => setFormData({ ...formData, category: value })}
               />
             </div>
 

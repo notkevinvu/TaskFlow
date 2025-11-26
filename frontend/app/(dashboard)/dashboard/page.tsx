@@ -10,13 +10,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TaskDetailsSidebar } from "@/components/TaskDetailsSidebar";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { EditTaskDialog } from "@/components/EditTaskDialog";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
+import { Plus, Trash2, Pencil, FolderKanban } from "lucide-react";
 import { Task } from "@/lib/api";
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const { data: tasksData, isLoading } = useTasks();
   const { data: atRiskData } = useAtRiskTasks();
@@ -73,13 +75,23 @@ export default function DashboardPage() {
               Tasks sorted by intelligent priority algorithm
             </p>
           </div>
-          <Button
-            onClick={() => setCreateDialogOpen(true)}
-            className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Quick Add
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setManageCategoriesOpen(true)}
+              className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
+            >
+              <FolderKanban className="mr-2 h-4 w-4" />
+              Manage Categories
+            </Button>
+            <Button
+              onClick={() => setCreateDialogOpen(true)}
+              className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Quick Add
+            </Button>
+          </div>
         </div>
 
       {/* Stats */}
@@ -142,10 +154,10 @@ export default function DashboardPage() {
             tasks.map((task) => (
             <Card
               key={task.id}
-              className="hover:shadow-md transition-shadow cursor-pointer"
+              className="hover:shadow-md transition-shadow cursor-pointer py-0"
               onClick={() => setSelectedTaskId(task.id)}
             >
-              <CardContent className="pt-6">
+              <CardContent className="pt-4 px-6 pb-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
@@ -161,6 +173,11 @@ export default function DashboardPage() {
                       >
                         {Math.round(task.priority_score)}
                       </Badge>
+                      {task.category && (
+                        <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                          {task.category}
+                        </Badge>
+                      )}
                       {task.bump_count > 0 && (
                         <Badge variant="outline" className="text-yellow-600 border-yellow-600">
                           ⚠️ Bumped {task.bump_count}x
@@ -183,7 +200,6 @@ export default function DashboardPage() {
                       </p>
                     )}
                     <div className="flex gap-4 text-sm text-muted-foreground">
-                      {task.category && <span>📁 {task.category}</span>}
                       {task.due_date && (
                         <span>📅 Due: {new Date(task.due_date).toLocaleDateString()}</span>
                       )}
@@ -275,6 +291,12 @@ export default function DashboardPage() {
         task={editingTask}
       />
     )}
+
+    {/* Manage Categories Dialog */}
+    <ManageCategoriesDialog
+      open={manageCategoriesOpen}
+      onOpenChange={setManageCategoriesOpen}
+    />
   </div>
 );
 }
