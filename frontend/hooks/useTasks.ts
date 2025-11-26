@@ -99,11 +99,27 @@ const mockTasks = [
   },
 ];
 
-export function useTasks() {
+export interface TaskFilters {
+  status?: string;
+  category?: string;
+  search?: string;
+  min_priority?: number;
+  max_priority?: number;
+  due_date_start?: string; // YYYY-MM-DD
+  due_date_end?: string;   // YYYY-MM-DD
+  limit?: number;
+  offset?: number;
+}
+
+export function useTasks(filters?: TaskFilters) {
   return useQuery({
-    queryKey: ['tasks'],
+    queryKey: ['tasks', filters],
     queryFn: async () => {
-      const response = await taskAPI.list({ limit: 100, offset: 0 });
+      const response = await taskAPI.list({
+        limit: 100,
+        offset: 0,
+        ...filters,
+      });
       return response.data;
     },
   });

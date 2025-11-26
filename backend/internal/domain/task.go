@@ -78,11 +78,15 @@ type UpdateTaskDTO struct {
 
 // TaskListFilter is used for filtering tasks
 type TaskListFilter struct {
-	Status   *TaskStatus
-	Category *string
-	Search   *string
-	Limit    int
-	Offset   int
+	Status         *TaskStatus
+	Category       *string
+	Search         *string
+	MinPriority    *int       // Filter by minimum priority score (0-100)
+	MaxPriority    *int       // Filter by maximum priority score (0-100)
+	DueDateStart   *time.Time // Filter by due date >= this date
+	DueDateEnd     *time.Time // Filter by due date <= this date
+	Limit          int
+	Offset         int
 }
 
 // CalendarFilter is used for filtering calendar tasks

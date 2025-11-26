@@ -45,7 +45,7 @@ func (h *TaskHandler) Create(c *gin.Context) {
 }
 
 // List handles task listing with filters
-// GET /api/v1/tasks?status=&category=&search=&limit=&offset=
+// GET /api/v1/tasks?status=&category=&search=&min_priority=&max_priority=&due_date_start=&due_date_end=&limit=&offset=
 func (h *TaskHandler) List(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
@@ -81,6 +81,30 @@ func (h *TaskHandler) List(c *gin.Context) {
 	if offsetStr := c.Query("offset"); offsetStr != "" {
 		if offset, err := strconv.Atoi(offsetStr); err == nil && offset >= 0 {
 			filter.Offset = offset
+		}
+	}
+
+	if minPriorityStr := c.Query("min_priority"); minPriorityStr != "" {
+		if minPriority, err := strconv.Atoi(minPriorityStr); err == nil && minPriority >= 0 && minPriority <= 100 {
+			filter.MinPriority = &minPriority
+		}
+	}
+
+	if maxPriorityStr := c.Query("max_priority"); maxPriorityStr != "" {
+		if maxPriority, err := strconv.Atoi(maxPriorityStr); err == nil && maxPriority >= 0 && maxPriority <= 100 {
+			filter.MaxPriority = &maxPriority
+		}
+	}
+
+	if dueDateStartStr := c.Query("due_date_start"); dueDateStartStr != "" {
+		if dueDateStart, err := domain.ParseDate(dueDateStartStr); err == nil {
+			filter.DueDateStart = &dueDateStart
+		}
+	}
+
+	if dueDateEndStr := c.Query("due_date_end"); dueDateEndStr != "" {
+		if dueDateEnd, err := domain.ParseDate(dueDateEndStr); err == nil {
+			filter.DueDateEnd = &dueDateEnd
 		}
 	}
 
