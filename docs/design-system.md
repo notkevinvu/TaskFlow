@@ -272,7 +272,81 @@ Using Tailwind CSS default palette + shadcn/ui theme system.
 
 ### Loading States
 
-**Pattern:** Show loading state during async operations.
+**Pattern:** Provide immediate visual feedback for all async operations with progressive loading states.
+
+#### Page-Level Loading (Navigation)
+
+**Pattern:** Use Next.js `loading.tsx` files for instant navigation feedback while page bundles load.
+
+**Implementation:**
+```tsx
+// app/(dashboard)/analytics/loading.tsx
+import { Skeleton } from "@/components/ui/skeleton";
+
+export default function AnalyticsLoading() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-10 w-64" />
+      <div className="grid gap-4 md:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <Skeleton key={i} className="h-28" />
+        ))}
+      </div>
+      {/* More skeleton components matching page layout */}
+    </div>
+  );
+}
+```
+
+**Applied to:**
+- ✅ Dashboard page (`/dashboard/loading.tsx`)
+- ✅ Analytics page (`/analytics/loading.tsx`)
+
+**Benefits:**
+- Instant navigation (no delay when clicking nav links)
+- Shows skeleton UI while JavaScript bundle loads
+- Consistent with Next.js App Router best practices
+
+---
+
+#### Data Fetching Loading
+
+**Pattern:** Show skeleton states while React Query fetches data, with graceful degradation.
+
+**Implementation:**
+```tsx
+const { data, isLoading, isFetching } = useQuery(...);
+
+// Full skeleton on initial load
+if (isLoading && !data) {
+  return <Skeleton className="h-64" />;
+}
+
+// Subtle loading indicator for refetches
+{isFetching && <Loader2 className="h-4 w-4 animate-spin" />}
+
+// Fade content during background updates
+<div className={`transition-opacity ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
+  {/* Content */}
+</div>
+```
+
+**Applied to:**
+- ✅ Dashboard task list (shows skeleton initially, opacity fade on refetch)
+- ✅ Analytics charts (shows skeleton while fetching)
+- ✅ Task details sidebar
+
+**Key Principles:**
+- Use `isLoading` for initial load (show full skeleton)
+- Use `isFetching` for background updates (show subtle indicator)
+- Keep existing content visible during refetch with opacity fade
+- Only reload specific sections, not entire page
+
+---
+
+#### Button/Action Loading
+
+**Pattern:** Disable and show loading state during button actions.
 
 **Implementation:**
 ```tsx
@@ -284,6 +358,7 @@ Using Tailwind CSS default palette + shadcn/ui theme system.
 **Applied to:**
 - ✅ Create task button
 - ✅ Bump/Complete/Delete buttons
+- ✅ Category management buttons
 
 ---
 
