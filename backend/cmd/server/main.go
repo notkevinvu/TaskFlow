@@ -55,6 +55,7 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 	taskHandler := handler.NewTaskHandler(taskService)
 	categoryHandler := handler.NewCategoryHandler(taskService)
+	analyticsHandler := handler.NewAnalyticsHandler(taskRepo)
 
 	// Set Gin mode
 	gin.SetMode(cfg.GinMode)
@@ -105,6 +106,14 @@ func main() {
 		{
 			categories.PUT("/rename", categoryHandler.Rename)
 			categories.DELETE("/:name", categoryHandler.Delete)
+		}
+
+		// Analytics routes (protected)
+		analytics := v1.Group("/analytics")
+		analytics.Use(middleware.AuthRequired(cfg.JWTSecret))
+		{
+			analytics.GET("/summary", analyticsHandler.GetSummary)
+			analytics.GET("/trends", analyticsHandler.GetTrends)
 		}
 	}
 

@@ -124,3 +124,57 @@ export const categoryAPI = {
   delete: (name: string) =>
     api.delete(`/api/v1/categories/${encodeURIComponent(name)}`),
 };
+
+// Analytics Types
+export interface CompletionStats {
+  total_tasks: number;
+  completed_tasks: number;
+  pending_tasks: number;
+  completion_rate: number;
+}
+
+export interface BumpAnalytics {
+  average_bump_count: number;
+  at_risk_count: number;
+  bump_distribution: Record<string, number>;
+}
+
+export interface CategoryStat {
+  category: string;
+  task_count: number;
+  completion_rate: number;
+}
+
+export interface PriorityDistribution {
+  priority_range: string;
+  task_count: number;
+}
+
+export interface VelocityMetric {
+  date: string;
+  completed_count: number;
+}
+
+export interface AnalyticsSummary {
+  period_days: number;
+  completion_stats: CompletionStats;
+  bump_analytics: BumpAnalytics;
+  category_breakdown: CategoryStat[];
+  priority_distribution: PriorityDistribution[];
+}
+
+export interface AnalyticsTrends {
+  period_days: number;
+  velocity_metrics: VelocityMetric[];
+}
+
+// Analytics API
+export const analyticsAPI = {
+  // Get comprehensive analytics summary
+  getSummary: (params?: { days?: number }) =>
+    api.get<AnalyticsSummary>('/api/v1/analytics/summary', { params }),
+
+  // Get completion trends over time
+  getTrends: (params?: { days?: number }) =>
+    api.get<AnalyticsTrends>('/api/v1/analytics/trends', { params }),
+};
