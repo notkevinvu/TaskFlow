@@ -1,7 +1,7 @@
 # TaskFlow Design System
 
-**Version:** 1.0
-**Last Updated:** 2025-01-22
+**Version:** 1.1
+**Last Updated:** 2025-01-27
 **Status:** Living Document
 
 This document tracks UI/UX patterns, component guidelines, and interaction standards for TaskFlow.
@@ -202,6 +202,391 @@ Using Tailwind CSS default palette + shadcn/ui theme system.
     </DialogFooter>
   </DialogContent>
 </Dialog>
+```
+
+### Category Management
+
+**Pattern:** Dropdown with create-new functionality + management dialog for bulk operations.
+
+#### CategorySelect Component
+
+**Usage:** Task creation/editing forms
+
+```tsx
+<CategorySelect
+  value={category}
+  onChange={(value) => setCategory(value)}
+  userCategories={['Work', 'Personal', 'Bug Fix']} // From user's existing tasks
+/>
+```
+
+**Features:**
+- Shows existing categories from user's tasks
+- Includes common category suggestions
+- "Create custom category..." option reveals text input
+- Auto-focuses input when creating new category
+- Keyboard support (Enter to confirm, Escape to cancel)
+
+**Applied to:**
+- ✅ CreateTaskDialog
+- ✅ EditTaskDialog
+
+#### ManageCategoriesDialog Component
+
+**Usage:** Bulk category operations
+
+```tsx
+<ManageCategoriesDialog
+  open={isOpen}
+  onOpenChange={setIsOpen}
+/>
+```
+
+**Features:**
+- Lists all categories with task counts
+- Inline rename with Enter/Escape keyboard support
+- Delete category with confirmation dialog
+- Backend sync (PUT /api/v1/categories/rename, DELETE /api/v1/categories/:name)
+- Optimistic updates with React Query
+
+**Applied to:**
+- ✅ Dashboard page ("Manage Categories" button)
+
+**Design Notes:**
+- Category badges use blue styling: `bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800`
+- Delete operation removes category from all tasks (not just deletes the label)
+- Rename operation updates all tasks with that category
+
+---
+
+### Search & Filtering
+
+**Pattern:** Instant search with debouncing + collapsible filter panel with active filter chips.
+
+#### TaskSearch Component
+
+**Usage:** Search input with debounced API calls
+
+```tsx
+<TaskSearch
+  value={searchQuery}
+  onChange={handleSearchChange}
+  placeholder="Search tasks..."
+  debounceMs={300}
+/>
+```
+
+**Features:**
+- 300ms debounce to prevent excessive API calls
+- Clear button (X icon) appears when text entered
+- Search icon visual indicator
+- Controlled component pattern
+
+**Implementation Details:**
+```tsx
+// Debounce logic
+const [localValue, setLocalValue] = useState(value);
+
+useEffect(() => {
+  const timer = setTimeout(() => {
+    onChange(localValue);
+  }, debounceMs);
+  return () => clearTimeout(timer);
+}, [localValue, debounceMs, onChange]);
+```
+
+**Applied to:**
+- ✅ Dashboard page
+
+#### TaskFilters Component
+
+**Usage:** Multi-criteria filtering with visual feedback
+
+```tsx
+<TaskFilters
+  filters={filters}
+  onChange={handleFiltersChange}
+  onClear={handleClearFilters}
+  availableCategories={categories} // Passed from parent to avoid duplicate fetch
+/>
+```
+
+**Features:**
+- Collapsible filter panel (expand/collapse button)
+- Active filter count badge
+- Filter chips showing active filters (removable with X button)
+- "Clear all" button when filters active
+- Three filter types:
+  - **Status:** todo, in_progress, done
+  - **Category:** User's existing categories
+  - **Priority Range:** Critical (90-100), High (75-89), Medium (50-74), Low (0-49)
+
+**Applied to:**
+- ✅ Dashboard page
+
+**Design Notes:**
+- Filters collapse by default to save space
+- Active filters always visible as chips (even when panel collapsed)
+- Filter panel uses 3-column grid on desktop (`md:grid-cols-3`)
+- Categories passed from parent to prevent duplicate task fetch
+
+**Backend Integration:**
+- Query params: `?search=text&status=todo&category=Work&min_priority=75&max_priority=100`
+- Filters combine with AND logic (all must match)
+- Results maintain priority sorting
+
+---
+
+### Form Components
+
+#### Select Dropdowns
+
+**Pattern:** shadcn/ui Select with consistent styling
+
+```tsx
+<Select value={value} onValueChange={setValue}>
+  <SelectTrigger>
+    <SelectValue placeholder="Select option" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="option1">Option 1</SelectItem>
+    <SelectItem value="option2">Option 2</SelectItem>
+  </SelectContent>
+</Select>
+```
+
+**Applied to:**
+- ✅ TaskFilters (status, category, priority range)
+- ✅ CategorySelect (category selection)
+- ✅ Analytics time period selector
+- ✅ CreateTaskDialog (estimated effort)
+
+**Guidelines:**
+- Use `SelectValue` placeholder for empty state
+- Group related options with `SelectGroup` (optional)
+- Use `SelectSeparator` between option groups
+- Add "All X" option for filters (e.g., "All statuses")
+
+#### Text Inputs
+
+**Pattern:** shadcn/ui Input with consistent sizing
+
+```tsx
+<Input
+  type="text"
+  placeholder="Task title"
+  value={value}
+  onChange={(e) => setValue(e.target.value)}
+  className="pl-10" // For icon padding if needed
+/>
+```
+
+**Applied to:**
+- ✅ CreateTaskDialog (title, description)
+- ✅ EditTaskDialog (title, description)
+- ✅ TaskSearch (search input)
+- ✅ CategorySelect (custom category input)
+- ✅ ManageCategoriesDialog (rename input)
+
+**Guidelines:**
+- Always include placeholder text
+- Use `type="text"` for general input
+- Use `type="email"` for email fields
+- Add icons with `absolute` positioning and `pl-10` padding
+
+---
+
+### Chart Components
+
+**Pattern:** Recharts library with consistent styling and responsive design.
+
+**Common Features Across All Charts:**
+- Responsive container (`<ResponsiveContainer width="100%" height={300}>`)
+- Consistent color scheme using CSS variables (`hsl(var(--primary))`)
+- Card wrapper with title and description
+- Empty state handling ("No data available")
+- Tooltips with dark mode support
+- Loading skeleton states
+
+#### CompletionChart (Line Chart)
+
+**Usage:** Daily task completion trends
+
+```tsx
+<CompletionChart data={velocityMetrics} />
+```
+
+**Data Format:**
+```tsx
+interface VelocityMetric {
+  date: string; // "2025-01-22"
+  completed_count: number;
+}
+```
+
+**Features:**
+- Line chart with monotone curve
+- CartesianGrid with dashed lines
+- X-axis shows dates (MMM DD format)
+- Y-axis shows task count (integers only)
+- Primary color line with dots
+- Tooltip shows date and count
+
+**Applied to:**
+- ✅ Analytics page (full-width span)
+
+#### CategoryChart (Pie Chart)
+
+**Usage:** Category distribution with completion rates
+
+```tsx
+<CategoryChart data={categoryBreakdown} />
+```
+
+**Data Format:**
+```tsx
+interface CategoryStat {
+  category: string;
+  task_count: number;
+  completion_rate: number; // 0-100
+}
+```
+
+**Features:**
+- Pie chart with labels showing percentages
+- Colors from `--chart-1` through `--chart-5` CSS variables
+- Tooltip shows task count and completion rate
+- Legend below chart
+- Handles "Uncategorized" category
+
+**Applied to:**
+- ✅ Analytics page
+
+#### PriorityChart (Bar Chart)
+
+**Usage:** Task distribution across priority ranges
+
+```tsx
+<PriorityChart data={priorityDistribution} />
+```
+
+**Data Format:**
+```tsx
+interface PriorityDistribution {
+  priority_range: string; // "Critical (90-100)"
+  task_count: number;
+}
+```
+
+**Features:**
+- Color-coded bars:
+  - Critical: `hsl(var(--destructive))` (red)
+  - High: `hsl(var(--chart-5))` (orange)
+  - Medium: `hsl(var(--primary))` (blue)
+  - Low: `hsl(var(--muted))` (gray)
+- Rounded bar tops (`radius={[8, 8, 0, 0]}`)
+- X-axis shows abbreviated labels ("Critical", "High", etc.)
+- Tooltip shows full range and count
+
+**Applied to:**
+- ✅ Analytics page
+
+#### BumpChart (Bar Chart with Stats)
+
+**Usage:** Bump distribution analysis
+
+```tsx
+<BumpChart data={bumpAnalytics} />
+```
+
+**Data Format:**
+```tsx
+interface BumpAnalytics {
+  average_bump_count: number;
+  at_risk_count: number;
+  bump_distribution: Record<string, number>; // {"0 bumps": 5, "1-2 bumps": 3}
+}
+```
+
+**Features:**
+- Stat cards above chart (Average Bumps, At Risk count)
+- Bar chart showing distribution across bump count ranges
+- Consistent primary color
+- Sorted by bump count (0 bumps → 6+ bumps)
+
+**Applied to:**
+- ✅ Analytics page (full-width span)
+
+**Chart Design Guidelines:**
+- Always wrap in Card component
+- Include CardHeader with CardTitle
+- Set explicit height (e.g., `h-80`, `h-96`)
+- Use CSS variables for colors (supports dark mode)
+- Provide empty state message
+- Match loading skeleton to final chart size
+- Use grid layout: `lg:grid-cols-2` for side-by-side, `lg:col-span-2` for full-width
+
+---
+
+### Calendar Components
+
+#### Calendar (Mini-Calendar Widget)
+
+**Usage:** Sidebar calendar with task count indicators
+
+```tsx
+<Calendar
+  onTaskClick={(taskId) => router.push(`/dashboard?taskId=${taskId}`)}
+  onCreateTask={(dueDate) => setCreateDialogOpen(true)}
+/>
+```
+
+**Features:**
+- Mini calendar format (compact month view)
+- Task count badges on dates (red/yellow/blue based on count)
+- Click date to show tasks in popover
+- Click "Add Task" in popover to create task with pre-filled due date
+- Fetches tasks for current month from backend
+
+**Applied to:**
+- ✅ Dashboard layout sidebar
+
+**Design Notes:**
+- Badge colors: 3+ tasks (red), 1-2 tasks (yellow), upcoming (blue)
+- Calendar updates when tasks are created/completed/deleted
+- Uses React Query for automatic refresh
+
+#### CalendarTaskPopover
+
+**Usage:** Popover showing tasks for selected date
+
+```tsx
+<CalendarTaskPopover
+  date={selectedDate}
+  tasks={tasksForDate}
+  onTaskClick={handleTaskClick}
+  onCreateTask={handleCreateTask}
+/>
+```
+
+**Features:**
+- Lists tasks due on selected date
+- Shows priority score badges
+- "Add Task" button with pre-filled due date
+- Collision detection to avoid viewport overflow
+- Responsive positioning
+
+**Applied to:**
+- ✅ Calendar component (triggered by date click)
+
+**Implementation Details:**
+```tsx
+<PopoverContent
+  align="start"
+  side="right"
+  collisionPadding={16}
+  avoidCollisions={true}
+>
 ```
 
 ---
@@ -661,7 +1046,308 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 
 ---
 
+## Accessibility
+
+**Priority:** All components must be keyboard-accessible and screen-reader friendly.
+
+### Keyboard Navigation
+
+#### General Principles
+- **Tab order:** Follows logical visual order (top to bottom, left to right)
+- **Focus indicators:** All interactive elements have visible focus rings (`focus-visible:ring-2`)
+- **Escape key:** Closes dialogs, popovers, and dropdowns
+- **Enter key:** Confirms actions, submits forms
+- **Arrow keys:** Navigate through lists, calendar dates, select options
+
+#### Component-Specific Keyboard Support
+
+**Dialogs (Modals):**
+- `Escape` - Closes dialog
+- `Tab` - Cycles through focusable elements within dialog
+- Focus trapped within dialog when open
+- First focusable element auto-focused on open
+- Focus returned to trigger element on close
+
+**Applied to:** CreateTaskDialog, EditTaskDialog, ManageCategoriesDialog
+
+**Select Dropdowns:**
+- `Space` or `Enter` - Opens dropdown
+- `Arrow Up/Down` - Navigate options
+- `Enter` - Selects option
+- `Escape` - Closes dropdown
+- Type-ahead search (typing filters options)
+
+**Applied to:** CategorySelect, TaskFilters, Analytics time period selector
+
+**Calendar:**
+- `Arrow keys` - Navigate dates
+- `Enter` - Selects date/opens popover
+- `Escape` - Closes popover
+- `Tab` - Moves to next interactive element
+
+**Applied to:** Calendar widget, CalendarTaskPopover
+
+**Search & Filters:**
+- `Enter` - Executes search immediately (bypasses debounce)
+- `Escape` - Clears search input
+- `Tab` - Moves between filter controls
+- Filter chips removable with `Enter` or `Space` when focused
+
+**Applied to:** TaskSearch, TaskFilters
+
+**Category Management:**
+- `Enter` - Confirms rename, saves new category
+- `Escape` - Cancels rename, discards input
+- Inline editing auto-focuses input field
+
+**Applied to:** CategorySelect, ManageCategoriesDialog
+
+---
+
+### Screen Reader Support
+
+#### ARIA Labels
+
+**Interactive Elements:**
+```tsx
+// Button with icon only
+<Button aria-label="Delete task">
+  <Trash2 className="h-4 w-4" />
+</Button>
+
+// Search input
+<Input
+  type="text"
+  placeholder="Search tasks..."
+  aria-label="Search tasks"
+/>
+
+// Select dropdown
+<Select aria-label="Filter by status">
+  <SelectTrigger>
+    <SelectValue placeholder="All statuses" />
+  </SelectTrigger>
+</Select>
+```
+
+**Applied to:**
+- ✅ All icon-only buttons
+- ✅ Search inputs
+- ✅ Filter dropdowns
+- ✅ Theme toggle
+
+**Status Messages:**
+```tsx
+// Loading state
+<div role="status" aria-live="polite">
+  <Loader2 className="animate-spin" />
+  <span className="sr-only">Loading analytics data...</span>
+</div>
+
+// Error message
+<div role="alert" aria-live="assertive">
+  Unable to load data. Please try again.
+</div>
+```
+
+**Applied to:**
+- ✅ Loading skeletons (page-level)
+- ✅ Error messages in analytics page
+- ✅ Form validation errors
+
+**Live Regions:**
+```tsx
+// Task count updates
+<div aria-live="polite" aria-atomic="true">
+  Showing {tasks.length} tasks
+</div>
+
+// Filter updates
+<div aria-live="polite">
+  {activeFilterCount} filters active
+</div>
+```
+
+**Applied to:**
+- ✅ Task list count
+- ✅ Filter count badge
+- ✅ Search results
+
+---
+
+### Focus Management
+
+#### Focus Visible
+
+All interactive elements use `focus-visible:ring-2` for keyboard focus indicators (mouse clicks don't show ring, keyboard navigation does).
+
+```tsx
+// Already applied by shadcn/ui default styles
+outline-ring/50
+focus-visible:ring-2
+focus-visible:ring-offset-2
+```
+
+**Applied to:**
+- ✅ All buttons
+- ✅ All inputs
+- ✅ All select dropdowns
+- ✅ All links
+
+#### Auto-Focus
+
+**When to use:**
+- First input in dialogs (CreateTaskDialog title input)
+- Custom category input when "Create custom..." selected
+- Rename input in ManageCategoriesDialog
+- Search input on page load (optional, can be intrusive)
+
+**When not to use:**
+- Auto-focusing on page load (disruptive to keyboard users)
+- Auto-focusing elements outside viewport
+- Auto-focusing destructive actions
+
+**Applied to:**
+- ✅ CreateTaskDialog (title input auto-focused)
+- ✅ CategorySelect (custom input auto-focused when revealed)
+- ✅ ManageCategoriesDialog (rename input auto-focused)
+
+---
+
+### Color Contrast
+
+**WCAG AA Compliance** (4.5:1 for normal text, 3:1 for large text)
+
+**Text Colors:**
+- Primary text: `foreground` - High contrast with background
+- Muted text: `muted-foreground` - Passes AA for large text (14px+ bold, 18px+ regular)
+- Links: `primary` - Sufficient contrast, underline on focus/hover
+
+**Button Colors:**
+- Default button: Sufficient contrast in both light and dark modes
+- Destructive button: Red background with white text (passes AAA)
+- Outline button: Border + text meet AA standards
+
+**Status Colors:**
+- Success (green): `green-600` in light, `green-400` in dark
+- Warning (yellow): `yellow-600` in light, `yellow-400` in dark
+- Error (red): `red-600` in light, `red-400` in dark
+
+**Charts:**
+- All chart colors tested for sufficient contrast with backgrounds
+- Tooltips have high contrast dark backgrounds
+- Priority color-coding includes both color and position for color-blind users
+
+**Applied to:**
+- ✅ All text elements
+- ✅ All buttons
+- ✅ All badges
+- ✅ All charts
+- ✅ Dark mode variants
+
+---
+
+### Semantic HTML
+
+**Use semantic elements** for better screen reader comprehension:
+
+```tsx
+// Page structure
+<main>         // Main content area
+  <header>     // Page/section header
+  <nav>        // Navigation (sidebar)
+  <section>    // Content sections
+  <article>    // Independent content (task cards)
+</main>
+
+// Forms
+<form>
+  <label htmlFor="title">Title</label>
+  <input id="title" />
+  <button type="submit">Save</button>
+</form>
+```
+
+**Applied to:**
+- ✅ Dashboard layout (nav, main, header structure)
+- ✅ All forms (proper label associations)
+- ✅ Task cards (article elements)
+
+---
+
+### Touch Targets
+
+**Minimum size:** 44×44px (WCAG AA mobile guidelines)
+
+**Implementation:**
+- All buttons use `size="sm"` (minimum 40px) or `size="default"` (44px+)
+- Interactive cards have generous padding for large touch areas
+- Calendar dates have minimum 40px tap area
+- Filter chips have adequate spacing between them
+
+**Applied to:**
+- ✅ All buttons
+- ✅ All interactive cards
+- ✅ Calendar dates
+- ✅ Filter chips
+- ✅ Select dropdowns
+
+---
+
+### Testing Checklist
+
+**Keyboard Testing:**
+- [ ] Tab through entire page without mouse
+- [ ] All interactive elements reachable via keyboard
+- [ ] Focus indicators visible on all elements
+- [ ] Dialogs trap focus correctly
+- [ ] Escape key works for all dismissible components
+
+**Screen Reader Testing:**
+- [ ] Test with NVDA (Windows) or VoiceOver (Mac)
+- [ ] All buttons announce their purpose
+- [ ] Form fields have associated labels
+- [ ] Error messages are announced
+- [ ] Loading states are announced
+- [ ] Dynamic content updates are announced
+
+**Color Contrast Testing:**
+- [ ] Use browser DevTools contrast checker
+- [ ] Test all text colors against backgrounds
+- [ ] Test button colors in both states
+- [ ] Test chart colors for differentiation
+- [ ] Verify dark mode contrast ratios
+
+**Future Improvements:**
+- [ ] Add skip navigation link ("Skip to main content")
+- [ ] Add keyboard shortcuts documentation
+- [ ] Add reduced motion support (`prefers-reduced-motion`)
+- [ ] Add high contrast mode support
+- [ ] Comprehensive automated accessibility testing (axe-core, Lighthouse)
+
+---
+
 ## Changelog
+
+### 2025-01-27 (Phase 2.5 Completion - v1.1)
+- ✅ **Major Update:** Comprehensive Phase 2.5 component documentation
+- ✅ Added Category Management pattern (CategorySelect, ManageCategoriesDialog)
+- ✅ Added Search & Filtering pattern (TaskSearch, TaskFilters with collapsible panel)
+- ✅ Added Form Components section (Select dropdowns, Text inputs with guidelines)
+- ✅ Added Chart Components pattern (CompletionChart, CategoryChart, PriorityChart, BumpChart)
+- ✅ Added Calendar Components pattern (Calendar widget, CalendarTaskPopover)
+- ✅ **New Section:** Comprehensive Accessibility guidelines
+  - Keyboard navigation for all component types
+  - Screen reader support (ARIA labels, status messages, live regions)
+  - Focus management (focus-visible, auto-focus guidelines)
+  - Color contrast (WCAG AA compliance)
+  - Semantic HTML patterns
+  - Touch targets (44×44px minimum)
+  - Accessibility testing checklist
+- ✅ Updated Loading States section with page-level, data-fetching, and button loading patterns
+- ✅ Documented all 15 custom components from Phase 2.5
+- ✅ Added implementation details, code examples, and applied-to lists for all patterns
+- ✅ Version bumped to 1.1
 
 ### 2025-01-22 (Update 4)
 - ✅ Changed user priority from 0-100 input to 1-10 dropdown
