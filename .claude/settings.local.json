@@ -33,7 +33,10 @@
       "Bash(tail:*)",
       "Bash(git -C \"D:\\Projects-Coding\\TaskFlow\" stash pop)",
       "Bash(git -C \"D:\\Projects-Coding\\TaskFlow\" diff .claude/settings.local.json)",
-      "Bash(git -C:*)"
+      "Bash(git -C:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,12 +1,22 @@
 'use client';
 
-import { useTasks } from '@/hooks/useTasks';
+import { useState } from 'react';
+import { useAnalyticsSummary, useAnalyticsTrends } from '@/hooks/useAnalytics';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CompletionChart } from '@/components/charts/CompletionChart';
+import { CategoryChart } from '@/components/charts/CategoryChart';
+import { PriorityChart } from '@/components/charts/PriorityChart';
+import { BumpChart } from '@/components/charts/BumpChart';
 
 export default function AnalyticsPage() {
-  const { data: tasksData, isLoading } = useTasks();
+  const [timePeriod, setTimePeriod] = useState<number>(30);
+
+  const { data: summary, isLoading: summaryLoading, error: summaryError } = useAnalyticsSummary(timePeriod);
+  const { data: trends, isLoading: trendsLoading, error: trendsError } = useAnalyticsTrends(timePeriod);
+
+  const isLoading = summaryLoading || trendsLoading;
 
   if (isLoading) {
     return (
@@ -21,182 +31,192 @@ export default function AnalyticsPage() {
     );
   }
 
-  const tasks = tasksData?.tasks || [];
+  // Show error state with details
+  if (summaryError || trendsError) {
+    const error = summaryError || trendsError;
+    let errorMessage = '';
+    let backendDetails = '';
 
-  // Delay Analysis
-  const bumpedTasks = tasks.filter(t => t.bump_count > 0);
-  const avgBumpCount = bumpedTasks.length > 0
-    ? bumpedTasks.reduce((sum, t) => sum + t.bump_count, 0) / bumpedTasks.length
-    : 0;
+    if (error) {
+      errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
 
-  const bumpDistribution = {
-    '0 bumps': tasks.filter(t => t.bump_count === 0).length,
-    '1-2 bumps': tasks.filter(t => t.bump_count >= 1 && t.bump_count <= 2).length,
-    '3-5 bumps': tasks.filter(t => t.bump_count >= 3 && t.bump_count <= 5).length,
-    '6+ bumps': tasks.filter(t => t.bump_count >= 6).length,
-  };
-
-  // Category Breakdown
-  const categories: Record<string, { count: number; avgBumps: number }> = {};
-  tasks.forEach(task => {
-    const cat = task.category || 'Uncategorized';
-    if (!categories[cat]) {
-      categories[cat] = { count: 0, avgBumps: 0 };
+      // Try to extract backend error details
+      if ('response' in error && error.response && typeof error.response === 'object') {
+        const response = error.response as any;
+        if (response.data) {
+          backendDetails = JSON.stringify(response.data, null, 2);
+        }
+      }
     }
-    categories[cat].count++;
-    categories[cat].avgBumps += task.bump_count;
-  });
 
-  Object.keys(categories).forEach(cat => {
-    categories[cat].avgBumps = categories[cat].avgBumps / categories[cat].count;
-  });
+    return (
+      <div className="space-y-6">
+        <h2 className="text-3xl font-bold">Analytics</h2>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center space-y-2">
+              <p className="text-muted-foreground">
+                Unable to load analytics data. Please try again later.
+              </p>
+              <details className="text-left text-xs text-red-600 mt-2">
+                <summary className="cursor-pointer">Error details</summary>
+                <div className="mt-2 space-y-2">
+                  <div>
+                    <strong>Error:</strong>
+                    <pre className="mt-1 p-2 bg-red-50 dark:bg-red-950 rounded overflow-auto text-xs">
+                      {errorMessage}
+                    </pre>
+                  </div>
+                  {backendDetails && (
+                    <div>
+                      <strong>Backend response:</strong>
+                      <pre className="mt-1 p-2 bg-red-50 dark:bg-red-950 rounded overflow-auto text-xs">
+                        {backendDetails}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              </details>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-  const sortedCategories = Object.entries(categories).sort(
-    (a, b) => b[1].count - a[1].count
-  );
+  if (!summary || !trends) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-3xl font-bold">Analytics</h2>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">
+              Loading analytics data...
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-  // Effort Distribution
-  const effortDistribution = {
-    small: tasks.filter(t => t.estimated_effort === 'small').length,
-    medium: tasks.filter(t => t.estimated_effort === 'medium').length,
-    large: tasks.filter(t => t.estimated_effort === 'large').length,
-    xlarge: tasks.filter(t => t.estimated_effort === 'xlarge').length,
-    unknown: tasks.filter(t => !t.estimated_effort).length,
-  };
+  const completionStats = summary.completion_stats;
+  const bumpAnalytics = summary.bump_analytics;
+  const categoryBreakdown = summary.category_breakdown;
+  const priorityDistribution = summary.priority_distribution;
+  const velocityMetrics = trends.velocity_metrics;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold">Analytics</h2>
-        <p className="text-muted-foreground">
-          Insights into your task patterns and productivity
-        </p>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold">Analytics</h2>
+          <p className="text-muted-foreground">
+            Insights into your task patterns and productivity
+          </p>
+        </div>
+
+        {/* Time Period Selector */}
+        <Select
+          value={timePeriod.toString()}
+          onValueChange={(value) => setTimePeriod(parseInt(value))}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7">Last 7 days</SelectItem>
+            <SelectItem value="14">Last 14 days</SelectItem>
+            <SelectItem value="30">Last 30 days</SelectItem>
+            <SelectItem value="60">Last 60 days</SelectItem>
+            <SelectItem value="90">Last 90 days</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Delay Analysis */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Delay Analysis</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Tasks Delayed</p>
-              <p className="text-2xl font-bold">{bumpedTasks.length}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Average Bumps</p>
-              <p className="text-2xl font-bold">{avgBumpCount.toFixed(1)}</p>
-            </div>
-          </div>
+      {/* Summary Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Tasks
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{completionStats.total_tasks}</div>
+            <p className="text-xs text-muted-foreground">
+              In selected period
+            </p>
+          </CardContent>
+        </Card>
 
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Bump Distribution</p>
-            {Object.entries(bumpDistribution).map(([range, count]) => (
-              <div key={range} className="flex items-center justify-between">
-                <span className="text-sm">{range}</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-64 bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full"
-                      style={{
-                        width: `${(count / tasks.length) * 100}%`
-                      }}
-                    />
-                  </div>
-                  <span className="text-sm font-medium w-8 text-right">{count}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Category Breakdown */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Category Breakdown</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {sortedCategories.map(([category, stats]) => (
-              <div key={category} className="flex items-center justify-between pb-3 border-b last:border-0">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{category}</p>
-                    <Badge variant="outline">{stats.count} tasks</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Avg bumps: {stats.avgBumps.toFixed(1)}
-                  </p>
-                </div>
-                <div className="w-48 bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full"
-                    style={{
-                      width: `${(stats.count / tasks.length) * 100}%`
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Effort Distribution */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Effort Distribution</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {Object.entries(effortDistribution).map(([effort, count]) => (
-              <div key={effort} className="flex items-center justify-between">
-                <span className="text-sm capitalize">{effort}</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-64 bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full"
-                      style={{
-                        width: `${tasks.length > 0 ? (count / tasks.length) * 100 : 0}%`
-                      }}
-                    />
-                  </div>
-                  <span className="text-sm font-medium w-8 text-right">{count}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Velocity (Simple version for now) */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Velocity & Completion</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Tasks</p>
-              <p className="text-2xl font-bold">{tasks.length}</p>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Completed
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {completionStats.completed_tasks}
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">High Priority (75+)</p>
-              <p className="text-2xl font-bold">
-                {tasks.filter(t => t.priority_score >= 75).length}
-              </p>
+            <p className="text-xs text-muted-foreground">
+              {completionStats.completion_rate.toFixed(1)}% completion rate
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Pending
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">
+              {completionStats.pending_tasks}
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Critical (90+)</p>
-              <p className="text-2xl font-bold text-red-600">
-                {tasks.filter(t => t.priority_score >= 90).length}
-              </p>
+            <p className="text-xs text-muted-foreground">
+              Still in progress
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              At Risk
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {bumpAnalytics.at_risk_count}
             </div>
-          </div>
-        </CardContent>
-      </Card>
+            <p className="text-xs text-muted-foreground">
+              Avg bumps: {bumpAnalytics.average_bump_count.toFixed(1)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Grid */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Completion Trends */}
+        <div className="lg:col-span-2">
+          <CompletionChart data={velocityMetrics} />
+        </div>
+
+        {/* Priority Distribution */}
+        <PriorityChart data={priorityDistribution} />
+
+        {/* Category Breakdown */}
+        <CategoryChart data={categoryBreakdown} />
+
+        {/* Bump Analysis */}
+        <div className="lg:col-span-2">
+          <BumpChart data={bumpAnalytics} />
+        </div>
+      </div>
     </div>
   );
 }

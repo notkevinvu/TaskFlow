@@ -446,3 +446,241 @@ func (r *TaskRepository) DeleteCategoryForUser(ctx context.Context, userID, cate
 
 	return int(result.RowsAffected()), nil
 }
+
+// Analytics-related repository methods
+
+// CompletionStats represents completion statistics for a time period
+type CompletionStats struct {
+	TotalTasks      int     `json:"total_tasks"`
+	CompletedTasks  int     `json:"completed_tasks"`
+	CompletionRate  float64 `json:"completion_rate"`
+	PendingTasks    int     `json:"pending_tasks"`
+}
+
+// GetCompletionStats retrieves completion statistics for a user within a time period
+func (r *TaskRepository) GetCompletionStats(ctx context.Context, userID string, daysBack int) (*CompletionStats, error) {
+	query := `
+		SELECT
+			COUNT(*) as total_tasks,
+			COUNT(*) FILTER (WHERE status = 'done') as completed_tasks,
+			COUNT(*) FILTER (WHERE status != 'done') as pending_tasks
+		FROM tasks
+		WHERE user_id = $1
+		  AND created_at >= NOW() - INTERVAL '1 day' * $2
+	`
+
+	var stats CompletionStats
+	err := r.db.QueryRow(ctx, query, userID, daysBack).Scan(
+		&stats.TotalTasks,
+		&stats.CompletedTasks,
+		&stats.PendingTasks,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if stats.TotalTasks > 0 {
+		stats.CompletionRate = float64(stats.CompletedTasks) / float64(stats.TotalTasks) * 100
+	}
+
+	return &stats, nil
+}
+
+// BumpAnalytics represents bump-related analytics
+type BumpAnalytics struct {
+	AverageBumpCount float64     `json:"average_bump_count"`
+	TasksByBumpCount map[int]int `json:"tasks_by_bump_count"`
+	AtRiskCount      int         `json:"at_risk_count"` // bump_count >= 3
+}
+
+// GetBumpAnalytics retrieves bump statistics for a user
+func (r *TaskRepository) GetBumpAnalytics(ctx context.Context, userID string) (*BumpAnalytics, error) {
+	// Get average bump count
+	avgQuery := `
+		SELECT COALESCE(AVG(bump_count), 0) as avg_bump_count
+		FROM tasks
+		WHERE user_id = $1 AND status != 'done'
+	`
+
+	var analytics BumpAnalytics
+	err := r.db.QueryRow(ctx, avgQuery, userID).Scan(&analytics.AverageBumpCount)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get tasks grouped by bump count
+	countQuery := `
+		SELECT bump_count, COUNT(*) as task_count
+		FROM tasks
+		WHERE user_id = $1 AND status != 'done'
+		GROUP BY bump_count
+		ORDER BY bump_count
+	`
+
+	rows, err := r.db.Query(ctx, countQuery, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	analytics.TasksByBumpCount = make(map[int]int)
+	for rows.Next() {
+		var bumpCount, taskCount int
+		if err := rows.Scan(&bumpCount, &taskCount); err != nil {
+			return nil, err
+		}
+		analytics.TasksByBumpCount[bumpCount] = taskCount
+
+		if bumpCount >= 3 {
+			analytics.AtRiskCount += taskCount
+		}
+	}
+
+	return &analytics, rows.Err()
+}
+
+// CategoryStats represents statistics for a single category
+type CategoryStats struct {
+	Category       string  `json:"category"`
+	TotalCount     int     `json:"task_count"`
+	CompletedCount int     `json:"completed_count"`
+	CompletionRate float64 `json:"completion_rate"`
+}
+
+// GetCategoryBreakdown retrieves task statistics grouped by category
+func (r *TaskRepository) GetCategoryBreakdown(ctx context.Context, userID string, daysBack int) ([]CategoryStats, error) {
+	query := `
+		SELECT
+			COALESCE(category, 'Uncategorized') as category,
+			COUNT(*) as total_count,
+			COUNT(*) FILTER (WHERE status = 'done') as completed_count
+		FROM tasks
+		WHERE user_id = $1
+		  AND created_at >= NOW() - INTERVAL '1 day' * $2
+		GROUP BY category
+		ORDER BY total_count DESC
+	`
+
+	rows, err := r.db.Query(ctx, query, userID, daysBack)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var stats []CategoryStats
+	for rows.Next() {
+		var s CategoryStats
+		if err := rows.Scan(&s.Category, &s.TotalCount, &s.CompletedCount); err != nil {
+			return nil, err
+		}
+
+		if s.TotalCount > 0 {
+			s.CompletionRate = float64(s.CompletedCount) / float64(s.TotalCount) * 100
+		}
+
+		stats = append(stats, s)
+	}
+
+	return stats, rows.Err()
+}
+
+// VelocityMetrics represents task completion velocity
+type VelocityMetrics struct {
+	Date           string `json:"date"`
+	CompletedCount int    `json:"completed_count"`
+}
+
+// GetVelocityMetrics retrieves daily task completion counts
+func (r *TaskRepository) GetVelocityMetrics(ctx context.Context, userID string, daysBack int) ([]VelocityMetrics, error) {
+	query := `
+		SELECT
+			DATE(completed_at) as completion_date,
+			COUNT(*) as completed_count
+		FROM tasks
+		WHERE user_id = $1
+		  AND status = 'done'
+		  AND completed_at >= NOW() - INTERVAL '1 day' * $2
+		GROUP BY DATE(completed_at)
+		ORDER BY completion_date
+	`
+
+	rows, err := r.db.Query(ctx, query, userID, daysBack)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var metrics []VelocityMetrics
+	for rows.Next() {
+		var m VelocityMetrics
+		var date interface{}
+		if err := rows.Scan(&date, &m.CompletedCount); err != nil {
+			return nil, err
+		}
+
+		// Convert date to string
+		if date != nil {
+			m.Date = fmt.Sprintf("%v", date)
+		}
+
+		metrics = append(metrics, m)
+	}
+
+	return metrics, rows.Err()
+}
+
+// PriorityDistribution represents task count by priority range
+type PriorityDistribution struct {
+	Range string `json:"priority_range"`
+	Count int    `json:"task_count"`
+}
+
+// GetPriorityDistribution retrieves task distribution across priority ranges
+func (r *TaskRepository) GetPriorityDistribution(ctx context.Context, userID string) ([]PriorityDistribution, error) {
+	query := `
+		SELECT
+			CASE
+				WHEN priority_score >= 90 THEN 'Critical (90-100)'
+				WHEN priority_score >= 75 THEN 'High (75-89)'
+				WHEN priority_score >= 50 THEN 'Medium (50-74)'
+				ELSE 'Low (0-49)'
+			END as priority_range,
+			COUNT(*) as task_count
+		FROM tasks
+		WHERE user_id = $1 AND status != 'done'
+		GROUP BY
+			CASE
+				WHEN priority_score >= 90 THEN 'Critical (90-100)'
+				WHEN priority_score >= 75 THEN 'High (75-89)'
+				WHEN priority_score >= 50 THEN 'Medium (50-74)'
+				ELSE 'Low (0-49)'
+			END
+		ORDER BY
+			MIN(
+				CASE
+					WHEN priority_score >= 90 THEN 1
+					WHEN priority_score >= 75 THEN 2
+					WHEN priority_score >= 50 THEN 3
+					ELSE 4
+				END
+			)
+	`
+
+	rows, err := r.db.Query(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var distribution []PriorityDistribution
+	for rows.Next() {
+		var d PriorityDistribution
+		if err := rows.Scan(&d.Range, &d.Count); err != nil {
+			return nil, err
+		}
+		distribution = append(distribution, d)
+	}
+
+	return distribution, rows.Err()
+}
