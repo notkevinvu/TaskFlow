@@ -6,16 +6,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/notkevinvu/taskflow/backend/internal/middleware"
-	"github.com/notkevinvu/taskflow/backend/internal/service"
+	"github.com/notkevinvu/taskflow/backend/internal/ports"
 )
 
 // CategoryHandler handles HTTP requests for category management
 type CategoryHandler struct {
-	taskService *service.TaskService
+	taskService ports.TaskService
 }
 
 // NewCategoryHandler creates a new category handler
-func NewCategoryHandler(taskService *service.TaskService) *CategoryHandler {
+func NewCategoryHandler(taskService ports.TaskService) *CategoryHandler {
 	return &CategoryHandler{taskService: taskService}
 }
 

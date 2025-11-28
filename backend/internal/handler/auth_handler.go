@@ -6,16 +6,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/notkevinvu/taskflow/backend/internal/middleware"
+	"github.com/notkevinvu/taskflow/backend/internal/ports"
 	"github.com/notkevinvu/taskflow/backend/internal/service"
 )
 
 // AuthHandler handles HTTP requests for authentication
 type AuthHandler struct {
-	authService *service.AuthService
+	authService ports.AuthService
 }
 
 // NewAuthHandler creates a new auth handler
-func NewAuthHandler(authService *service.AuthService) *AuthHandler {
+func NewAuthHandler(authService ports.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 

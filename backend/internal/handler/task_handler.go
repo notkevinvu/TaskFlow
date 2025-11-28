@@ -7,16 +7,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/notkevinvu/taskflow/backend/internal/middleware"
-	"github.com/notkevinvu/taskflow/backend/internal/service"
+	"github.com/notkevinvu/taskflow/backend/internal/ports"
 )
 
 // TaskHandler handles HTTP requests for tasks
 type TaskHandler struct {
-	taskService *service.TaskService
+	taskService ports.TaskService
 }
 
 // NewTaskHandler creates a new task handler
-func NewTaskHandler(taskService *service.TaskService) *TaskHandler {
+func NewTaskHandler(taskService ports.TaskService) *TaskHandler {
 	return &TaskHandler{taskService: taskService}
 }
 
