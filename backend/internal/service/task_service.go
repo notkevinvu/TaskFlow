@@ -9,6 +9,7 @@ import (
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/notkevinvu/taskflow/backend/internal/domain/priority"
 	"github.com/notkevinvu/taskflow/backend/internal/ports"
+	"github.com/notkevinvu/taskflow/backend/internal/validation"
 )
 
 // TaskService handles task business logic
@@ -29,11 +30,44 @@ func NewTaskService(taskRepo ports.TaskRepository, taskHistoryRepo ports.TaskHis
 
 // Create creates a new task
 func (s *TaskService) Create(ctx context.Context, userID string, dto *domain.CreateTaskDTO) (*domain.Task, error) {
+	// Validate title
+	title, err := validation.ValidateRequiredText(dto.Title, 200, "title")
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate optional description
+	description, err := validation.ValidateOptionalText(dto.Description, 2000, "description")
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate optional category
+	category, err := validation.ValidateCategory(dto.Category)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate optional context
+	contextVal, err := validation.ValidateOptionalText(dto.Context, 500, "context")
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate related people
+	relatedPeople, err := validation.ValidateStringSlice(dto.RelatedPeople, 100, 20, "related_people")
+	if err != nil {
+		return nil, err
+	}
+
 	now := time.Now()
 
 	// Set default user priority if not provided (1-10 scale)
 	userPriority := 5
 	if dto.UserPriority != nil {
+		if err := validation.ValidatePriority(*dto.UserPriority); err != nil {
+			return nil, err
+		}
 		userPriority = *dto.UserPriority
 	}
 
@@ -41,15 +75,15 @@ func (s *TaskService) Create(ctx context.Context, userID string, dto *domain.Cre
 	task := &domain.Task{
 		ID:              uuid.New().String(),
 		UserID:          userID,
-		Title:           dto.Title,
-		Description:     dto.Description,
+		Title:           title,
+		Description:     description,
 		Status:          domain.TaskStatusTodo,
 		UserPriority:    userPriority,
 		DueDate:         dto.DueDate,
 		EstimatedEffort: dto.EstimatedEffort,
-		Category:        dto.Category,
-		Context:         dto.Context,
-		RelatedPeople:   dto.RelatedPeople,
+		Category:        category,
+		Context:         contextVal,
+		RelatedPeople:   relatedPeople,
 		BumpCount:       0,
 		CreatedAt:       now,
 		UpdatedAt:       now,
@@ -60,7 +94,7 @@ func (s *TaskService) Create(ctx context.Context, userID string, dto *domain.Cre
 
 	// Save to database
 	if err := s.taskRepo.Create(ctx, task); err != nil {
-		return nil, err
+		return nil, domain.NewInternalError("failed to create task", err)
 	}
 
 	// Log task creation in history
@@ -76,12 +110,15 @@ func (s *TaskService) Create(ctx context.Context, userID string, dto *domain.Cre
 func (s *TaskService) Get(ctx context.Context, userID, taskID string) (*domain.Task, error) {
 	task, err := s.taskRepo.FindByID(ctx, taskID)
 	if err != nil {
-		return nil, err
+		return nil, domain.NewInternalError("failed to find task", err)
+	}
+	if task == nil {
+		return nil, domain.NewNotFoundError("task", taskID)
 	}
 
 	// Verify task belongs to user
 	if task.UserID != userID {
-		return nil, domain.ErrUnauthorized
+		return nil, domain.NewForbiddenError("task", "access")
 	}
 
 	return task, nil
@@ -97,23 +134,34 @@ func (s *TaskService) Update(ctx context.Context, userID, taskID string, dto *do
 	// Get existing task
 	task, err := s.taskRepo.FindByID(ctx, taskID)
 	if err != nil {
-		return nil, err
+		return nil, domain.NewInternalError("failed to find task", err)
+	}
+	if task == nil {
+		return nil, domain.NewNotFoundError("task", taskID)
 	}
 
 	// Verify ownership
 	if task.UserID != userID {
-		return nil, domain.ErrUnauthorized
+		return nil, domain.NewForbiddenError("task", "update")
 	}
 
 	// Store old task for history
 	oldTask := *task
 
-	// Apply updates
+	// Apply updates with validation
 	if dto.Title != nil {
-		task.Title = *dto.Title
+		validated, err := validation.ValidateRequiredText(*dto.Title, 200, "title")
+		if err != nil {
+			return nil, err
+		}
+		task.Title = validated
 	}
 	if dto.Description != nil {
-		task.Description = dto.Description
+		validated, err := validation.ValidateOptionalText(dto.Description, 2000, "description")
+		if err != nil {
+			return nil, err
+		}
+		task.Description = validated
 	}
 	if dto.Status != nil {
 		task.Status = *dto.Status
@@ -123,6 +171,9 @@ func (s *TaskService) Update(ctx context.Context, userID, taskID string, dto *do
 		}
 	}
 	if dto.UserPriority != nil {
+		if err := validation.ValidatePriority(*dto.UserPriority); err != nil {
+			return nil, err
+		}
 		task.UserPriority = *dto.UserPriority
 	}
 	if dto.DueDate != nil {
@@ -132,13 +183,25 @@ func (s *TaskService) Update(ctx context.Context, userID, taskID string, dto *do
 		task.EstimatedEffort = dto.EstimatedEffort
 	}
 	if dto.Category != nil {
-		task.Category = dto.Category
+		validated, err := validation.ValidateCategory(dto.Category)
+		if err != nil {
+			return nil, err
+		}
+		task.Category = validated
 	}
 	if dto.Context != nil {
-		task.Context = dto.Context
+		validated, err := validation.ValidateOptionalText(dto.Context, 500, "context")
+		if err != nil {
+			return nil, err
+		}
+		task.Context = validated
 	}
 	if dto.RelatedPeople != nil {
-		task.RelatedPeople = dto.RelatedPeople
+		validated, err := validation.ValidateStringSlice(dto.RelatedPeople, 100, 20, "related_people")
+		if err != nil {
+			return nil, err
+		}
+		task.RelatedPeople = validated
 	}
 
 	task.UpdatedAt = time.Now()
@@ -148,7 +211,7 @@ func (s *TaskService) Update(ctx context.Context, userID, taskID string, dto *do
 
 	// Save to database
 	if err := s.taskRepo.Update(ctx, task); err != nil {
-		return nil, err
+		return nil, domain.NewInternalError("failed to update task", err)
 	}
 
 	// Log update in history
@@ -164,11 +227,14 @@ func (s *TaskService) Delete(ctx context.Context, userID, taskID string) error {
 	// Verify task exists and belongs to user
 	task, err := s.taskRepo.FindByID(ctx, taskID)
 	if err != nil {
-		return err
+		return domain.NewInternalError("failed to find task", err)
+	}
+	if task == nil {
+		return domain.NewNotFoundError("task", taskID)
 	}
 
 	if task.UserID != userID {
-		return domain.ErrUnauthorized
+		return domain.NewForbiddenError("task", "delete")
 	}
 
 	// Log deletion in history (before deleting)
@@ -176,7 +242,11 @@ func (s *TaskService) Delete(ctx context.Context, userID, taskID string) error {
 		// Log error but continue with deletion
 	}
 
-	return s.taskRepo.Delete(ctx, taskID, userID)
+	if err := s.taskRepo.Delete(ctx, taskID, userID); err != nil {
+		return domain.NewInternalError("failed to delete task", err)
+	}
+
+	return nil
 }
 
 // Bump increments the bump counter for a task
@@ -184,12 +254,15 @@ func (s *TaskService) Bump(ctx context.Context, userID, taskID string) (*domain.
 	// Get task
 	task, err := s.taskRepo.FindByID(ctx, taskID)
 	if err != nil {
-		return nil, err
+		return nil, domain.NewInternalError("failed to find task", err)
+	}
+	if task == nil {
+		return nil, domain.NewNotFoundError("task", taskID)
 	}
 
 	// Verify ownership
 	if task.UserID != userID {
-		return nil, domain.ErrUnauthorized
+		return nil, domain.NewForbiddenError("task", "bump")
 	}
 
 	// Store old bump count
@@ -197,19 +270,19 @@ func (s *TaskService) Bump(ctx context.Context, userID, taskID string) (*domain.
 
 	// Increment bump count
 	if err := s.taskRepo.IncrementBumpCount(ctx, taskID, userID); err != nil {
-		return nil, err
+		return nil, domain.NewInternalError("failed to increment bump count", err)
 	}
 
 	// Get updated task
 	task, err = s.taskRepo.FindByID(ctx, taskID)
 	if err != nil {
-		return nil, err
+		return nil, domain.NewInternalError("failed to retrieve updated task", err)
 	}
 
 	// Recalculate priority
 	task.PriorityScore = s.priorityCalc.Calculate(task)
 	if err := s.taskRepo.Update(ctx, task); err != nil {
-		return nil, err
+		return nil, domain.NewInternalError("failed to update task priority", err)
 	}
 
 	// Log bump in history
@@ -227,12 +300,15 @@ func (s *TaskService) Complete(ctx context.Context, userID, taskID string) (*dom
 	// Get task
 	task, err := s.taskRepo.FindByID(ctx, taskID)
 	if err != nil {
-		return nil, err
+		return nil, domain.NewInternalError("failed to find task", err)
+	}
+	if task == nil {
+		return nil, domain.NewNotFoundError("task", taskID)
 	}
 
 	// Verify ownership
 	if task.UserID != userID {
-		return nil, domain.ErrUnauthorized
+		return nil, domain.NewForbiddenError("task", "complete")
 	}
 
 	// Update task
@@ -243,7 +319,7 @@ func (s *TaskService) Complete(ctx context.Context, userID, taskID string) (*dom
 
 	// Save to database
 	if err := s.taskRepo.Update(ctx, task); err != nil {
-		return nil, err
+		return nil, domain.NewInternalError("failed to update task", err)
 	}
 
 	// Log completion in history
@@ -256,7 +332,11 @@ func (s *TaskService) Complete(ctx context.Context, userID, taskID string) (*dom
 
 // GetAtRiskTasks retrieves tasks that are at risk
 func (s *TaskService) GetAtRiskTasks(ctx context.Context, userID string) ([]*domain.Task, error) {
-	return s.taskRepo.FindAtRiskTasks(ctx, userID)
+	tasks, err := s.taskRepo.FindAtRiskTasks(ctx, userID)
+	if err != nil {
+		return nil, domain.NewInternalError("failed to retrieve at-risk tasks", err)
+	}
+	return tasks, nil
 }
 
 // GetCalendar retrieves tasks grouped by date for calendar view
@@ -264,7 +344,7 @@ func (s *TaskService) GetCalendar(ctx context.Context, userID string, filter *do
 	// Fetch tasks in date range
 	tasks, err := s.taskRepo.FindByDateRange(ctx, userID, filter)
 	if err != nil {
-		return nil, err
+		return nil, domain.NewInternalError("failed to retrieve calendar tasks", err)
 	}
 
 	// Group tasks by date
@@ -361,11 +441,46 @@ func (s *TaskService) logHistorySimple(ctx context.Context, userID, taskID strin
 // RenameCategory renames a category for all tasks belonging to the user
 // Returns the number of tasks updated
 func (s *TaskService) RenameCategory(ctx context.Context, userID, oldName, newName string) (int, error) {
-	return s.taskRepo.RenameCategoryForUser(ctx, userID, oldName, newName)
+	// Validate old category name
+	validatedOld, err := validation.ValidateCategory(&oldName)
+	if err != nil {
+		return 0, err
+	}
+	if validatedOld == nil {
+		return 0, domain.NewValidationError("old_name", "is required")
+	}
+
+	// Validate new category name
+	validatedNew, err := validation.ValidateCategory(&newName)
+	if err != nil {
+		return 0, err
+	}
+	if validatedNew == nil {
+		return 0, domain.NewValidationError("new_name", "is required")
+	}
+
+	count, err := s.taskRepo.RenameCategoryForUser(ctx, userID, *validatedOld, *validatedNew)
+	if err != nil {
+		return 0, domain.NewInternalError("failed to rename category", err)
+	}
+	return count, nil
 }
 
 // DeleteCategory removes a category from all tasks belonging to the user
 // Returns the number of tasks updated
 func (s *TaskService) DeleteCategory(ctx context.Context, userID, categoryName string) (int, error) {
-	return s.taskRepo.DeleteCategoryForUser(ctx, userID, categoryName)
+	// Validate category name
+	validated, err := validation.ValidateCategory(&categoryName)
+	if err != nil {
+		return 0, err
+	}
+	if validated == nil {
+		return 0, domain.NewValidationError("category_name", "is required")
+	}
+
+	count, err := s.taskRepo.DeleteCategoryForUser(ctx, userID, *validated)
+	if err != nil {
+		return 0, domain.NewInternalError("failed to delete category", err)
+	}
+	return count, nil
 }

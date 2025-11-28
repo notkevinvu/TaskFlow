@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/notkevinvu/taskflow/backend/internal/middleware"
 	"github.com/notkevinvu/taskflow/backend/internal/ports"
 )
@@ -24,7 +25,7 @@ func NewAnalyticsHandler(taskRepo ports.TaskRepository) *AnalyticsHandler {
 func (h *AnalyticsHandler) GetSummary(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
 		return
 	}
 
@@ -39,14 +40,14 @@ func (h *AnalyticsHandler) GetSummary(c *gin.Context) {
 	// Get completion stats
 	completionStats, err := h.taskRepo.GetCompletionStats(c.Request.Context(), userID, daysBack)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch completion stats", "details": err.Error()})
+		middleware.AbortWithError(c, domain.NewInternalError("failed to fetch completion stats", err))
 		return
 	}
 
 	// Get bump analytics
 	bumpAnalyticsRaw, err := h.taskRepo.GetBumpAnalytics(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bump analytics", "details": err.Error()})
+		middleware.AbortWithError(c, domain.NewInternalError("failed to fetch bump analytics", err))
 		return
 	}
 
@@ -78,22 +79,22 @@ func (h *AnalyticsHandler) GetSummary(c *gin.Context) {
 	// Get category breakdown
 	categoryStats, err := h.taskRepo.GetCategoryBreakdown(c.Request.Context(), userID, daysBack)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch category stats", "details": err.Error()})
+		middleware.AbortWithError(c, domain.NewInternalError("failed to fetch category stats", err))
 		return
 	}
 
 	// Get priority distribution
 	priorityDist, err := h.taskRepo.GetPriorityDistribution(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch priority distribution", "details": err.Error()})
+		middleware.AbortWithError(c, domain.NewInternalError("failed to fetch priority distribution", err))
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"period_days":          daysBack,
-		"completion_stats":     completionStats,
-		"bump_analytics":       bumpAnalytics,
-		"category_breakdown":   categoryStats,
+		"period_days":           daysBack,
+		"completion_stats":      completionStats,
+		"bump_analytics":        bumpAnalytics,
+		"category_breakdown":    categoryStats,
 		"priority_distribution": priorityDist,
 	})
 }
@@ -103,7 +104,7 @@ func (h *AnalyticsHandler) GetSummary(c *gin.Context) {
 func (h *AnalyticsHandler) GetTrends(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
 		return
 	}
 
@@ -118,7 +119,7 @@ func (h *AnalyticsHandler) GetTrends(c *gin.Context) {
 	// Get velocity metrics
 	velocityMetrics, err := h.taskRepo.GetVelocityMetrics(c.Request.Context(), userID, daysBack)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch velocity metrics", "details": err.Error()})
+		middleware.AbortWithError(c, domain.NewInternalError("failed to fetch velocity metrics", err))
 		return
 	}
 
