@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/notkevinvu/taskflow/backend/internal/middleware"
-	"github.com/notkevinvu/taskflow/backend/internal/repository"
+	"github.com/notkevinvu/taskflow/backend/internal/ports"
 )
 
 var (
@@ -19,13 +19,13 @@ var (
 
 // AuthService handles authentication business logic
 type AuthService struct {
-	userRepo       *repository.UserRepository
+	userRepo       ports.UserRepository
 	jwtSecret      string
 	jwtExpiryHours int
 }
 
 // NewAuthService creates a new auth service
-func NewAuthService(userRepo *repository.UserRepository, jwtSecret string, jwtExpiryHours int) *AuthService {
+func NewAuthService(userRepo ports.UserRepository, jwtSecret string, jwtExpiryHours int) *AuthService {
 	return &AuthService{
 		userRepo:       userRepo,
 		jwtSecret:      jwtSecret,

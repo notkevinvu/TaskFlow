@@ -8,18 +8,18 @@ import (
 	"github.com/google/uuid"
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/notkevinvu/taskflow/backend/internal/domain/priority"
-	"github.com/notkevinvu/taskflow/backend/internal/repository"
+	"github.com/notkevinvu/taskflow/backend/internal/ports"
 )
 
 // TaskService handles task business logic
 type TaskService struct {
-	taskRepo        *repository.TaskRepository
-	taskHistoryRepo *repository.TaskHistoryRepository
+	taskRepo        ports.TaskRepository
+	taskHistoryRepo ports.TaskHistoryRepository
 	priorityCalc    *priority.Calculator
 }
 
 // NewTaskService creates a new task service
-func NewTaskService(taskRepo *repository.TaskRepository, taskHistoryRepo *repository.TaskHistoryRepository) *TaskService {
+func NewTaskService(taskRepo ports.TaskRepository, taskHistoryRepo ports.TaskHistoryRepository) *TaskService {
 	return &TaskService{
 		taskRepo:        taskRepo,
 		taskHistoryRepo: taskHistoryRepo,

@@ -6,16 +6,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/notkevinvu/taskflow/backend/internal/middleware"
-	"github.com/notkevinvu/taskflow/backend/internal/repository"
+	"github.com/notkevinvu/taskflow/backend/internal/ports"
 )
 
 // AnalyticsHandler handles HTTP requests for analytics
 type AnalyticsHandler struct {
-	taskRepo *repository.TaskRepository
+	taskRepo ports.TaskRepository
 }
 
 // NewAnalyticsHandler creates a new analytics handler
-func NewAnalyticsHandler(taskRepo *repository.TaskRepository) *AnalyticsHandler {
+func NewAnalyticsHandler(taskRepo ports.TaskRepository) *AnalyticsHandler {
 	return &AnalyticsHandler{taskRepo: taskRepo}
 }
 
