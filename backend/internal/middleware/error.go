@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -80,11 +81,19 @@ func mapErrorToResponse(err error) (int, ErrorResponse) {
 
 	var internalErr *domain.InternalError
 	if errors.As(err, &internalErr) {
+		// Log the internal error server-side with full details
+		slog.Error("Internal server error",
+			"message", internalErr.Message,
+			"cause", internalErr.Cause,
+		)
 		// Don't expose internal error details to clients
 		return http.StatusInternalServerError, ErrorResponse{
 			Error: "An internal error occurred",
 		}
 	}
+
+	// Log unexpected errors
+	slog.Error("Unexpected error", "error", err)
 
 	// Default to internal server error
 	return http.StatusInternalServerError, ErrorResponse{
