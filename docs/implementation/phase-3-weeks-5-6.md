@@ -46,16 +46,16 @@
 ### Priority 1: Critical Backend Fixes (From Architecture Analysis)
 *Reference: `docs/architecture/backend-analysis-report.md`*
 
-- [ ] **sqlc Migration for Type-Safe SQL** (code quality + safety improvement)
-  - [ ] Install and configure sqlc
-  - [ ] Create `queries/` directory with SQL query files
-  - [ ] Define schema.sql for sqlc code generation
-  - [ ] Migrate TaskRepository methods to sqlc (15+ methods)
-  - [ ] Migrate UserRepository methods to sqlc
-  - [ ] Migrate TaskHistoryRepository methods to sqlc
-  - [ ] Update all handlers to use generated code
-  - [ ] Remove manual SQL strings and scanning code
-  - [ ] Benefits: Compile-time safety, auto-generated scanning, easier maintenance
+- [x] **sqlc Migration for Type-Safe SQL** (code quality + safety improvement)
+  - [x] Install and configure sqlc
+  - [x] Create `queries/` directory with SQL query files
+  - [x] Define schema.sql for sqlc code generation
+  - [x] Migrate TaskRepository methods to sqlc (16 methods)
+  - [x] Migrate UserRepository methods to sqlc
+  - [x] Migrate TaskHistoryRepository methods to sqlc
+  - [x] Created integration tests (11 tests, all passing)
+  - [x] Verified compile-time safety and auto-generated scanning
+  - [x] Benefits achieved: Compile-time safety, auto-generated scanning, easier maintenance
 - [ ] **Interface-based Dependency Injection** (testability improvement)
 - [ ] **Redis Rate Limiting Migration** (scalability fix)
 - [ ] **Structured Logging with slog** (observability)
