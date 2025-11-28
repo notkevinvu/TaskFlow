@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -10,11 +9,7 @@ import (
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/notkevinvu/taskflow/backend/internal/middleware"
 	"github.com/notkevinvu/taskflow/backend/internal/ports"
-)
-
-var (
-	ErrEmailAlreadyExists = errors.New("email already exists")
-	ErrInvalidCredentials = errors.New("invalid email or password")
+	"github.com/notkevinvu/taskflow/backend/internal/validation"
 )
 
 // AuthService handles authentication business logic
@@ -35,18 +30,30 @@ func NewAuthService(userRepo ports.UserRepository, jwtSecret string, jwtExpiryHo
 
 // Register creates a new user account
 func (s *AuthService) Register(ctx context.Context, dto *domain.CreateUserDTO) (*domain.AuthResponse, error) {
-	// Validate input
-	if err := dto.Validate(); err != nil {
+	// Validate email
+	if err := validation.ValidateEmail(dto.Email); err != nil {
+		return nil, err
+	}
+
+	// Validate name
+	name, err := validation.ValidateRequiredText(dto.Name, 255, "name")
+	if err != nil {
+		return nil, err
+	}
+	dto.Name = name
+
+	// Validate password
+	if err := validation.ValidatePassword(dto.Password); err != nil {
 		return nil, err
 	}
 
 	// Check if email already exists
 	exists, err := s.userRepo.EmailExists(ctx, dto.Email)
 	if err != nil {
-		return nil, err
+		return nil, domain.NewInternalError("failed to check email existence", err)
 	}
 	if exists {
-		return nil, ErrEmailAlreadyExists
+		return nil, domain.NewConflictError("user", "email already exists")
 	}
 
 	// Hash password
@@ -84,18 +91,23 @@ func (s *AuthService) Register(ctx context.Context, dto *domain.CreateUserDTO) (
 
 // Login authenticates a user and returns a token
 func (s *AuthService) Login(ctx context.Context, dto *domain.LoginDTO) (*domain.AuthResponse, error) {
+	// Validate email
+	if err := validation.ValidateEmail(dto.Email); err != nil {
+		return nil, err
+	}
+
 	// Find user by email
 	user, err := s.userRepo.FindByEmail(ctx, dto.Email)
 	if err != nil {
-		return nil, err
+		return nil, domain.NewInternalError("failed to find user", err)
 	}
 	if user == nil {
-		return nil, ErrInvalidCredentials
+		return nil, domain.NewUnauthorizedError("invalid email or password")
 	}
 
 	// Check password
 	if !domain.CheckPasswordHash(dto.Password, user.PasswordHash) {
-		return nil, ErrInvalidCredentials
+		return nil, domain.NewUnauthorizedError("invalid email or password")
 	}
 
 	// Generate JWT token
@@ -114,10 +126,10 @@ func (s *AuthService) Login(ctx context.Context, dto *domain.LoginDTO) (*domain.
 func (s *AuthService) GetUserByID(ctx context.Context, id string) (*domain.User, error) {
 	user, err := s.userRepo.FindByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, domain.NewInternalError("failed to find user", err)
 	}
 	if user == nil {
-		return nil, errors.New("user not found")
+		return nil, domain.NewNotFoundError("user", id)
 	}
 	return user, nil
 }

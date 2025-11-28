@@ -7,7 +7,6 @@ import (
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/notkevinvu/taskflow/backend/internal/middleware"
 	"github.com/notkevinvu/taskflow/backend/internal/ports"
-	"github.com/notkevinvu/taskflow/backend/internal/service"
 )
 
 // AuthHandler handles HTTP requests for authentication
@@ -25,24 +24,13 @@ func NewAuthHandler(authService ports.AuthService) *AuthHandler {
 func (h *AuthHandler) Register(c *gin.Context) {
 	var dto domain.CreateUserDTO
 	if err := c.ShouldBindJSON(&dto); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		middleware.AbortWithError(c, domain.NewValidationError("request_body", "invalid JSON format"))
 		return
 	}
 
 	response, err := h.authService.Register(c.Request.Context(), &dto)
 	if err != nil {
-		switch err {
-		case service.ErrEmailAlreadyExists:
-			c.JSON(http.StatusConflict, gin.H{"error": "Email already exists"})
-		case domain.ErrInvalidEmail:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format"})
-		case domain.ErrPasswordTooShort:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Password must be at least 8 characters"})
-		case domain.ErrWeakPassword:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Password must contain uppercase, lowercase, and number"})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
-		}
+		middleware.AbortWithError(c, err)
 		return
 	}
 
@@ -54,17 +42,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var dto domain.LoginDTO
 	if err := c.ShouldBindJSON(&dto); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		middleware.AbortWithError(c, domain.NewValidationError("request_body", "invalid JSON format"))
 		return
 	}
 
 	response, err := h.authService.Login(c.Request.Context(), &dto)
 	if err != nil {
-		if err == service.ErrInvalidCredentials {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to login"})
+		middleware.AbortWithError(c, err)
 		return
 	}
 
@@ -76,13 +60,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 func (h *AuthHandler) Me(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
 		return
 	}
 
 	user, err := h.authService.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		middleware.AbortWithError(c, err)
 		return
 	}
 

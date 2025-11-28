@@ -66,6 +66,7 @@ func main() {
 	// Apply middleware
 	router.Use(middleware.CORS(cfg.AllowedOrigins))
 	router.Use(middleware.RateLimiter(cfg.RateLimitRPM))
+	router.Use(middleware.ErrorHandler()) // Error handler must be last to catch errors from routes
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {

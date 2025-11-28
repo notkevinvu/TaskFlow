@@ -2,9 +2,9 @@ package handler
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/notkevinvu/taskflow/backend/internal/middleware"
 	"github.com/notkevinvu/taskflow/backend/internal/ports"
 )
@@ -30,45 +30,20 @@ type RenameRequest struct {
 func (h *CategoryHandler) Rename(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
 		return
 	}
 
 	var req RenameRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		middleware.AbortWithError(c, domain.NewValidationError("request_body", "invalid JSON format"))
 		return
 	}
 
-	// Validate names
-	if req.OldName == "" || req.NewName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Category names cannot be empty"})
-		return
-	}
-
-	// Trim whitespace and validate length (matching domain validation: max 50 chars)
-	req.NewName = strings.TrimSpace(req.NewName)
-	req.OldName = strings.TrimSpace(req.OldName)
-
-	if len(req.NewName) > 50 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Category name too long (maximum 50 characters)"})
-		return
-	}
-
-	if req.NewName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Category name cannot be empty or whitespace only"})
-		return
-	}
-
-	if req.OldName == req.NewName {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Old and new category names are the same"})
-		return
-	}
-
-	// Update all tasks with the old category to the new category
+	// Service layer will handle validation
 	updatedCount, err := h.taskService.RenameCategory(c.Request.Context(), userID, req.OldName, req.NewName)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to rename category"})
+		middleware.AbortWithError(c, err)
 		return
 	}
 
@@ -83,25 +58,16 @@ func (h *CategoryHandler) Rename(c *gin.Context) {
 func (h *CategoryHandler) Delete(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
 		return
 	}
 
-	categoryName := strings.TrimSpace(c.Param("name"))
-	if categoryName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Category name is required"})
-		return
-	}
+	categoryName := c.Param("name")
 
-	if len(categoryName) > 50 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Category name too long (maximum 50 characters)"})
-		return
-	}
-
-	// Remove category from all tasks (set to null/empty)
+	// Service layer will handle validation
 	updatedCount, err := h.taskService.DeleteCategory(c.Request.Context(), userID, categoryName)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete category"})
+		middleware.AbortWithError(c, err)
 		return
 	}
 

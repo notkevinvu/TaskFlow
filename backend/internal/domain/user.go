@@ -1,20 +1,10 @@
 package domain
 
 import (
-	"errors"
-	"regexp"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
-
-var (
-	ErrInvalidEmail    = errors.New("invalid email format")
-	ErrPasswordTooShort = errors.New("password must be at least 8 characters")
-	ErrWeakPassword    = errors.New("password must contain uppercase, lowercase, and number")
-)
-
-var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 
 // User represents a user in the system
 type User struct {
@@ -43,28 +33,6 @@ type LoginDTO struct {
 type AuthResponse struct {
 	User        User   `json:"user"`
 	AccessToken string `json:"access_token"`
-}
-
-// Validate validates the CreateUserDTO
-func (dto *CreateUserDTO) Validate() error {
-	if !emailRegex.MatchString(dto.Email) {
-		return ErrInvalidEmail
-	}
-
-	if len(dto.Password) < 8 {
-		return ErrPasswordTooShort
-	}
-
-	// Check for strong password (at least one uppercase, one lowercase, one number)
-	hasUpper := regexp.MustCompile(`[A-Z]`).MatchString(dto.Password)
-	hasLower := regexp.MustCompile(`[a-z]`).MatchString(dto.Password)
-	hasNumber := regexp.MustCompile(`[0-9]`).MatchString(dto.Password)
-
-	if !hasUpper || !hasLower || !hasNumber {
-		return ErrWeakPassword
-	}
-
-	return nil
 }
 
 // HashPassword hashes the password using bcrypt

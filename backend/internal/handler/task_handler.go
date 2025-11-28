@@ -25,19 +25,19 @@ func NewTaskHandler(taskService ports.TaskService) *TaskHandler {
 func (h *TaskHandler) Create(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
 		return
 	}
 
 	var dto domain.CreateTaskDTO
 	if err := c.ShouldBindJSON(&dto); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		middleware.AbortWithError(c, domain.NewValidationError("request_body", "invalid JSON format"))
 		return
 	}
 
 	task, err := h.taskService.Create(c.Request.Context(), userID, &dto)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create task"})
+		middleware.AbortWithError(c, err)
 		return
 	}
 
@@ -49,7 +49,7 @@ func (h *TaskHandler) Create(c *gin.Context) {
 func (h *TaskHandler) List(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
 		return
 	}
 
@@ -87,11 +87,11 @@ func (h *TaskHandler) List(c *gin.Context) {
 	if minPriorityStr := c.Query("min_priority"); minPriorityStr != "" {
 		minPriority, err := strconv.Atoi(minPriorityStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "min_priority must be a number"})
+			middleware.AbortWithError(c, domain.NewValidationError("min_priority", "must be a number"))
 			return
 		}
 		if minPriority < 0 || minPriority > 100 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "min_priority must be between 0 and 100"})
+			middleware.AbortWithError(c, domain.NewValidationError("min_priority", "must be between 0 and 100"))
 			return
 		}
 		filter.MinPriority = &minPriority
@@ -100,11 +100,11 @@ func (h *TaskHandler) List(c *gin.Context) {
 	if maxPriorityStr := c.Query("max_priority"); maxPriorityStr != "" {
 		maxPriority, err := strconv.Atoi(maxPriorityStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "max_priority must be a number"})
+			middleware.AbortWithError(c, domain.NewValidationError("max_priority", "must be a number"))
 			return
 		}
 		if maxPriority < 0 || maxPriority > 100 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "max_priority must be between 0 and 100"})
+			middleware.AbortWithError(c, domain.NewValidationError("max_priority", "must be between 0 and 100"))
 			return
 		}
 		filter.MaxPriority = &maxPriority
@@ -113,7 +113,7 @@ func (h *TaskHandler) List(c *gin.Context) {
 	// Validate priority range if both are specified
 	if filter.MinPriority != nil && filter.MaxPriority != nil {
 		if *filter.MinPriority > *filter.MaxPriority {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "min_priority cannot be greater than max_priority"})
+			middleware.AbortWithError(c, domain.NewValidationError("min_priority", "cannot be greater than max_priority"))
 			return
 		}
 	}
@@ -121,7 +121,7 @@ func (h *TaskHandler) List(c *gin.Context) {
 	if dueDateStartStr := c.Query("due_date_start"); dueDateStartStr != "" {
 		dueDateStart, err := domain.ParseDate(dueDateStartStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "due_date_start must be in YYYY-MM-DD format"})
+			middleware.AbortWithError(c, domain.NewValidationError("due_date_start", "must be in YYYY-MM-DD format"))
 			return
 		}
 		filter.DueDateStart = &dueDateStart
@@ -130,7 +130,7 @@ func (h *TaskHandler) List(c *gin.Context) {
 	if dueDateEndStr := c.Query("due_date_end"); dueDateEndStr != "" {
 		dueDateEnd, err := domain.ParseDate(dueDateEndStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "due_date_end must be in YYYY-MM-DD format"})
+			middleware.AbortWithError(c, domain.NewValidationError("due_date_end", "must be in YYYY-MM-DD format"))
 			return
 		}
 		filter.DueDateEnd = &dueDateEnd
@@ -138,7 +138,7 @@ func (h *TaskHandler) List(c *gin.Context) {
 
 	tasks, err := h.taskService.List(c.Request.Context(), userID, filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tasks"})
+		middleware.AbortWithError(c, err)
 		return
 	}
 
@@ -158,7 +158,7 @@ func (h *TaskHandler) List(c *gin.Context) {
 func (h *TaskHandler) Get(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
 		return
 	}
 
@@ -166,14 +166,7 @@ func (h *TaskHandler) Get(c *gin.Context) {
 
 	task, err := h.taskService.Get(c.Request.Context(), userID, taskID)
 	if err != nil {
-		switch err {
-		case domain.ErrTaskNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"error": "Task not found"})
-		case domain.ErrUnauthorized:
-			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch task"})
-		}
+		middleware.AbortWithError(c, err)
 		return
 	}
 
@@ -185,7 +178,7 @@ func (h *TaskHandler) Get(c *gin.Context) {
 func (h *TaskHandler) Update(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
 		return
 	}
 
@@ -193,20 +186,13 @@ func (h *TaskHandler) Update(c *gin.Context) {
 
 	var dto domain.UpdateTaskDTO
 	if err := c.ShouldBindJSON(&dto); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		middleware.AbortWithError(c, domain.NewValidationError("request_body", "invalid JSON format"))
 		return
 	}
 
 	task, err := h.taskService.Update(c.Request.Context(), userID, taskID, &dto)
 	if err != nil {
-		switch err {
-		case domain.ErrTaskNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"error": "Task not found"})
-		case domain.ErrUnauthorized:
-			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update task"})
-		}
+		middleware.AbortWithError(c, err)
 		return
 	}
 
@@ -218,7 +204,7 @@ func (h *TaskHandler) Update(c *gin.Context) {
 func (h *TaskHandler) Delete(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
 		return
 	}
 
@@ -226,14 +212,7 @@ func (h *TaskHandler) Delete(c *gin.Context) {
 
 	err := h.taskService.Delete(c.Request.Context(), userID, taskID)
 	if err != nil {
-		switch err {
-		case domain.ErrTaskNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"error": "Task not found"})
-		case domain.ErrUnauthorized:
-			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete task"})
-		}
+		middleware.AbortWithError(c, err)
 		return
 	}
 
@@ -245,7 +224,7 @@ func (h *TaskHandler) Delete(c *gin.Context) {
 func (h *TaskHandler) Bump(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
 		return
 	}
 
@@ -253,14 +232,7 @@ func (h *TaskHandler) Bump(c *gin.Context) {
 
 	task, err := h.taskService.Bump(c.Request.Context(), userID, taskID)
 	if err != nil {
-		switch err {
-		case domain.ErrTaskNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"error": "Task not found"})
-		case domain.ErrUnauthorized:
-			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to bump task"})
-		}
+		middleware.AbortWithError(c, err)
 		return
 	}
 
@@ -275,7 +247,7 @@ func (h *TaskHandler) Bump(c *gin.Context) {
 func (h *TaskHandler) Complete(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
 		return
 	}
 
@@ -283,14 +255,7 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 
 	task, err := h.taskService.Complete(c.Request.Context(), userID, taskID)
 	if err != nil {
-		switch err {
-		case domain.ErrTaskNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"error": "Task not found"})
-		case domain.ErrUnauthorized:
-			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete task"})
-		}
+		middleware.AbortWithError(c, err)
 		return
 	}
 
@@ -302,37 +267,37 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 func (h *TaskHandler) GetCalendar(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
 		return
 	}
 
 	// Parse start_date (required)
 	startDateStr := c.Query("start_date")
 	if startDateStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "start_date is required (format: YYYY-MM-DD)"})
+		middleware.AbortWithError(c, domain.NewValidationError("start_date", "is required (format: YYYY-MM-DD)"))
 		return
 	}
 	startDate, err := domain.ParseDate(startDateStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start_date format (use YYYY-MM-DD)"})
+		middleware.AbortWithError(c, domain.NewValidationError("start_date", "invalid format (use YYYY-MM-DD)"))
 		return
 	}
 
 	// Parse end_date (required)
 	endDateStr := c.Query("end_date")
 	if endDateStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "end_date is required (format: YYYY-MM-DD)"})
+		middleware.AbortWithError(c, domain.NewValidationError("end_date", "is required (format: YYYY-MM-DD)"))
 		return
 	}
 	endDate, err := domain.ParseDate(endDateStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end_date format (use YYYY-MM-DD)"})
+		middleware.AbortWithError(c, domain.NewValidationError("end_date", "invalid format (use YYYY-MM-DD)"))
 		return
 	}
 
 	// Validate date range (max 90 days)
 	if endDate.Sub(startDate).Hours() > 90*24 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Date range cannot exceed 90 days"})
+		middleware.AbortWithError(c, domain.NewValidationError("date_range", "cannot exceed 90 days"))
 		return
 	}
 
@@ -349,7 +314,7 @@ func (h *TaskHandler) GetCalendar(c *gin.Context) {
 		for _, s := range statusParts {
 			status := domain.TaskStatus(s)
 			if err := status.Validate(); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid status value: " + s})
+				middleware.AbortWithError(c, domain.NewValidationError("status", "invalid status value: "+s))
 				return
 			}
 			filter.Status = append(filter.Status, status)
@@ -359,7 +324,7 @@ func (h *TaskHandler) GetCalendar(c *gin.Context) {
 	// Get calendar data
 	calendar, err := h.taskService.GetCalendar(c.Request.Context(), userID, filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch calendar data"})
+		middleware.AbortWithError(c, err)
 		return
 	}
 
