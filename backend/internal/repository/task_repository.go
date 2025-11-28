@@ -4,90 +4,176 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
+	"github.com/notkevinvu/taskflow/backend/internal/sqlc"
 )
 
-// TaskRepository handles database operations for tasks
+// TaskRepository handles database operations for tasks using sqlc
 type TaskRepository struct {
-	db *pgxpool.Pool
+	db      *pgxpool.Pool
+	queries *sqlc.Queries
 }
 
 // NewTaskRepository creates a new task repository
 func NewTaskRepository(db *pgxpool.Pool) *TaskRepository {
-	return &TaskRepository{db: db}
+	return &TaskRepository{
+		db:      db,
+		queries: sqlc.New(db),
+	}
+}
+
+// Helper: Convert domain.TaskStatus to sqlc.TaskStatus
+func domainStatusToSqlc(s domain.TaskStatus) sqlc.TaskStatus {
+	return sqlc.TaskStatus(string(s))
+}
+
+// Helper: Convert sqlc.TaskStatus to domain.TaskStatus
+func sqlcStatusToDomain(s sqlc.TaskStatus) domain.TaskStatus {
+	return domain.TaskStatus(string(s))
+}
+
+// Helper: Convert domain.TaskEffort to sqlc.NullTaskEffort
+func domainEffortToSqlc(e *domain.TaskEffort) sqlc.NullTaskEffort {
+	if e == nil {
+		return sqlc.NullTaskEffort{Valid: false}
+	}
+	return sqlc.NullTaskEffort{
+		TaskEffort: sqlc.TaskEffort(string(*e)),
+		Valid:      true,
+	}
+}
+
+// Helper: Convert sqlc.NullTaskEffort to domain.TaskEffort
+func sqlcEffortToDomain(e sqlc.NullTaskEffort) *domain.TaskEffort {
+	if !e.Valid {
+		return nil
+	}
+	effort := domain.TaskEffort(string(e.TaskEffort))
+	return &effort
+}
+
+// Helper: Convert *time.Time to pgtype.Timestamptz
+func timePtrToPgtypeTimestamptz(t *time.Time) pgtype.Timestamptz {
+	if t == nil {
+		return pgtype.Timestamptz{Valid: false}
+	}
+	return pgtype.Timestamptz{Time: *t, Valid: true}
+}
+
+// Helper: Convert pgtype.Timestamptz to *time.Time
+func pgtypeTimestamptzToTimePtr(ts pgtype.Timestamptz) *time.Time {
+	if !ts.Valid {
+		return nil
+	}
+	return &ts.Time
+}
+
+// Helper: Convert sqlc.Task to domain.Task
+func sqlcTaskToDomain(t sqlc.Task) domain.Task {
+	return domain.Task{
+		ID:              pgtypeUUIDToString(t.ID),
+		UserID:          pgtypeUUIDToString(t.UserID),
+		Title:           t.Title,
+		Description:     t.Description,
+		Status:          sqlcStatusToDomain(t.Status),
+		UserPriority:    int(t.UserPriority),
+		DueDate:         pgtypeTimestamptzToTimePtr(t.DueDate),
+		EstimatedEffort: sqlcEffortToDomain(t.EstimatedEffort),
+		Category:        t.Category,
+		Context:         t.Context,
+		RelatedPeople:   t.RelatedPeople,
+		PriorityScore:   int(t.PriorityScore),
+		BumpCount:       int(t.BumpCount),
+		CreatedAt:       pgtypeTimestamptzToTime(t.CreatedAt),
+		UpdatedAt:       pgtypeTimestamptzToTime(t.UpdatedAt),
+		CompletedAt:     pgtypeTimestamptzToTimePtr(t.CompletedAt),
+	}
+}
+
+// Helper: Convert sqlc row types to domain.Task (works for GetTaskByIDRow, GetAtRiskTasksRow, etc.)
+func sqlcRowToDomain(id, userID pgtype.UUID, title string, description *string, status sqlc.TaskStatus,
+	userPriority int32, dueDate pgtype.Timestamptz, estimatedEffort sqlc.NullTaskEffort,
+	category, context *string, relatedPeople []string, priorityScore, bumpCount int32,
+	createdAt, updatedAt, completedAt pgtype.Timestamptz) domain.Task {
+	return domain.Task{
+		ID:              pgtypeUUIDToString(id),
+		UserID:          pgtypeUUIDToString(userID),
+		Title:           title,
+		Description:     description,
+		Status:          sqlcStatusToDomain(status),
+		UserPriority:    int(userPriority),
+		DueDate:         pgtypeTimestamptzToTimePtr(dueDate),
+		EstimatedEffort: sqlcEffortToDomain(estimatedEffort),
+		Category:        category,
+		Context:         context,
+		RelatedPeople:   relatedPeople,
+		PriorityScore:   int(priorityScore),
+		BumpCount:       int(bumpCount),
+		CreatedAt:       pgtypeTimestamptzToTime(createdAt),
+		UpdatedAt:       pgtypeTimestamptzToTime(updatedAt),
+		CompletedAt:     pgtypeTimestamptzToTimePtr(completedAt),
+	}
 }
 
 // Create inserts a new task into the database
 func (r *TaskRepository) Create(ctx context.Context, task *domain.Task) error {
-	query := `
-		INSERT INTO tasks (
-			id, user_id, title, description, status, user_priority,
-			due_date, estimated_effort, category, context, related_people,
-			priority_score, bump_count, created_at, updated_at
-		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-	`
-	_, err := r.db.Exec(ctx, query,
-		task.ID,
-		task.UserID,
-		task.Title,
-		task.Description,
-		task.Status,
-		task.UserPriority,
-		task.DueDate,
-		task.EstimatedEffort,
-		task.Category,
-		task.Context,
-		task.RelatedPeople,
-		task.PriorityScore,
-		task.BumpCount,
-		task.CreatedAt,
-		task.UpdatedAt,
-	)
-	return err
+	id, err := stringToPgtypeUUID(task.ID)
+	if err != nil {
+		return err
+	}
+	userID, err := stringToPgtypeUUID(task.UserID)
+	if err != nil {
+		return err
+	}
+
+	params := sqlc.CreateTaskParams{
+		ID:              id,
+		UserID:          userID,
+		Title:           task.Title,
+		Description:     task.Description,
+		Status:          domainStatusToSqlc(task.Status),
+		UserPriority:    int32(task.UserPriority),
+		DueDate:         timePtrToPgtypeTimestamptz(task.DueDate),
+		EstimatedEffort: domainEffortToSqlc(task.EstimatedEffort),
+		Category:        task.Category,
+		Context:         task.Context,
+		RelatedPeople:   task.RelatedPeople,
+		PriorityScore:   int32(task.PriorityScore),
+		BumpCount:       int32(task.BumpCount),
+		CreatedAt:       timeToPgtypeTimestamptz(task.CreatedAt),
+		UpdatedAt:       timeToPgtypeTimestamptz(task.UpdatedAt),
+	}
+
+	return r.queries.CreateTask(ctx, params)
 }
 
 // FindByID retrieves a task by ID
 func (r *TaskRepository) FindByID(ctx context.Context, id string) (*domain.Task, error) {
-	query := `
-		SELECT id, user_id, title, description, status, user_priority,
-			   due_date, estimated_effort, category, context, related_people,
-			   priority_score, bump_count, created_at, updated_at, completed_at
-		FROM tasks
-		WHERE id = $1
-	`
-	var task domain.Task
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&task.ID,
-		&task.UserID,
-		&task.Title,
-		&task.Description,
-		&task.Status,
-		&task.UserPriority,
-		&task.DueDate,
-		&task.EstimatedEffort,
-		&task.Category,
-		&task.Context,
-		&task.RelatedPeople,
-		&task.PriorityScore,
-		&task.BumpCount,
-		&task.CreatedAt,
-		&task.UpdatedAt,
-		&task.CompletedAt,
-	)
+	pguuid, err := stringToPgtypeUUID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	row, err := r.queries.GetTaskByID(ctx, pguuid)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrTaskNotFound
 		}
 		return nil, err
 	}
-	return &task, nil
+
+	domainTask := sqlcRowToDomain(row.ID, row.UserID, row.Title, row.Description, row.Status,
+		row.UserPriority, row.DueDate, row.EstimatedEffort, row.Category, row.Context,
+		row.RelatedPeople, row.PriorityScore, row.BumpCount, row.CreatedAt, row.UpdatedAt, row.CompletedAt)
+	return &domainTask, nil
 }
 
-// List retrieves tasks with filters
+// List retrieves tasks with filters (kept as manual SQL due to dynamic query building)
 func (r *TaskRepository) List(ctx context.Context, userID string, filter *domain.TaskListFilter) ([]*domain.Task, error) {
 	query := `
 		SELECT id, user_id, title, description, status, user_priority,
@@ -195,6 +281,34 @@ func (r *TaskRepository) List(ctx context.Context, userID string, filter *domain
 
 // Update updates a task in the database
 func (r *TaskRepository) Update(ctx context.Context, task *domain.Task) error {
+	id, err := stringToPgtypeUUID(task.ID)
+	if err != nil {
+		return err
+	}
+	userID, err := stringToPgtypeUUID(task.UserID)
+	if err != nil {
+		return err
+	}
+
+	params := sqlc.UpdateTaskParams{
+		Title:           task.Title,
+		Description:     task.Description,
+		Status:          domainStatusToSqlc(task.Status),
+		UserPriority:    int32(task.UserPriority),
+		DueDate:         timePtrToPgtypeTimestamptz(task.DueDate),
+		EstimatedEffort: domainEffortToSqlc(task.EstimatedEffort),
+		Category:        task.Category,
+		Context:         task.Context,
+		RelatedPeople:   task.RelatedPeople,
+		PriorityScore:   int32(task.PriorityScore),
+		BumpCount:       int32(task.BumpCount),
+		UpdatedAt:       timeToPgtypeTimestamptz(task.UpdatedAt),
+		CompletedAt:     timePtrToPgtypeTimestamptz(task.CompletedAt),
+		ID:              id,
+		UserID:          userID,
+	}
+
+	// Since sqlc :exec doesn't return rows affected, we need to use manual query to check
 	query := `
 		UPDATE tasks
 		SET title = $1, description = $2, status = $3, user_priority = $4,
@@ -204,21 +318,21 @@ func (r *TaskRepository) Update(ctx context.Context, task *domain.Task) error {
 		WHERE id = $14 AND user_id = $15
 	`
 	result, err := r.db.Exec(ctx, query,
-		task.Title,
-		task.Description,
-		task.Status,
-		task.UserPriority,
-		task.DueDate,
-		task.EstimatedEffort,
-		task.Category,
-		task.Context,
-		task.RelatedPeople,
-		task.PriorityScore,
-		task.BumpCount,
-		task.UpdatedAt,
-		task.CompletedAt,
-		task.ID,
-		task.UserID,
+		params.Title,
+		params.Description,
+		params.Status,
+		params.UserPriority,
+		params.DueDate,
+		params.EstimatedEffort,
+		params.Category,
+		params.Context,
+		params.RelatedPeople,
+		params.PriorityScore,
+		params.BumpCount,
+		params.UpdatedAt,
+		params.CompletedAt,
+		params.ID,
+		params.UserID,
 	)
 	if err != nil {
 		return err
@@ -233,8 +347,17 @@ func (r *TaskRepository) Update(ctx context.Context, task *domain.Task) error {
 
 // Delete deletes a task from the database
 func (r *TaskRepository) Delete(ctx context.Context, id, userID string) error {
-	query := `DELETE FROM tasks WHERE id = $1 AND user_id = $2`
-	result, err := r.db.Exec(ctx, query, id, userID)
+	idUUID, err := stringToPgtypeUUID(id)
+	if err != nil {
+		return err
+	}
+	userUUID, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return err
+	}
+
+	// Use manual query to check rows affected
+	result, err := r.db.Exec(ctx, "DELETE FROM tasks WHERE id = $1 AND user_id = $2", idUUID, userUUID)
 	if err != nil {
 		return err
 	}
@@ -248,12 +371,19 @@ func (r *TaskRepository) Delete(ctx context.Context, id, userID string) error {
 
 // IncrementBumpCount increments the bump counter for a task
 func (r *TaskRepository) IncrementBumpCount(ctx context.Context, id, userID string) error {
-	query := `
-		UPDATE tasks
-		SET bump_count = bump_count + 1, updated_at = NOW()
-		WHERE id = $1 AND user_id = $2
-	`
-	result, err := r.db.Exec(ctx, query, id, userID)
+	idUUID, err := stringToPgtypeUUID(id)
+	if err != nil {
+		return err
+	}
+	userUUID, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return err
+	}
+
+	// Use manual query to check rows affected
+	result, err := r.db.Exec(ctx,
+		"UPDATE tasks SET bump_count = bump_count + 1, updated_at = NOW() WHERE id = $1 AND user_id = $2",
+		idUUID, userUUID)
 	if err != nil {
 		return err
 	}
@@ -265,84 +395,53 @@ func (r *TaskRepository) IncrementBumpCount(ctx context.Context, id, userID stri
 	return nil
 }
 
-// FindAtRiskTasks retrieves tasks that are at risk (bumped 3+ times or overdue by 3+ days)
+// FindAtRiskTasks retrieves tasks that are at risk
 func (r *TaskRepository) FindAtRiskTasks(ctx context.Context, userID string) ([]*domain.Task, error) {
-	query := `
-		SELECT id, user_id, title, description, status, user_priority,
-			   due_date, estimated_effort, category, context, related_people,
-			   priority_score, bump_count, created_at, updated_at, completed_at
-		FROM tasks
-		WHERE user_id = $1
-		  AND (
-			  bump_count >= 3
-			  OR (due_date IS NOT NULL AND due_date < NOW() - INTERVAL '3 days')
-		  )
-		  AND status != 'done'
-		ORDER BY priority_score DESC
-	`
-	rows, err := r.db.Query(ctx, query, userID)
+	userUUID, err := stringToPgtypeUUID(userID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var tasks []*domain.Task
-	for rows.Next() {
-		var task domain.Task
-		err := rows.Scan(
-			&task.ID,
-			&task.UserID,
-			&task.Title,
-			&task.Description,
-			&task.Status,
-			&task.UserPriority,
-			&task.DueDate,
-			&task.EstimatedEffort,
-			&task.Category,
-			&task.Context,
-			&task.RelatedPeople,
-			&task.PriorityScore,
-			&task.BumpCount,
-			&task.CreatedAt,
-			&task.UpdatedAt,
-			&task.CompletedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		tasks = append(tasks, &task)
+	rows, err := r.queries.GetAtRiskTasks(ctx, userUUID)
+	if err != nil {
+		return nil, err
 	}
 
-	return tasks, rows.Err()
+	tasks := make([]*domain.Task, len(rows))
+	for i, row := range rows {
+		dt := sqlcRowToDomain(row.ID, row.UserID, row.Title, row.Description, row.Status,
+			row.UserPriority, row.DueDate, row.EstimatedEffort, row.Category, row.Context,
+			row.RelatedPeople, row.PriorityScore, row.BumpCount, row.CreatedAt, row.UpdatedAt, row.CompletedAt)
+		tasks[i] = &dt
+	}
+
+	return tasks, nil
 }
 
 // GetCategories retrieves all unique categories for a user
 func (r *TaskRepository) GetCategories(ctx context.Context, userID string) ([]string, error) {
-	query := `
-		SELECT DISTINCT category
-		FROM tasks
-		WHERE user_id = $1 AND category IS NOT NULL
-		ORDER BY category
-	`
-	rows, err := r.db.Query(ctx, query, userID)
+	userUUID, err := stringToPgtypeUUID(userID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var categories []string
-	for rows.Next() {
-		var category string
-		if err := rows.Scan(&category); err != nil {
-			return nil, err
-		}
-		categories = append(categories, category)
+	categories, err := r.queries.GetCategories(ctx, userUUID)
+	if err != nil {
+		return nil, err
 	}
 
-	return categories, rows.Err()
+	// Convert []*string to []string
+	result := make([]string, 0, len(categories))
+	for _, cat := range categories {
+		if cat != nil {
+			result = append(result, *cat)
+		}
+	}
+
+	return result, nil
 }
 
-// FindByDateRange retrieves tasks within a date range
+// FindByDateRange retrieves tasks within a date range (kept as manual SQL due to dynamic query building)
 func (r *TaskRepository) FindByDateRange(ctx context.Context, userID string, filter *domain.CalendarFilter) ([]*domain.Task, error) {
 	query := `
 		SELECT id, user_id, title, description, status, user_priority,
@@ -413,15 +512,16 @@ func (r *TaskRepository) FindByDateRange(ctx context.Context, userID string, fil
 }
 
 // RenameCategoryForUser renames a category for all tasks belonging to a user
-// Returns the number of tasks updated
 func (r *TaskRepository) RenameCategoryForUser(ctx context.Context, userID, oldName, newName string) (int, error) {
-	query := `
-		UPDATE tasks
-		SET category = $1, updated_at = NOW()
-		WHERE user_id = $2 AND category = $3 AND status != 'done'
-	`
+	userUUID, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return 0, err
+	}
 
-	result, err := r.db.Exec(ctx, query, newName, userID, oldName)
+	// Use manual query to get rows affected
+	result, err := r.db.Exec(ctx,
+		"UPDATE tasks SET category = $1, updated_at = NOW() WHERE user_id = $2 AND category = $3 AND status != 'done'",
+		newName, userUUID, oldName)
 	if err != nil {
 		return 0, err
 	}
@@ -430,16 +530,16 @@ func (r *TaskRepository) RenameCategoryForUser(ctx context.Context, userID, oldN
 }
 
 // DeleteCategoryForUser removes a category from all tasks belonging to a user
-// Sets category to NULL for affected tasks
-// Returns the number of tasks updated
 func (r *TaskRepository) DeleteCategoryForUser(ctx context.Context, userID, categoryName string) (int, error) {
-	query := `
-		UPDATE tasks
-		SET category = NULL, updated_at = NOW()
-		WHERE user_id = $1 AND category = $2 AND status != 'done'
-	`
+	userUUID, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return 0, err
+	}
 
-	result, err := r.db.Exec(ctx, query, userID, categoryName)
+	// Use manual query to get rows affected
+	result, err := r.db.Exec(ctx,
+		"UPDATE tasks SET category = NULL, updated_at = NOW() WHERE user_id = $1 AND category = $2 AND status != 'done'",
+		userUUID, categoryName)
 	if err != nil {
 		return 0, err
 	}
@@ -451,40 +551,38 @@ func (r *TaskRepository) DeleteCategoryForUser(ctx context.Context, userID, cate
 
 // CompletionStats represents completion statistics for a time period
 type CompletionStats struct {
-	TotalTasks      int     `json:"total_tasks"`
-	CompletedTasks  int     `json:"completed_tasks"`
-	CompletionRate  float64 `json:"completion_rate"`
-	PendingTasks    int     `json:"pending_tasks"`
+	TotalTasks     int     `json:"total_tasks"`
+	CompletedTasks int     `json:"completed_tasks"`
+	CompletionRate float64 `json:"completion_rate"`
+	PendingTasks   int     `json:"pending_tasks"`
 }
 
 // GetCompletionStats retrieves completion statistics for a user within a time period
 func (r *TaskRepository) GetCompletionStats(ctx context.Context, userID string, daysBack int) (*CompletionStats, error) {
-	query := `
-		SELECT
-			COUNT(*) as total_tasks,
-			COUNT(*) FILTER (WHERE status = 'done') as completed_tasks,
-			COUNT(*) FILTER (WHERE status != 'done') as pending_tasks
-		FROM tasks
-		WHERE user_id = $1
-		  AND created_at >= NOW() - INTERVAL '1 day' * $2
-	`
-
-	var stats CompletionStats
-	err := r.db.QueryRow(ctx, query, userID, daysBack).Scan(
-		&stats.TotalTasks,
-		&stats.CompletedTasks,
-		&stats.PendingTasks,
-	)
-
+	userUUID, err := stringToPgtypeUUID(userID)
 	if err != nil {
 		return nil, err
+	}
+
+	result, err := r.queries.GetCompletionStats(ctx, sqlc.GetCompletionStatsParams{
+		UserID:   userUUID,
+		Column2:  int32(daysBack),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	stats := &CompletionStats{
+		TotalTasks:     int(result.TotalTasks),
+		CompletedTasks: int(result.CompletedTasks),
+		PendingTasks:   int(result.PendingTasks),
 	}
 
 	if stats.TotalTasks > 0 {
 		stats.CompletionRate = float64(stats.CompletedTasks) / float64(stats.TotalTasks) * 100
 	}
 
-	return &stats, nil
+	return stats, nil
 }
 
 // BumpAnalytics represents bump-related analytics
@@ -496,40 +594,41 @@ type BumpAnalytics struct {
 
 // GetBumpAnalytics retrieves bump statistics for a user
 func (r *TaskRepository) GetBumpAnalytics(ctx context.Context, userID string) (*BumpAnalytics, error) {
-	// Get average bump count
-	avgQuery := `
-		SELECT COALESCE(AVG(bump_count), 0) as avg_bump_count
-		FROM tasks
-		WHERE user_id = $1 AND status != 'done'
-	`
-
-	var analytics BumpAnalytics
-	err := r.db.QueryRow(ctx, avgQuery, userID).Scan(&analytics.AverageBumpCount)
+	userUUID, err := stringToPgtypeUUID(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get tasks grouped by bump count
-	countQuery := `
-		SELECT bump_count, COUNT(*) as task_count
-		FROM tasks
-		WHERE user_id = $1 AND status != 'done'
-		GROUP BY bump_count
-		ORDER BY bump_count
-	`
-
-	rows, err := r.db.Query(ctx, countQuery, userID)
+	avgBumpCountRaw, err := r.queries.GetAverageBumpCount(ctx, userUUID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	analytics.TasksByBumpCount = make(map[int]int)
-	for rows.Next() {
-		var bumpCount, taskCount int
-		if err := rows.Scan(&bumpCount, &taskCount); err != nil {
-			return nil, err
+	tasksByBump, err := r.queries.GetTasksByBumpCount(ctx, userUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert interface{} to float64
+	avgBumpCount := 0.0
+	if avgBumpCountRaw != nil {
+		switch v := avgBumpCountRaw.(type) {
+		case float64:
+			avgBumpCount = v
+		case string:
+			// PostgreSQL numeric type might be returned as string
+			fmt.Sscanf(v, "%f", &avgBumpCount)
 		}
+	}
+
+	analytics := &BumpAnalytics{
+		AverageBumpCount: avgBumpCount,
+		TasksByBumpCount: make(map[int]int),
+	}
+
+	for _, row := range tasksByBump {
+		bumpCount := int(row.BumpCount)
+		taskCount := int(row.TaskCount)
 		analytics.TasksByBumpCount[bumpCount] = taskCount
 
 		if bumpCount >= 3 {
@@ -537,7 +636,7 @@ func (r *TaskRepository) GetBumpAnalytics(ctx context.Context, userID string) (*
 		}
 	}
 
-	return &analytics, rows.Err()
+	return analytics, nil
 }
 
 // CategoryStats represents statistics for a single category
@@ -550,39 +649,35 @@ type CategoryStats struct {
 
 // GetCategoryBreakdown retrieves task statistics grouped by category
 func (r *TaskRepository) GetCategoryBreakdown(ctx context.Context, userID string, daysBack int) ([]CategoryStats, error) {
-	query := `
-		SELECT
-			COALESCE(category, 'Uncategorized') as category,
-			COUNT(*) as total_count,
-			COUNT(*) FILTER (WHERE status = 'done') as completed_count
-		FROM tasks
-		WHERE user_id = $1
-		  AND created_at >= NOW() - INTERVAL '1 day' * $2
-		GROUP BY category
-		ORDER BY total_count DESC
-	`
-
-	rows, err := r.db.Query(ctx, query, userID, daysBack)
+	userUUID, err := stringToPgtypeUUID(userID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var stats []CategoryStats
-	for rows.Next() {
-		var s CategoryStats
-		if err := rows.Scan(&s.Category, &s.TotalCount, &s.CompletedCount); err != nil {
-			return nil, err
+	results, err := r.queries.GetCategoryBreakdown(ctx, sqlc.GetCategoryBreakdownParams{
+		UserID:  userUUID,
+		Column2: int32(daysBack),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	stats := make([]CategoryStats, len(results))
+	for i, r := range results {
+		s := CategoryStats{
+			Category:       r.Category,
+			TotalCount:     int(r.TotalCount),
+			CompletedCount: int(r.CompletedCount),
 		}
 
 		if s.TotalCount > 0 {
 			s.CompletionRate = float64(s.CompletedCount) / float64(s.TotalCount) * 100
 		}
 
-		stats = append(stats, s)
+		stats[i] = s
 	}
 
-	return stats, rows.Err()
+	return stats, nil
 }
 
 // VelocityMetrics represents task completion velocity
@@ -593,41 +688,33 @@ type VelocityMetrics struct {
 
 // GetVelocityMetrics retrieves daily task completion counts
 func (r *TaskRepository) GetVelocityMetrics(ctx context.Context, userID string, daysBack int) ([]VelocityMetrics, error) {
-	query := `
-		SELECT
-			DATE(completed_at) as completion_date,
-			COUNT(*) as completed_count
-		FROM tasks
-		WHERE user_id = $1
-		  AND status = 'done'
-		  AND completed_at >= NOW() - INTERVAL '1 day' * $2
-		GROUP BY DATE(completed_at)
-		ORDER BY completion_date
-	`
-
-	rows, err := r.db.Query(ctx, query, userID, daysBack)
+	userUUID, err := stringToPgtypeUUID(userID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var metrics []VelocityMetrics
-	for rows.Next() {
-		var m VelocityMetrics
-		var date interface{}
-		if err := rows.Scan(&date, &m.CompletedCount); err != nil {
-			return nil, err
-		}
-
-		// Convert date to string
-		if date != nil {
-			m.Date = fmt.Sprintf("%v", date)
-		}
-
-		metrics = append(metrics, m)
+	results, err := r.queries.GetVelocityMetrics(ctx, sqlc.GetVelocityMetricsParams{
+		UserID:  userUUID,
+		Column2: int32(daysBack),
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	return metrics, rows.Err()
+	metrics := make([]VelocityMetrics, len(results))
+	for i, r := range results {
+		dateStr := ""
+		if r.CompletionDate.Valid {
+			dateStr = r.CompletionDate.Time.Format("2006-01-02")
+		}
+
+		metrics[i] = VelocityMetrics{
+			Date:           dateStr,
+			CompletedCount: int(r.CompletedCount),
+		}
+	}
+
+	return metrics, nil
 }
 
 // PriorityDistribution represents task count by priority range
@@ -638,49 +725,23 @@ type PriorityDistribution struct {
 
 // GetPriorityDistribution retrieves task distribution across priority ranges
 func (r *TaskRepository) GetPriorityDistribution(ctx context.Context, userID string) ([]PriorityDistribution, error) {
-	query := `
-		SELECT
-			CASE
-				WHEN priority_score >= 90 THEN 'Critical (90-100)'
-				WHEN priority_score >= 75 THEN 'High (75-89)'
-				WHEN priority_score >= 50 THEN 'Medium (50-74)'
-				ELSE 'Low (0-49)'
-			END as priority_range,
-			COUNT(*) as task_count
-		FROM tasks
-		WHERE user_id = $1 AND status != 'done'
-		GROUP BY
-			CASE
-				WHEN priority_score >= 90 THEN 'Critical (90-100)'
-				WHEN priority_score >= 75 THEN 'High (75-89)'
-				WHEN priority_score >= 50 THEN 'Medium (50-74)'
-				ELSE 'Low (0-49)'
-			END
-		ORDER BY
-			MIN(
-				CASE
-					WHEN priority_score >= 90 THEN 1
-					WHEN priority_score >= 75 THEN 2
-					WHEN priority_score >= 50 THEN 3
-					ELSE 4
-				END
-			)
-	`
-
-	rows, err := r.db.Query(ctx, query, userID)
+	userUUID, err := stringToPgtypeUUID(userID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var distribution []PriorityDistribution
-	for rows.Next() {
-		var d PriorityDistribution
-		if err := rows.Scan(&d.Range, &d.Count); err != nil {
-			return nil, err
-		}
-		distribution = append(distribution, d)
+	results, err := r.queries.GetPriorityDistribution(ctx, userUUID)
+	if err != nil {
+		return nil, err
 	}
 
-	return distribution, rows.Err()
+	distribution := make([]PriorityDistribution, len(results))
+	for i, r := range results {
+		distribution[i] = PriorityDistribution{
+			Range: r.PriorityRange,
+			Count: int(r.TaskCount),
+		}
+	}
+
+	return distribution, nil
 }
