@@ -1,7 +1,8 @@
 package middleware
 
 import (
-	"log"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -32,12 +33,30 @@ func RateLimiter(redisLimiter *ratelimit.RedisLimiter, requestsPerMinute int) gi
 		allowed, err := redisLimiter.Allow(c.Request.Context(), identifier, requestsPerMinute, time.Minute)
 		if err != nil {
 			// Log error but fail open (allow request) to prevent Redis outages from blocking all traffic
-			log.Printf("Rate limiter error: %v (failing open)", err)
+			slog.Warn("Rate limiter error, failing open", "error", err, "identifier", identifier)
 			c.Next()
 			return
 		}
 
+		// Get rate limit info for headers
+		limitInfo, err := redisLimiter.GetLimitInfo(c.Request.Context(), identifier, requestsPerMinute, time.Minute)
+		if err == nil {
+			// Add standard rate limit headers
+			c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", limitInfo.Limit))
+			c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", limitInfo.Remaining))
+			c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", limitInfo.ResetAt.Unix()))
+		}
+
 		if !allowed {
+			// Add Retry-After header for rate limit exceeded
+			if limitInfo != nil {
+				retryAfter := int(time.Until(limitInfo.ResetAt).Seconds())
+				if retryAfter < 0 {
+					retryAfter = 1
+				}
+				c.Header("Retry-After", fmt.Sprintf("%d", retryAfter))
+			}
+
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error": "Rate limit exceeded. Please try again later.",
 			})
