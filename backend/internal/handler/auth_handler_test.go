@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
+	"github.com/notkevinvu/taskflow/backend/internal/handler/testutil"
 	"github.com/notkevinvu/taskflow/backend/internal/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -44,33 +45,30 @@ func (m *MockAuthService) GetUserByID(ctx context.Context, id string) (*domain.U
 	return args.Get(0).(*domain.User), args.Error(1)
 }
 
-// setupAuthTest creates a test Gin context and response recorder
-func setupAuthTest() (*gin.Engine, *httptest.ResponseRecorder, *MockAuthService) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	router := gin.New()
-	// Add error handler middleware to properly map errors to HTTP status codes
-	router.Use(middleware.ErrorHandler())
+// setupAuthTest creates a test router and mock service
+// ResponseRecorder is created per-test for better isolation
+func setupAuthTest() (*gin.Engine, *MockAuthService) {
+	router := testutil.SetupTestRouter()
 	mockService := new(MockAuthService)
-	return router, w, mockService
+	return router, mockService
 }
 
 func TestAuthHandler_Register_Success(t *testing.T) {
-	router, w, mockService := setupAuthTest()
+	router, mockService := setupAuthTest()
 	handler := NewAuthHandler(mockService)
 
 	// Setup route
 	router.POST("/register", handler.Register)
 
-	// Mock expectations
-	expectedResponse := &domain.AuthResponse{
-		User: domain.User{
-			ID:    "user-123",
-			Email: "test@example.com",
-			Name:  "Test User",
-		},
-		AccessToken: "test-token-123",
-	}
+	// Mock expectations using test builder
+	expectedResponse := testutil.NewAuthResponseBuilder().
+		WithUser(*testutil.NewUserBuilder().
+			WithID("user-123").
+			WithEmail("test@example.com").
+			WithName("Test User").
+			Build()).
+		WithAccessToken("test-token-123").
+		Build()
 
 	mockService.On("Register", mock.Anything, mock.MatchedBy(func(dto *domain.CreateUserDTO) bool {
 		return dto.Email == "test@example.com" && dto.Name == "Test User" && dto.Password == "password123"
@@ -87,6 +85,7 @@ func TestAuthHandler_Register_Success(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	// Execute request
+	w := testutil.NewResponseRecorder()
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -103,7 +102,7 @@ func TestAuthHandler_Register_Success(t *testing.T) {
 }
 
 func TestAuthHandler_Register_InvalidJSON(t *testing.T) {
-	router, w, mockService := setupAuthTest()
+	router, mockService := setupAuthTest()
 	handler := NewAuthHandler(mockService)
 
 	router.POST("/register", handler.Register)
@@ -113,6 +112,7 @@ func TestAuthHandler_Register_InvalidJSON(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	// Execute request
+	w := testutil.NewResponseRecorder()
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -121,7 +121,7 @@ func TestAuthHandler_Register_InvalidJSON(t *testing.T) {
 }
 
 func TestAuthHandler_Register_EmailAlreadyExists(t *testing.T) {
-	router, w, mockService := setupAuthTest()
+	router, mockService := setupAuthTest()
 	handler := NewAuthHandler(mockService)
 
 	router.POST("/register", handler.Register)
@@ -141,6 +141,7 @@ func TestAuthHandler_Register_EmailAlreadyExists(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	// Execute request
+	w := testutil.NewResponseRecorder()
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -149,7 +150,7 @@ func TestAuthHandler_Register_EmailAlreadyExists(t *testing.T) {
 }
 
 func TestAuthHandler_Register_ValidationError(t *testing.T) {
-	router, w, mockService := setupAuthTest()
+	router, mockService := setupAuthTest()
 	handler := NewAuthHandler(mockService)
 
 	router.POST("/register", handler.Register)
@@ -169,6 +170,7 @@ func TestAuthHandler_Register_ValidationError(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	// Execute request
+	w := testutil.NewResponseRecorder()
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -177,20 +179,19 @@ func TestAuthHandler_Register_ValidationError(t *testing.T) {
 }
 
 func TestAuthHandler_Login_Success(t *testing.T) {
-	router, w, mockService := setupAuthTest()
+	router, mockService := setupAuthTest()
 	handler := NewAuthHandler(mockService)
 
 	router.POST("/login", handler.Login)
 
-	// Mock expectations
-	expectedResponse := &domain.AuthResponse{
-		User: domain.User{
-			ID:    "user-123",
-			Email: "test@example.com",
-			Name:  "Test User",
-		},
-		AccessToken: "test-token-123",
-	}
+	// Mock expectations using test builder
+	expectedResponse := testutil.NewAuthResponseBuilder().
+		WithUser(*testutil.NewUserBuilder().
+			WithID("user-123").
+			WithEmail("test@example.com").
+			Build()).
+		WithAccessToken("test-token-123").
+		Build()
 
 	mockService.On("Login", mock.Anything, mock.MatchedBy(func(dto *domain.LoginDTO) bool {
 		return dto.Email == "test@example.com" && dto.Password == "password123"
@@ -206,6 +207,7 @@ func TestAuthHandler_Login_Success(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	// Execute request
+	w := testutil.NewResponseRecorder()
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -221,7 +223,7 @@ func TestAuthHandler_Login_Success(t *testing.T) {
 }
 
 func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
-	router, w, mockService := setupAuthTest()
+	router, mockService := setupAuthTest()
 	handler := NewAuthHandler(mockService)
 
 	router.POST("/login", handler.Login)
@@ -240,6 +242,7 @@ func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	// Execute request
+	w := testutil.NewResponseRecorder()
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -248,7 +251,7 @@ func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
 }
 
 func TestAuthHandler_Login_InvalidJSON(t *testing.T) {
-	router, w, mockService := setupAuthTest()
+	router, mockService := setupAuthTest()
 	handler := NewAuthHandler(mockService)
 
 	router.POST("/login", handler.Login)
@@ -258,6 +261,7 @@ func TestAuthHandler_Login_InvalidJSON(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	// Execute request
+	w := testutil.NewResponseRecorder()
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -266,22 +270,18 @@ func TestAuthHandler_Login_InvalidJSON(t *testing.T) {
 }
 
 func TestAuthHandler_Me_Success(t *testing.T) {
-	router, w, mockService := setupAuthTest()
+	router, mockService := setupAuthTest()
 	handler := NewAuthHandler(mockService)
 
-	// Setup authenticated route (with user ID in context)
-	router.GET("/me", func(c *gin.Context) {
-		// Simulate auth middleware setting user ID
-		c.Set("user_id", "user-123")
-		handler.Me(c)
-	})
+	// Setup authenticated route using WithAuthContext helper
+	router.GET("/me", testutil.WithAuthContext(router, "user-123", handler.Me))
 
-	// Mock expectations
-	expectedUser := &domain.User{
-		ID:    "user-123",
-		Email: "test@example.com",
-		Name:  "Test User",
-	}
+	// Mock expectations using test builder
+	expectedUser := testutil.NewUserBuilder().
+		WithID("user-123").
+		WithEmail("test@example.com").
+		WithName("Test User").
+		Build()
 
 	mockService.On("GetUserByID", mock.Anything, "user-123").
 		Return(expectedUser, nil)
@@ -290,6 +290,7 @@ func TestAuthHandler_Me_Success(t *testing.T) {
 	req := httptest.NewRequest("GET", "/me", nil)
 
 	// Execute request
+	w := testutil.NewResponseRecorder()
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -305,7 +306,7 @@ func TestAuthHandler_Me_Success(t *testing.T) {
 }
 
 func TestAuthHandler_Me_Unauthenticated(t *testing.T) {
-	router, w, mockService := setupAuthTest()
+	router, mockService := setupAuthTest()
 	handler := NewAuthHandler(mockService)
 
 	// Setup route WITHOUT user ID in context (unauthenticated)
@@ -315,6 +316,7 @@ func TestAuthHandler_Me_Unauthenticated(t *testing.T) {
 	req := httptest.NewRequest("GET", "/me", nil)
 
 	// Execute request
+	w := testutil.NewResponseRecorder()
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -323,12 +325,12 @@ func TestAuthHandler_Me_Unauthenticated(t *testing.T) {
 }
 
 func TestAuthHandler_Me_UserNotFound(t *testing.T) {
-	router, w, mockService := setupAuthTest()
+	router, mockService := setupAuthTest()
 	handler := NewAuthHandler(mockService)
 
-	// Setup authenticated route
+	// Setup authenticated route using constant instead of magic string
 	router.GET("/me", func(c *gin.Context) {
-		c.Set("user_id", "nonexistent-user")
+		c.Set(middleware.UserIDKey, "nonexistent-user")
 		handler.Me(c)
 	})
 
@@ -340,6 +342,7 @@ func TestAuthHandler_Me_UserNotFound(t *testing.T) {
 	req := httptest.NewRequest("GET", "/me", nil)
 
 	// Execute request
+	w := testutil.NewResponseRecorder()
 	router.ServeHTTP(w, req)
 
 	// Assert

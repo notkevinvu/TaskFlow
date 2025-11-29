@@ -8,6 +8,12 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// Context keys for storing user information
+const (
+	UserIDKey    = "user_id"
+	UserEmailKey = "user_email"
+)
+
 // Claims represents the JWT claims
 type Claims struct {
 	UserID string `json:"user_id"`
@@ -55,8 +61,8 @@ func AuthRequired(jwtSecret string) gin.HandlerFunc {
 		}
 
 		// Set user information in context
-		c.Set("user_id", claims.UserID)
-		c.Set("user_email", claims.Email)
+		c.Set(UserIDKey, claims.UserID)
+		c.Set(UserEmailKey, claims.Email)
 
 		c.Next()
 	}
@@ -64,7 +70,7 @@ func AuthRequired(jwtSecret string) gin.HandlerFunc {
 
 // GetUserID retrieves the user ID from the context
 func GetUserID(c *gin.Context) (string, bool) {
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get(UserIDKey)
 	if !exists {
 		return "", false
 	}
