@@ -18,6 +18,7 @@ import (
 	"github.com/notkevinvu/taskflow/backend/internal/handler"
 	"github.com/notkevinvu/taskflow/backend/internal/logger"
 	"github.com/notkevinvu/taskflow/backend/internal/middleware"
+	"github.com/notkevinvu/taskflow/backend/internal/ratelimit"
 	"github.com/notkevinvu/taskflow/backend/internal/repository"
 	"github.com/notkevinvu/taskflow/backend/internal/service"
 )
@@ -60,6 +61,16 @@ func main() {
 	}
 	slog.Info("Successfully connected to database")
 
+	// Initialize Redis rate limiter (optional - falls back to in-memory if unavailable)
+	redisLimiter, err := ratelimit.NewRedisLimiter(cfg.RedisURL)
+	if err != nil {
+		slog.Warn("Unable to connect to Redis, using in-memory rate limiting", "error", err)
+		redisLimiter = nil
+	} else {
+		defer redisLimiter.Close()
+		slog.Info("Successfully connected to Redis for rate limiting")
+	}
+
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(dbPool)
 	taskRepo := repository.NewTaskRepository(dbPool)
@@ -85,15 +96,32 @@ func main() {
 	router.Use(gin.Recovery())                        // Recover from panics
 	router.Use(middleware.RequestLogger())            // Log all requests with error context
 	router.Use(middleware.CORS(cfg.AllowedOrigins))   // CORS
-	router.Use(middleware.RateLimiter(cfg.RateLimitRPM)) // Rate limiting
+	router.Use(middleware.RateLimiter(redisLimiter, cfg.RateLimitRPM)) // Rate limiting with Redis backend
 	router.Use(middleware.ErrorHandler())             // Error handler must be last to catch errors from routes
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status": "healthy",
+		health := gin.H{
+			"status":    "healthy",
 			"timestamp": time.Now().UTC(),
-		})
+			"services": gin.H{
+				"database": "healthy",
+			},
+		}
+
+		// Check Redis health if available
+		if redisLimiter != nil {
+			if err := redisLimiter.Health(c.Request.Context()); err != nil {
+				health["services"].(gin.H)["redis"] = "unhealthy"
+				slog.Warn("Redis health check failed", "error", err)
+			} else {
+				health["services"].(gin.H)["redis"] = "healthy"
+			}
+		} else {
+			health["services"].(gin.H)["redis"] = "not configured"
+		}
+
+		c.JSON(http.StatusOK, health)
 	})
 
 	// API v1 routes
