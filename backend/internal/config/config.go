@@ -11,6 +11,7 @@ type Config struct {
 	Port            string
 	GinMode         string
 	DatabaseURL     string
+	RedisURL        string
 	JWTSecret       string
 	JWTExpiryHours  int
 	RateLimitRPM    int
@@ -24,6 +25,7 @@ func Load() *Config {
 		Port:            getEnv("PORT", "8080"),
 		GinMode:         getEnv("GIN_MODE", "debug"),
 		DatabaseURL:     getEnvRequired("DATABASE_URL"),
+		RedisURL:        getEnv("REDIS_URL", "localhost:6379"),
 		JWTSecret:       getEnvRequired("JWT_SECRET"),
 		JWTExpiryHours:  getEnvAsInt("JWT_EXPIRY_HOURS", 24),
 		RateLimitRPM:    getEnvAsInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 100),

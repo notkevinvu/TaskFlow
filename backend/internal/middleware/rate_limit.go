@@ -1,17 +1,56 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/notkevinvu/taskflow/backend/internal/ratelimit"
 	"golang.org/x/time/rate"
 )
 
 // RateLimiter creates a rate limiting middleware
-// Limits requests per minute based on user_id (after auth) or IP (before auth)
-func RateLimiter(requestsPerMinute int) gin.HandlerFunc {
+// If Redis limiter is provided, uses Redis for horizontal scalability
+// If Redis is nil, falls back to in-memory rate limiting (single instance only)
+func RateLimiter(redisLimiter *ratelimit.RedisLimiter, requestsPerMinute int) gin.HandlerFunc {
+	// If Redis is not available, create in-memory fallback
+	if redisLimiter == nil {
+		return inMemoryRateLimiter(requestsPerMinute)
+	}
+
+	// Redis-backed rate limiting
+	return func(c *gin.Context) {
+		// Use user_id if authenticated, otherwise use IP
+		identifier := c.ClientIP()
+		if userID, exists := GetUserID(c); exists {
+			identifier = userID
+		}
+
+		// Check rate limit with 1-minute window
+		allowed, err := redisLimiter.Allow(c.Request.Context(), identifier, requestsPerMinute, time.Minute)
+		if err != nil {
+			// Log error but fail open (allow request) to prevent Redis outages from blocking all traffic
+			log.Printf("Rate limiter error: %v (failing open)", err)
+			c.Next()
+			return
+		}
+
+		if !allowed {
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error": "Rate limit exceeded. Please try again later.",
+			})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// inMemoryRateLimiter provides in-memory rate limiting for single-instance deployments
+func inMemoryRateLimiter(requestsPerMinute int) gin.HandlerFunc {
 	type client struct {
 		limiter  *rate.Limiter
 		lastSeen time.Time
@@ -39,8 +78,8 @@ func RateLimiter(requestsPerMinute int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Use user_id if authenticated, otherwise use IP
 		identifier := c.ClientIP()
-		if userID, exists := c.Get("user_id"); exists {
-			identifier = userID.(string)
+		if userID, exists := GetUserID(c); exists {
+			identifier = userID
 		}
 
 		mu.Lock()

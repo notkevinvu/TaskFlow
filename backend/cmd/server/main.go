@@ -16,6 +16,7 @@ import (
 	"github.com/notkevinvu/taskflow/backend/internal/config"
 	"github.com/notkevinvu/taskflow/backend/internal/handler"
 	"github.com/notkevinvu/taskflow/backend/internal/middleware"
+	"github.com/notkevinvu/taskflow/backend/internal/ratelimit"
 	"github.com/notkevinvu/taskflow/backend/internal/repository"
 	"github.com/notkevinvu/taskflow/backend/internal/service"
 )
@@ -42,6 +43,16 @@ func main() {
 	}
 	log.Println("Successfully connected to database")
 
+	// Initialize Redis rate limiter (optional - falls back to allowing all requests if unavailable)
+	redisLimiter, err := ratelimit.NewRedisLimiter(cfg.RedisURL)
+	if err != nil {
+		log.Printf("Warning: Unable to connect to Redis: %v (rate limiting disabled)\n", err)
+		redisLimiter = nil
+	} else {
+		defer redisLimiter.Close()
+		log.Println("Successfully connected to Redis for rate limiting")
+	}
+
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(dbPool)
 	taskRepo := repository.NewTaskRepository(dbPool)
@@ -65,7 +76,7 @@ func main() {
 
 	// Apply middleware
 	router.Use(middleware.CORS(cfg.AllowedOrigins))
-	router.Use(middleware.RateLimiter(cfg.RateLimitRPM))
+	router.Use(middleware.RateLimiter(redisLimiter, cfg.RateLimitRPM))
 	router.Use(middleware.ErrorHandler()) // Error handler must be last to catch errors from routes
 
 	// Health check
