@@ -18,6 +18,7 @@ ON tasks(user_id, status, due_date);
 
 -- Composite index for analytics queries on non-done tasks
 -- This helps queries like: WHERE user_id = ? AND status != 'done' for aggregations
+-- Note: status column removed from index since WHERE clause already filters on status
 CREATE INDEX IF NOT EXISTS idx_tasks_user_active
-ON tasks(user_id, status, bump_count)
+ON tasks(user_id, bump_count)
 WHERE status != 'done';

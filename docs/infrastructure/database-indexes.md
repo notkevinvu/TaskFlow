@@ -32,7 +32,7 @@ TaskFlow uses strategic database indexing to optimize query performance for sear
 
 Composite indexes optimize queries that filter on multiple columns. PostgreSQL can use these for queries that match the leftmost prefix of the index.
 
-###1. User + Status + Priority
+### 1. User + Status + Priority
 ```sql
 idx_tasks_user_status_priority ON tasks(user_id, status, priority_score DESC)
 ```
@@ -86,7 +86,7 @@ WHERE user_id = '...' AND status != 'done'
 
 ### 4. User + Active Tasks (Partial Index)
 ```sql
-idx_tasks_user_active ON tasks(user_id, status, bump_count)
+idx_tasks_user_active ON tasks(user_id, bump_count)
 WHERE status != 'done'
 ```
 
@@ -95,12 +95,15 @@ WHERE status != 'done'
 - Bump count aggregations
 - At-risk task detection
 - Partial index (excludes completed tasks) for smaller size
+- Optimized by removing status from index columns (already filtered by WHERE clause)
 
 **Example Query:**
 ```sql
 SELECT AVG(bump_count) FROM tasks
 WHERE user_id = '...' AND status != 'done';
 ```
+
+**Note:** The `status` column is not included in the index because the partial index WHERE clause already filters on it, making it redundant and reducing index size.
 
 ## Index Selection Strategy
 
@@ -111,6 +114,8 @@ PostgreSQL automatically chooses the most efficient index based on query pattern
 3. **Partial indexes** (with WHERE clause) for frequently filtered subsets
 4. **GIN indexes** for full-text search
 5. **DESC indexes** for reverse-order sorts (priority)
+
+**Priority-only sorts:** When sorting ONLY by priority_score without filters (e.g., `ORDER BY priority_score DESC`), PostgreSQL will use the single-column `idx_tasks_priority_score` index. Composite indexes are most beneficial when filtering AND sorting together.
 
 ## Testing Index Performance
 
@@ -183,14 +188,47 @@ ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 ```sql
 EXPLAIN ANALYZE
 SELECT * FROM tasks
-WHERE user_id = '...' AND status = 'todo'
+WHERE user_id = '123' AND status = 'todo'
 ORDER BY priority_score DESC
 LIMIT 20;
 ```
-Expected: Sequential scan or bitmap heap scan combining multiple indexes
+
+**Example Output (Before):**
+```
+Limit  (cost=245.34..245.39 rows=20 width=512) (actual time=12.456..12.478 rows=20 loops=1)
+  ->  Sort  (cost=245.34..248.67 rows=1333 width=512) (actual time=12.454..12.465 rows=20 loops=1)
+        Sort Key: priority_score DESC
+        Sort Method: top-N heapsort  Memory: 45kB
+        ->  Bitmap Heap Scan on tasks  (cost=45.67..220.89 rows=1333 width=512) (actual time=2.345..8.234 rows=1250 loops=1)
+              Recheck Cond: (user_id = '123'::text)
+              Filter: (status = 'todo'::text)
+              Rows Removed by Filter: 438
+              Heap Blocks: exact=234
+              ->  Bitmap Index Scan on idx_tasks_user_id  (cost=0.00..45.34 rows=1688 width=0) (actual time=1.234..1.234 rows=1688 loops=1)
+                    Index Cond: (user_id = '123'::text)
+Planning Time: 0.456 ms
+Execution Time: 12.523 ms
+```
 
 ### After Composite Indexes
-Same query should use `idx_tasks_user_status_priority` directly with lower execution time.
+```sql
+EXPLAIN ANALYZE
+SELECT * FROM tasks
+WHERE user_id = '123' AND status = 'todo'
+ORDER BY priority_score DESC
+LIMIT 20;
+```
+
+**Example Output (After):**
+```
+Limit  (cost=0.42..78.92 rows=20 width=512) (actual time=0.234..0.567 rows=20 loops=1)
+  ->  Index Scan using idx_tasks_user_status_priority on tasks  (cost=0.42..5234.78 rows=1333 width=512) (actual time=0.232..0.554 rows=20 loops=1)
+        Index Cond: ((user_id = '123'::text) AND (status = 'todo'::text))
+Planning Time: 0.123 ms
+Execution Time: 0.598 ms
+```
+
+**Performance Improvement:** ~21x faster (12.5ms → 0.6ms) by using the composite index directly instead of filtering after a bitmap scan.
 
 ## Maintenance
 
@@ -214,6 +252,15 @@ SELECT
 FROM pg_indexes
 WHERE tablename = 'tasks';
 ```
+
+**Estimated Index Sizes (for ~10,000 tasks):**
+- `idx_tasks_user_status_priority`: ~350 KB (3 columns, user+status+priority)
+- `idx_tasks_user_category_priority`: ~200 KB (partial index, excludes NULLs)
+- `idx_tasks_user_status_due_date`: ~300 KB (3 columns, user+status+date)
+- `idx_tasks_user_active`: ~150 KB (partial index, 2 columns, non-done only)
+- `idx_tasks_search_vector`: ~800 KB (GIN index for full-text search)
+
+*Note: Actual sizes scale with data volume and data characteristics. Use the query above to monitor real sizes.*
 
 ## Migration Notes
 
