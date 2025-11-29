@@ -19,64 +19,64 @@ func TestCalculate(t *testing.T) {
 		{
 			name: "High priority, no decay, no deadline, no bumps",
 			task: &domain.Task{
-				UserPriority: 100,
+				UserPriority: 10, // Scale 1-10 (not 0-100)
 				CreatedAt:    time.Now(),
 				BumpCount:    0,
 			},
-			expected: 40, // 100 * 0.4 + 0 + 0 + 0 = 40
+			expected: 40, // (10*10)*0.4 + 0 + 0 + 0 = 100*0.4 = 40
 			desc:     "Only user priority contributes",
 		},
 		{
 			name: "Medium priority, 30 days old, no deadline, no bumps",
 			task: &domain.Task{
-				UserPriority: 50,
+				UserPriority: 5, // Scale 1-10
 				CreatedAt:    time.Now().AddDate(0, 0, -30),
 				BumpCount:    0,
 			},
-			expected: 50, // 50*0.4 + 100*0.3 + 0 + 0 = 20 + 30 = 50
+			expected: 50, // (5*10)*0.4 + 100*0.3 + 0 + 0 = 50*0.4 + 30 = 20 + 30 = 50
 			desc:     "User priority + time decay",
 		},
 		{
 			name: "Low priority, new, due tomorrow, no bumps",
 			task: &domain.Task{
-				UserPriority: 25,
+				UserPriority: 3, // Scale 1-10
 				CreatedAt:    time.Now(),
 				DueDate:      timePtr(time.Now().AddDate(0, 0, 1)),
 				BumpCount:    0,
 			},
-			expected: 28, // 25*0.4 + 0 + ~80*0.2 + 0 ≈ 10 + 16 = 26-28
+			expected: 32, // (3*10)*0.4 + 0 + ~98*0.2 + 0 ≈ 12 + 19.6 = 31-32
 			desc:     "User priority + deadline urgency",
 		},
 		{
 			name: "Medium priority, new, no deadline, 5 bumps",
 			task: &domain.Task{
-				UserPriority: 50,
+				UserPriority: 5, // Scale 1-10
 				CreatedAt:    time.Now(),
 				BumpCount:    5,
 			},
-			expected: 25, // 50*0.4 + 0 + 0 + 50*0.1 = 20 + 5 = 25
+			expected: 25, // (5*10)*0.4 + 0 + 0 + 50*0.1 = 50*0.4 + 5 = 20 + 5 = 25
 			desc:     "User priority + bump penalty",
 		},
 		{
 			name: "High priority, small task, no other factors",
 			task: &domain.Task{
-				UserPriority:    75,
+				UserPriority:    8, // Scale 1-10
 				CreatedAt:       time.Now(),
 				EstimatedEffort: effortPtr(domain.TaskEffortSmall),
 				BumpCount:       0,
 			},
-			expected: 39, // (75*0.4 + 0 + 0 + 0) * 1.3 = 30 * 1.3 = 39
+			expected: 42, // ((8*10)*0.4 + 0 + 0 + 0) * 1.3 = 80*0.4*1.3 = 32*1.3 = 41.6 ≈ 42
 			desc:     "User priority with small task boost",
 		},
 		{
 			name: "Overdue task",
 			task: &domain.Task{
-				UserPriority: 50,
+				UserPriority: 5, // Scale 1-10
 				CreatedAt:    time.Now().AddDate(0, 0, -10),
 				DueDate:      timePtr(time.Now().AddDate(0, 0, -5)),
 				BumpCount:    0,
 			},
-			expected: 53, // 50*0.4 + ~33*0.3 + 100*0.2 + 0 = 20 + 10 + 20 = 50+
+			expected: 50, // (5*10)*0.4 + ~33*0.3 + 100*0.2 + 0 = 20 + 10 + 20 = 50
 			desc:     "Overdue tasks get max deadline urgency",
 		},
 	}
@@ -158,7 +158,7 @@ func TestCalculateDeadlineUrgency(t *testing.T) {
 		{
 			name:     "Due in 3 days",
 			dueDate:  timePtr(time.Now().AddDate(0, 0, 3)),
-			expected: 63, // ~63%
+			expected: 82, // ~82% (100 * (1 - (3/7)^2))
 		},
 		{
 			name:     "Due in 1 day",
