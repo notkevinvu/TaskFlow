@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,6 +16,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/notkevinvu/taskflow/backend/internal/config"
 	"github.com/notkevinvu/taskflow/backend/internal/handler"
+	"github.com/notkevinvu/taskflow/backend/internal/logger"
 	"github.com/notkevinvu/taskflow/backend/internal/middleware"
 	"github.com/notkevinvu/taskflow/backend/internal/ratelimit"
 	"github.com/notkevinvu/taskflow/backend/internal/repository"
@@ -30,27 +32,43 @@ func main() {
 	// Load configuration
 	cfg := config.Load()
 
+	// Initialize structured logger
+	appLogger := logger.New(logger.Config{
+		Level:  logger.LogLevel(cfg.LogLevel),
+		Format: cfg.LogFormat,
+	})
+	slog.SetDefault(appLogger)
+
+	slog.Info("Application starting",
+		"port", cfg.Port,
+		"gin_mode", cfg.GinMode,
+		"log_level", cfg.LogLevel,
+		"log_format", cfg.LogFormat,
+	)
+
 	// Initialize database connection pool
 	dbPool, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("Unable to connect to database: %v\n", err)
+		slog.Error("Failed to connect to database", "error", err)
+		os.Exit(1)
 	}
 	defer dbPool.Close()
 
 	// Verify database connection
 	if err := dbPool.Ping(context.Background()); err != nil {
-		log.Fatalf("Unable to ping database: %v\n", err)
+		slog.Error("Failed to ping database", "error", err)
+		os.Exit(1)
 	}
-	log.Println("Successfully connected to database")
+	slog.Info("Successfully connected to database")
 
-	// Initialize Redis rate limiter (optional - falls back to allowing all requests if unavailable)
+	// Initialize Redis rate limiter (optional - falls back to in-memory if unavailable)
 	redisLimiter, err := ratelimit.NewRedisLimiter(cfg.RedisURL)
 	if err != nil {
-		log.Printf("Warning: Unable to connect to Redis: %v (rate limiting disabled)\n", err)
+		slog.Warn("Unable to connect to Redis, using in-memory rate limiting", "error", err)
 		redisLimiter = nil
 	} else {
 		defer redisLimiter.Close()
-		log.Println("Successfully connected to Redis for rate limiting")
+		slog.Info("Successfully connected to Redis for rate limiting")
 	}
 
 	// Initialize repositories
@@ -72,12 +90,14 @@ func main() {
 	gin.SetMode(cfg.GinMode)
 
 	// Initialize router
-	router := gin.Default()
+	router := gin.New() // Use gin.New() instead of Default() to have full control over middleware
 
-	// Apply middleware
-	router.Use(middleware.CORS(cfg.AllowedOrigins))
-	router.Use(middleware.RateLimiter(redisLimiter, cfg.RateLimitRPM))
-	router.Use(middleware.ErrorHandler()) // Error handler must be last to catch errors from routes
+	// Apply middleware in order (RequestLogger before ErrorHandler to capture error context)
+	router.Use(gin.Recovery())                        // Recover from panics
+	router.Use(middleware.RequestLogger())            // Log all requests with error context
+	router.Use(middleware.CORS(cfg.AllowedOrigins))   // CORS
+	router.Use(middleware.RateLimiter(redisLimiter, cfg.RateLimitRPM)) // Rate limiting with Redis backend
+	router.Use(middleware.ErrorHandler())             // Error handler must be last to catch errors from routes
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
@@ -137,9 +157,10 @@ func main() {
 
 	// Start server in goroutine
 	go func() {
-		log.Printf("Starting server on port %s\n", cfg.Port)
+		slog.Info("Starting HTTP server", "port", cfg.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v\n", err)
+			slog.Error("Failed to start server", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -148,15 +169,16 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	slog.Info("Received shutdown signal, gracefully shutting down server...")
 
 	// Graceful shutdown with 5 second timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v\n", err)
+		slog.Error("Server forced to shutdown", "error", err)
+		os.Exit(1)
 	}
 
-	log.Println("Server exited successfully")
+	slog.Info("Server exited successfully")
 }

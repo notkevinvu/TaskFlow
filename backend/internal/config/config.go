@@ -16,6 +16,8 @@ type Config struct {
 	JWTExpiryHours  int
 	RateLimitRPM    int
 	AllowedOrigins  []string
+	LogLevel        string
+	LogFormat       string
 }
 
 // Load reads configuration from environment variables
@@ -30,6 +32,8 @@ func Load() *Config {
 		JWTExpiryHours:  getEnvAsInt("JWT_EXPIRY_HOURS", 24),
 		RateLimitRPM:    getEnvAsInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 100),
 		AllowedOrigins:  getEnvAsSlice("ALLOWED_ORIGINS", []string{"http://localhost:3000"}),
+		LogLevel:        getEnv("LOG_LEVEL", "info"),
+		LogFormat:       getEnv("LOG_FORMAT", "text"),
 	}
 }
 
