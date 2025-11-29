@@ -90,6 +90,10 @@ TaskFlow is an intelligent task prioritization system built with:
 - **API:** Use curl or browser DevTools to verify endpoints
 - **Database:** Check Supabase dashboard for data changes
 
+### PR Reviews
+
+**IMPORTANT:** Upon a requested PR /review prompt/skill, you must also send a comment to the PR with the review itself so we can keep it for tracking and learning purposes.
+
 ---
 
 ## Key Files
