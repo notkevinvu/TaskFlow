@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"context"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -41,8 +43,8 @@ func RequestLogger() gin.HandlerFunc {
 			"ip", c.ClientIP(),
 		}
 
-		// Add query string if present
-		if query != "" {
+		// Add query string if present and not sensitive
+		if query != "" && !containsSensitiveParams(query) {
 			attrs = append(attrs, "query", query)
 		}
 
@@ -61,7 +63,32 @@ func RequestLogger() gin.HandlerFunc {
 			attrs = append(attrs, "error", c.Errors.Last().Error())
 		}
 
-		// Log the request
-		slog.Log(c.Request.Context(), logLevel, "HTTP request", attrs...)
+		// Log the request using background context (request may be cancelled)
+		slog.Log(context.Background(), logLevel, "HTTP request", attrs...)
 	}
+}
+
+// containsSensitiveParams checks if query string contains sensitive parameters
+func containsSensitiveParams(query string) bool {
+	// List of sensitive parameter names to exclude from logs
+	sensitiveParams := []string{
+		"token",
+		"password",
+		"secret",
+		"api_key",
+		"apikey",
+		"access_token",
+		"refresh_token",
+		"auth",
+		"authorization",
+		"key",
+	}
+
+	queryLower := strings.ToLower(query)
+	for _, param := range sensitiveParams {
+		if strings.Contains(queryLower, param+"=") {
+			return true
+		}
+	}
+	return false
 }

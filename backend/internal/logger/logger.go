@@ -31,7 +31,9 @@ func New(cfg Config) *slog.Logger {
 	opts := &slog.HandlerOptions{
 		Level: level,
 		// Add source location for errors and above
-		AddSource: level <= slog.LevelError,
+		// Note: This is a static config based on minimum log level, not per-message
+		// All logs at ERROR level and above will include source location
+		AddSource: level >= slog.LevelError,
 	}
 
 	// Create handler based on format
@@ -61,7 +63,3 @@ func parseLogLevel(level LogLevel) slog.Level {
 	}
 }
 
-// WithContext adds common context fields to logger
-func WithContext(logger *slog.Logger, fields ...any) *slog.Logger {
-	return logger.With(fields...)
-}

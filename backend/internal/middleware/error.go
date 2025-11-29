@@ -30,7 +30,7 @@ func ErrorHandler() gin.HandlerFunc {
 		err := c.Errors.Last().Err
 
 		// Map error to HTTP status and response
-		statusCode, response := mapErrorToResponse(err)
+		statusCode, response := mapErrorToResponse(c, err)
 
 		// Set status code and send JSON response
 		c.JSON(statusCode, response)
@@ -38,7 +38,7 @@ func ErrorHandler() gin.HandlerFunc {
 }
 
 // mapErrorToResponse maps domain errors to HTTP status codes and responses
-func mapErrorToResponse(err error) (int, ErrorResponse) {
+func mapErrorToResponse(c *gin.Context, err error) (int, ErrorResponse) {
 	// Check for custom error types
 	var validationErr *domain.ValidationError
 	if errors.As(err, &validationErr) {
@@ -81,10 +81,12 @@ func mapErrorToResponse(err error) (int, ErrorResponse) {
 
 	var internalErr *domain.InternalError
 	if errors.As(err, &internalErr) {
-		// Log the internal error server-side with full details
+		// Log the internal error server-side with full details and request context
 		slog.Error("Internal server error",
 			"message", internalErr.Message,
 			"cause", internalErr.Cause,
+			"path", c.Request.URL.Path,
+			"method", c.Request.Method,
 		)
 		// Don't expose internal error details to clients
 		return http.StatusInternalServerError, ErrorResponse{
@@ -92,8 +94,12 @@ func mapErrorToResponse(err error) (int, ErrorResponse) {
 		}
 	}
 
-	// Log unexpected errors
-	slog.Error("Unexpected error", "error", err)
+	// Log unexpected errors with request context
+	slog.Error("Unexpected error",
+		"error", err,
+		"path", c.Request.URL.Path,
+		"method", c.Request.Method,
+	)
 
 	// Default to internal server error
 	return http.StatusInternalServerError, ErrorResponse{

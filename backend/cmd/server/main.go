@@ -81,9 +81,9 @@ func main() {
 	// Initialize router
 	router := gin.New() // Use gin.New() instead of Default() to have full control over middleware
 
-	// Apply middleware in order
+	// Apply middleware in order (RequestLogger before ErrorHandler to capture error context)
 	router.Use(gin.Recovery())                        // Recover from panics
-	router.Use(middleware.RequestLogger())            // Log all requests
+	router.Use(middleware.RequestLogger())            // Log all requests with error context
 	router.Use(middleware.CORS(cfg.AllowedOrigins))   // CORS
 	router.Use(middleware.RateLimiter(cfg.RateLimitRPM)) // Rate limiting
 	router.Use(middleware.ErrorHandler())             // Error handler must be last to catch errors from routes
