@@ -8,12 +8,12 @@
 - ✅ Comprehensive test coverage (unit + integration)
 - ✅ Structured logging with slog
 - ✅ Production-grade error handling
-- ✅ Multi-stage Docker builds for efficient deployment
 - ✅ Interface-based dependency injection (testable architecture)
 - ✅ Redis-backed rate limiting (scalable)
 - ✅ Health check endpoints
 - ✅ Environment-based configuration
 - ✅ CI/CD pipeline (GitHub Actions)
+- ⚠️ Docker builds (DEFERRED - only implement if explicitly requested)
 
 **What you're building:** A production-grade backend that can scale to multiple instances, with comprehensive testing and observability.
 
@@ -82,10 +82,10 @@
   - [ ] `CREATE INDEX idx_tasks_due_date ON tasks(due_date)`
   - [ ] `CREATE INDEX idx_tasks_category ON tasks(category)`
   - [ ] Verify query performance with EXPLAIN ANALYZE
-- [ ] Multi-stage Docker builds
-- [ ] Docker Compose production config
 - [ ] Health check endpoints
 - [ ] CI/CD pipeline (GitHub Actions)
+- [ ] ~~Multi-stage Docker builds~~ (DEFERRED)
+- [ ] ~~Docker Compose production config~~ (DEFERRED)
 
 ### Priority 4: Search & Filter Enhancements (Phase 2.5 follow-up)
 - [ ] **Date range picker UI** for due date filtering
@@ -695,113 +695,13 @@ func ErrorHandler(logger *slog.Logger) gin.HandlerFunc {
 }
 ```
 
-### Docker Production Build
+---
 
-**Backend Dockerfile (`backend/docker/Dockerfile.prod`):**
+## DEFERRED: Docker Configuration
 
-```dockerfile
-# Build stage
-FROM golang:1.23-alpine AS builder
+**NOTE:** Docker builds are **DEFERRED** and only needed if you specifically require containerization for deployment. The application runs perfectly well locally without Docker.
 
-WORKDIR /app
-
-# Dependencies
-COPY go.mod go.sum ./
-RUN go mod download
-
-# Build
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/api
-
-# Production stage
-FROM gcr.io/distroless/static-debian11
-
-WORKDIR /
-
-COPY --from=builder /app/main /main
-COPY --from=builder /app/.env /.env
-
-EXPOSE 8080
-
-CMD ["/main"]
-```
-
-**Frontend Dockerfile (`frontend/docker/Dockerfile.prod`):**
-
-```dockerfile
-# Dependencies
-FROM node:20-alpine AS deps
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-
-# Builder
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
-
-# Runner
-FROM node:20-alpine AS runner
-WORKDIR /app
-
-ENV NODE_ENV production
-
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-EXPOSE 3000
-
-CMD ["node", "server.js"]
-```
-
-**Production docker-compose:**
-
-```yaml
-version: '3.8'
-
-services:
-  backend:
-    build:
-      context: ./backend
-      dockerfile: docker/Dockerfile.prod
-    ports:
-      - "8080:8080"
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/webapp_prod
-      - JWT_SECRET=${JWT_SECRET}
-    depends_on:
-      - postgres
-    restart: unless-stopped
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: docker/Dockerfile.prod
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8080
-    depends_on:
-      - backend
-    restart: unless-stopped
-
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: webapp_prod
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
-```
+**If you need Docker in the future**, refer to Phase 4 documentation or request assistance with containerization.
 
 ### Health Checks
 

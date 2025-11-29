@@ -372,12 +372,12 @@ See `data-model.md` for full specification.
 ## Technical Architecture
 
 **Stack:**
-- **Frontend:** Next.js 15, TypeScript, Shadcn/UI, React Query, Zustand
+- **Frontend:** Next.js 16, TypeScript, Shadcn/UI, React Query, Zustand
 - **Backend:** Go 1.23, Gin framework, Clean Architecture
-- **Database:** PostgreSQL 16, sqlc for type-safe queries
-- **Caching:** Redis (Phase 4)
+- **Database:** PostgreSQL 16 (Supabase), sqlc for type-safe queries
+- **Caching:** Redis (Phase 3+)
 - **Auth:** JWT tokens
-- **Deployment:** Docker, docker-compose
+- **Deployment:** Local development + Supabase cloud (Docker deferred)
 
 See `architecture-overview.md` for details.
 

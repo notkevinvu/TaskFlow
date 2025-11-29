@@ -101,9 +101,9 @@ Phase 4: Advanced Features             [░░░░░░░░░░░░░�
 ### Week 2: Infrastructure
 - [ ] Redis rate limiting migration
 - [ ] Structured logging with slog
-- [ ] Multi-stage Docker builds
 - [ ] CI/CD pipeline (GitHub Actions)
 - [ ] Health check endpoints
+- [ ] ~~Multi-stage Docker builds~~ (Deferred - not needed for local dev)
 
 ---
 
@@ -167,7 +167,8 @@ Phase 4: Advanced Features             [░░░░░░░░░░░░░�
 ### Infrastructure
 - **Database:** Supabase PostgreSQL
 - **Development:** Local backend + Supabase cloud
-- **Planned:** Docker (production), Redis (rate limiting), GitHub Actions (CI/CD)
+- **Planned:** Redis (rate limiting), GitHub Actions (CI/CD)
+- **Deferred:** Docker (only if specifically needed for deployment)
 
 ---
 
@@ -245,7 +246,7 @@ Phase 4: Advanced Features             [░░░░░░░░░░░░░�
 - [ ] Structured logging implemented
 - [ ] Scalable rate limiting (Redis)
 - [ ] CI/CD pipeline running
-- [ ] Production-ready Docker builds
+- [ ] ~~Production-ready Docker builds~~ (Deferred)
 
 ### Production Launch Criteria
 - [ ] All Phase 2.5 features complete
