@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,53 +33,72 @@ export interface TaskFilterState {
 export interface FilterPreset {
   id: string;
   label: string;
-  filters: TaskFilterState;
+  getFilters: () => TaskFilterState; // Function to get fresh dates
 }
 
-export const FILTER_PRESETS: FilterPreset[] = [
-  {
-    id: 'high-priority',
-    label: 'High Priority',
-    filters: { minPriority: 75, maxPriority: 100 },
-  },
-  {
-    id: 'critical',
-    label: 'Critical Only',
-    filters: { minPriority: 90, maxPriority: 100 },
-  },
-  {
-    id: 'due-this-week',
-    label: 'Due This Week',
-    filters: {
-      dueDateStart: (() => {
+// Parse date string as local date (avoids UTC timezone shift)
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+// Safe date formatting that handles invalid dates
+function safeFormatDate(dateStr: string | undefined, formatStr: string, fallback: string = '...'): string {
+  if (!dateStr) return fallback;
+  try {
+    const date = parseLocalDate(dateStr);
+    if (isNaN(date.getTime())) return fallback;
+    return format(date, formatStr);
+  } catch {
+    return fallback;
+  }
+}
+
+// Generate presets with fresh dates (called at render time)
+function getFilterPresets(): FilterPreset[] {
+  return [
+    {
+      id: 'high-priority',
+      label: 'High Priority',
+      getFilters: () => ({ minPriority: 75, maxPriority: 100 }),
+    },
+    {
+      id: 'critical',
+      label: 'Critical Only',
+      getFilters: () => ({ minPriority: 90, maxPriority: 100 }),
+    },
+    {
+      id: 'due-this-week',
+      label: 'Due This Week',
+      getFilters: () => {
         const today = new Date();
-        return format(today, 'yyyy-MM-dd');
-      })(),
-      dueDateEnd: (() => {
         const endOfWeek = new Date();
         endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
-        return format(endOfWeek, 'yyyy-MM-dd');
-      })(),
+        return {
+          dueDateStart: format(today, 'yyyy-MM-dd'),
+          dueDateEnd: format(endOfWeek, 'yyyy-MM-dd'),
+        };
+      },
     },
-  },
-  {
-    id: 'overdue',
-    label: 'Overdue',
-    filters: {
-      dueDateStart: '2000-01-01',
-      dueDateEnd: (() => {
+    {
+      id: 'overdue',
+      label: 'Overdue',
+      getFilters: () => {
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
-        return format(yesterday, 'yyyy-MM-dd');
-      })(),
+        return {
+          dueDateStart: '2000-01-01',
+          dueDateEnd: format(yesterday, 'yyyy-MM-dd'),
+        };
+      },
     },
-  },
-  {
-    id: 'in-progress',
-    label: 'In Progress',
-    filters: { status: 'in_progress' },
-  },
-];
+    {
+      id: 'in-progress',
+      label: 'In Progress',
+      getFilters: () => ({ status: 'in_progress' }),
+    },
+  ];
+}
 
 interface TaskFiltersProps {
   filters: TaskFilterState;
@@ -90,6 +109,9 @@ interface TaskFiltersProps {
 
 export function TaskFilters({ filters, onChange, onClear, availableCategories }: TaskFiltersProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Get fresh presets on each render (for date-based presets)
+  const presets = useMemo(() => getFilterPresets(), []);
 
   const updateFilter = (key: keyof TaskFilterState, value: string | number) => {
     onChange({ ...filters, [key]: value });
@@ -102,17 +124,18 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
   };
 
   const applyPreset = (preset: FilterPreset) => {
-    onChange({ ...filters, ...preset.filters });
+    // Call getFilters() to get fresh dates
+    onChange({ ...filters, ...preset.getFilters() });
   };
 
-  // Convert filter date strings to Date objects for the calendar
-  const dateRange: DateRange | undefined =
-    filters.dueDateStart || filters.dueDateEnd
-      ? {
-          from: filters.dueDateStart ? new Date(filters.dueDateStart) : undefined,
-          to: filters.dueDateEnd ? new Date(filters.dueDateEnd) : undefined,
-        }
-      : undefined;
+  // Convert filter date strings to Date objects for the calendar (using local timezone)
+  const dateRange: DateRange | undefined = useMemo(() => {
+    if (!filters.dueDateStart && !filters.dueDateEnd) return undefined;
+    return {
+      from: filters.dueDateStart ? parseLocalDate(filters.dueDateStart) : undefined,
+      to: filters.dueDateEnd ? parseLocalDate(filters.dueDateEnd) : undefined,
+    };
+  }, [filters.dueDateStart, filters.dueDateEnd]);
 
   const handleDateRangeChange = (range: DateRange | undefined) => {
     const newFilters = { ...filters };
@@ -136,10 +159,15 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
     onChange(newFilters);
   };
 
-  // Count active filters (date range counts as 1)
-  const activeFilterCount = Object.keys(filters).filter(
-    (key) => key !== 'dueDateEnd' || !filters.dueDateStart
-  ).length - (filters.dueDateStart && filters.dueDateEnd ? 1 : 0);
+  // Simplified active filter count calculation
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.status) count++;
+    if (filters.category) count++;
+    if (filters.minPriority !== undefined && filters.maxPriority !== undefined) count++;
+    if (filters.dueDateStart || filters.dueDateEnd) count++;
+    return count;
+  }, [filters]);
 
   const priorityRanges = [
     { label: 'Critical (90-100)', min: 90, max: 100 },
@@ -203,9 +231,9 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
               </button>
             </Badge>
           )}
-          {(filters.minPriority !== undefined || filters.maxPriority !== undefined) && (
+          {filters.minPriority !== undefined && filters.maxPriority !== undefined && (
             <Badge variant="secondary" className="flex items-center gap-1">
-              Priority: {filters.minPriority ?? 0}-{filters.maxPriority ?? 100}
+              Priority: {filters.minPriority}-{filters.maxPriority}
               <button
                 onClick={() => {
                   removeFilter('minPriority');
@@ -219,9 +247,9 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
           )}
           {(filters.dueDateStart || filters.dueDateEnd) && (
             <Badge variant="secondary" className="flex items-center gap-1">
-              Due: {filters.dueDateStart ? format(new Date(filters.dueDateStart), 'MMM d') : '...'}
+              Due: {safeFormatDate(filters.dueDateStart, 'MMM d')}
               {' - '}
-              {filters.dueDateEnd ? format(new Date(filters.dueDateEnd), 'MMM d') : '...'}
+              {safeFormatDate(filters.dueDateEnd, 'MMM d')}
               <button
                 onClick={clearDateRange}
                 className="ml-1 hover:text-destructive"
@@ -243,7 +271,7 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
               Quick Filters
             </label>
             <div className="flex flex-wrap gap-2">
-              {FILTER_PRESETS.map((preset) => (
+              {presets.map((preset) => (
                 <Button
                   key={preset.id}
                   variant="outline"
@@ -313,7 +341,7 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
               <label className="text-sm font-medium">Priority Range</label>
               <Select
                 value={
-                  filters.minPriority !== undefined
+                  filters.minPriority !== undefined && filters.maxPriority !== undefined
                     ? `${filters.minPriority}-${filters.maxPriority}`
                     : ''
                 }
@@ -352,14 +380,12 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
                     className="w-full justify-start text-left font-normal"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange?.from ? (
-                      dateRange.to ? (
-                        <>
-                          {format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d')}
-                        </>
-                      ) : (
-                        format(dateRange.from, 'MMM d, yyyy')
-                      )
+                    {filters.dueDateStart || filters.dueDateEnd ? (
+                      <>
+                        {safeFormatDate(filters.dueDateStart, 'MMM d')}
+                        {' - '}
+                        {safeFormatDate(filters.dueDateEnd, 'MMM d')}
+                      </>
                     ) : (
                       <span className="text-muted-foreground">Pick a date range</span>
                     )}

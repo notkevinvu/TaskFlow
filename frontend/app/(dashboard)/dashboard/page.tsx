@@ -16,7 +16,18 @@ import { TaskFilters, type TaskFilterState } from "@/components/TaskFilters";
 import { Plus, Trash2, Pencil, FolderKanban, Loader2 } from "lucide-react";
 import { Task } from "@/lib/api";
 
-// Helper to parse filters from URL search params
+// Valid status values for validation
+const VALID_STATUSES = ['todo', 'in_progress', 'done'];
+
+// Validate date string format (YYYY-MM-DD) and that it parses to a valid date
+function isValidDateString(dateStr: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+}
+
+// Helper to parse filters from URL search params with validation
 function parseFiltersFromURL(searchParams: URLSearchParams): TaskFilterState {
   const filters: TaskFilterState = {};
   const status = searchParams.get('status');
@@ -26,12 +37,34 @@ function parseFiltersFromURL(searchParams: URLSearchParams): TaskFilterState {
   const dueDateStart = searchParams.get('dueDateStart');
   const dueDateEnd = searchParams.get('dueDateEnd');
 
-  if (status) filters.status = status;
+  // Validate status against known values
+  if (status && VALID_STATUSES.includes(status)) {
+    filters.status = status;
+  }
+
   if (category) filters.category = category;
-  if (minPriority) filters.minPriority = parseInt(minPriority, 10);
-  if (maxPriority) filters.maxPriority = parseInt(maxPriority, 10);
-  if (dueDateStart) filters.dueDateStart = dueDateStart;
-  if (dueDateEnd) filters.dueDateEnd = dueDateEnd;
+
+  // Validate priority values are numbers in valid range (0-100)
+  if (minPriority) {
+    const parsed = parseInt(minPriority, 10);
+    if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+      filters.minPriority = parsed;
+    }
+  }
+  if (maxPriority) {
+    const parsed = parseInt(maxPriority, 10);
+    if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+      filters.maxPriority = parsed;
+    }
+  }
+
+  // Validate date strings
+  if (dueDateStart && isValidDateString(dueDateStart)) {
+    filters.dueDateStart = dueDateStart;
+  }
+  if (dueDateEnd && isValidDateString(dueDateEnd)) {
+    filters.dueDateEnd = dueDateEnd;
+  }
 
   return filters;
 }
