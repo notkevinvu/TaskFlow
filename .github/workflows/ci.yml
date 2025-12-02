@@ -48,7 +48,7 @@ jobs:
           retention-days: 7
 
   frontend:
-    name: Frontend Build & Lint
+    name: Frontend Tests, Build & Lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -72,6 +72,9 @@ jobs:
 
       - name: Run linter
         run: npm run lint
+
+      - name: Run tests
+        run: npm run test:run
 
       - name: Build application
         run: npm run build
