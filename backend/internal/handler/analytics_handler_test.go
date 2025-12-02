@@ -180,6 +180,22 @@ func (m *MockTaskRepository) GetCategoryDistribution(ctx context.Context, userID
 	return args.Get(0).([]domain.CategoryDistribution), args.Error(1)
 }
 
+func (m *MockTaskRepository) GetProductivityHeatmap(ctx context.Context, userID string, daysBack int) (*domain.ProductivityHeatmap, error) {
+	args := m.Called(ctx, userID, daysBack)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.ProductivityHeatmap), args.Error(1)
+}
+
+func (m *MockTaskRepository) GetCategoryTrends(ctx context.Context, userID string, daysBack int) (*domain.CategoryTrends, error) {
+	args := m.Called(ctx, userID, daysBack)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.CategoryTrends), args.Error(1)
+}
+
 // setupAnalyticsTest creates a test router and mock repository
 func setupAnalyticsTest() (*gin.Engine, *MockTaskRepository) {
 	router := testutil.SetupTestRouter()

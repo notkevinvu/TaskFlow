@@ -399,6 +399,52 @@ func (q *Queries) GetCategoryDistribution(ctx context.Context, userID pgtype.UUI
 	return items, nil
 }
 
+const getCategoryTrends = `-- name: GetCategoryTrends :many
+SELECT
+    DATE_TRUNC('week', completed_at)::date as week_start,
+    COALESCE(category, 'Uncategorized') as category,
+    COUNT(*)::int as count
+FROM tasks
+WHERE user_id = $1
+  AND status = 'done'
+  AND completed_at IS NOT NULL
+  AND completed_at >= NOW() - ($2::int || ' days')::interval
+GROUP BY week_start, category
+ORDER BY week_start, category
+`
+
+type GetCategoryTrendsParams struct {
+	UserID  pgtype.UUID `json:"user_id"`
+	Column2 int32       `json:"column_2"`
+}
+
+type GetCategoryTrendsRow struct {
+	WeekStart pgtype.Date `json:"week_start"`
+	Category  string      `json:"category"`
+	Count     int32       `json:"count"`
+}
+
+// Gets weekly task completion counts by category for trend visualization
+func (q *Queries) GetCategoryTrends(ctx context.Context, arg GetCategoryTrendsParams) ([]GetCategoryTrendsRow, error) {
+	rows, err := q.db.Query(ctx, getCategoryTrends, arg.UserID, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetCategoryTrendsRow{}
+	for rows.Next() {
+		var i GetCategoryTrendsRow
+		if err := rows.Scan(&i.WeekStart, &i.Category, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getCompletionByDayOfWeek = `-- name: GetCompletionByDayOfWeek :many
 SELECT
     EXTRACT(DOW FROM completed_at)::int as day_of_week,
@@ -599,6 +645,52 @@ func (q *Queries) GetPriorityDistribution(ctx context.Context, userID pgtype.UUI
 	for rows.Next() {
 		var i GetPriorityDistributionRow
 		if err := rows.Scan(&i.PriorityRange, &i.TaskCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getProductivityHeatmap = `-- name: GetProductivityHeatmap :many
+SELECT
+    EXTRACT(DOW FROM completed_at)::int as day_of_week,
+    EXTRACT(HOUR FROM completed_at)::int as hour,
+    COUNT(*)::int as count
+FROM tasks
+WHERE user_id = $1
+  AND status = 'done'
+  AND completed_at IS NOT NULL
+  AND completed_at >= NOW() - ($2::int || ' days')::interval
+GROUP BY day_of_week, hour
+ORDER BY day_of_week, hour
+`
+
+type GetProductivityHeatmapParams struct {
+	UserID  pgtype.UUID `json:"user_id"`
+	Column2 int32       `json:"column_2"`
+}
+
+type GetProductivityHeatmapRow struct {
+	DayOfWeek int32 `json:"day_of_week"`
+	Hour      int32 `json:"hour"`
+	Count     int32 `json:"count"`
+}
+
+// Gets completion counts by day of week and hour for heatmap visualization
+func (q *Queries) GetProductivityHeatmap(ctx context.Context, arg GetProductivityHeatmapParams) ([]GetProductivityHeatmapRow, error) {
+	rows, err := q.db.Query(ctx, getProductivityHeatmap, arg.UserID, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetProductivityHeatmapRow{}
+	for rows.Next() {
+		var i GetProductivityHeatmapRow
+		if err := rows.Scan(&i.DayOfWeek, &i.Hour, &i.Count); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

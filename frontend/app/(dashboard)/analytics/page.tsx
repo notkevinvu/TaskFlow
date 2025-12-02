@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAnalyticsSummary, useAnalyticsTrends } from '@/hooks/useAnalytics';
+import { useAnalyticsSummary, useAnalyticsTrends, useProductivityHeatmap, useCategoryTrends } from '@/hooks/useAnalytics';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,6 +9,8 @@ import { CompletionChart } from '@/components/charts/CompletionChart';
 import { CategoryChart } from '@/components/charts/CategoryChart';
 import { PriorityChart } from '@/components/charts/PriorityChart';
 import { BumpChart } from '@/components/charts/BumpChart';
+import { ProductivityHeatmap } from '@/components/charts/ProductivityHeatmap';
+import { CategoryTrendsChart } from '@/components/charts/CategoryTrendsChart';
 import { InsightsList } from '@/components/insights/InsightsList';
 
 export default function AnalyticsPage() {
@@ -16,6 +18,8 @@ export default function AnalyticsPage() {
 
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useAnalyticsSummary(timePeriod);
   const { data: trends, isLoading: trendsLoading, error: trendsError } = useAnalyticsTrends(timePeriod);
+  const { data: heatmapData, isLoading: heatmapLoading } = useProductivityHeatmap(90); // Use 90 days for heatmap
+  const { data: categoryTrendsData, isLoading: categoryTrendsLoading } = useCategoryTrends(90); // Use 90 days for trends
 
   const isLoading = summaryLoading || trendsLoading;
 
@@ -219,6 +223,24 @@ export default function AnalyticsPage() {
         {/* Bump Analysis */}
         <div className="lg:col-span-2">
           <BumpChart data={bumpAnalytics} />
+        </div>
+
+        {/* Productivity Heatmap */}
+        <div className="lg:col-span-2">
+          {heatmapLoading ? (
+            <Skeleton className="h-64" />
+          ) : heatmapData ? (
+            <ProductivityHeatmap data={heatmapData} />
+          ) : null}
+        </div>
+
+        {/* Category Trends */}
+        <div className="lg:col-span-2">
+          {categoryTrendsLoading ? (
+            <Skeleton className="h-64" />
+          ) : categoryTrendsData ? (
+            <CategoryTrendsChart data={categoryTrendsData} />
+          ) : null}
         </div>
       </div>
     </div>

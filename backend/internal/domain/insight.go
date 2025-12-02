@@ -112,3 +112,28 @@ type CategoryDistribution struct {
 	TaskCount  int     `json:"task_count"`
 	Percentage float64 `json:"percentage"`
 }
+
+// HeatmapCell represents a single cell in the productivity heatmap
+type HeatmapCell struct {
+	DayOfWeek int `json:"day_of_week"` // 0 = Sunday, 6 = Saturday
+	Hour      int `json:"hour"`        // 0-23
+	Count     int `json:"count"`       // Number of completions
+}
+
+// ProductivityHeatmap contains heatmap data for productivity visualization
+type ProductivityHeatmap struct {
+	Cells    []HeatmapCell `json:"cells"`
+	MaxCount int           `json:"max_count"` // For color scaling
+}
+
+// CategoryTrendPoint represents a single point in category trends over time
+type CategoryTrendPoint struct {
+	WeekStart  string         `json:"week_start"`  // ISO date string (YYYY-MM-DD)
+	Categories map[string]int `json:"categories"`  // Category -> count mapping
+}
+
+// CategoryTrends contains weekly category breakdown for trend visualization
+type CategoryTrends struct {
+	Weeks      []CategoryTrendPoint `json:"weeks"`
+	Categories []string             `json:"categories"` // All unique categories for legend
+}

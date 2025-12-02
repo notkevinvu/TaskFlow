@@ -128,3 +128,61 @@ func (h *AnalyticsHandler) GetTrends(c *gin.Context) {
 		"velocity_metrics": velocityMetrics,
 	})
 }
+
+// GetProductivityHeatmap returns completion counts by day of week and hour
+// GET /api/v1/analytics/heatmap?days=90
+func (h *AnalyticsHandler) GetProductivityHeatmap(c *gin.Context) {
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
+		return
+	}
+
+	// Parse days parameter (default to 90 days for meaningful heatmap data)
+	daysBack := 90
+	if daysStr := c.Query("days"); daysStr != "" {
+		if days, err := strconv.Atoi(daysStr); err == nil && days > 0 && days <= 365 {
+			daysBack = days
+		}
+	}
+
+	heatmap, err := h.taskRepo.GetProductivityHeatmap(c.Request.Context(), userID, daysBack)
+	if err != nil {
+		middleware.AbortWithError(c, domain.NewInternalError("failed to fetch productivity heatmap", err))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"period_days": daysBack,
+		"heatmap":     heatmap,
+	})
+}
+
+// GetCategoryTrends returns weekly category breakdown for trend visualization
+// GET /api/v1/analytics/category-trends?days=90
+func (h *AnalyticsHandler) GetCategoryTrends(c *gin.Context) {
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
+		return
+	}
+
+	// Parse days parameter (default to 90 days for trend visualization)
+	daysBack := 90
+	if daysStr := c.Query("days"); daysStr != "" {
+		if days, err := strconv.Atoi(daysStr); err == nil && days > 0 && days <= 365 {
+			daysBack = days
+		}
+	}
+
+	trends, err := h.taskRepo.GetCategoryTrends(c.Request.Context(), userID, daysBack)
+	if err != nil {
+		middleware.AbortWithError(c, domain.NewInternalError("failed to fetch category trends", err))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"period_days": daysBack,
+		"trends":      trends,
+	})
+}
