@@ -137,14 +137,12 @@ func TestCategoryHandler_Rename_MissingNewName(t *testing.T) {
 	mockService.AssertNotCalled(t, "RenameCategory")
 }
 
-func TestCategoryHandler_Rename_ValidationError(t *testing.T) {
+func TestCategoryHandler_Rename_BindingValidation_EmptyNewName(t *testing.T) {
+	// Tests that Gin's binding validation rejects empty new_name before reaching service
 	router, mockService := setupTaskTest()
 	handler := NewCategoryHandler(mockService)
 
 	router.PUT("/categories/rename", testutil.WithAuthContext(router, "user-123", handler.Rename))
-
-	mockService.On("RenameCategory", mock.Anything, "user-123", "Old", "").
-		Return(0, domain.NewValidationError("new_name", "category name cannot be empty"))
 
 	reqBody := map[string]string{
 		"old_name": "Old",
@@ -157,8 +155,9 @@ func TestCategoryHandler_Rename_ValidationError(t *testing.T) {
 	w := testutil.NewResponseRecorder()
 	router.ServeHTTP(w, req)
 
-	// The binding should fail because new_name is required
+	// Gin binding validation fails because new_name is required (binding:"required")
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+	mockService.AssertNotCalled(t, "RenameCategory")
 }
 
 func TestCategoryHandler_Rename_ServiceError(t *testing.T) {
@@ -315,20 +314,52 @@ func TestCategoryHandler_Delete_URLEncodedName(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-func TestCategoryHandler_Delete_ValidationError(t *testing.T) {
+func TestCategoryHandler_Delete_EmptyPathParam_Returns404(t *testing.T) {
+	// Tests that Gin router returns 404 for empty path parameter
+	// The handler is never reached because the route doesn't match
 	router, mockService := setupTaskTest()
 	handler := NewCategoryHandler(mockService)
 
 	router.DELETE("/categories/:name", testutil.WithAuthContext(router, "user-123", handler.Delete))
-
-	mockService.On("DeleteCategory", mock.Anything, "user-123", "").
-		Return(0, domain.NewValidationError("category", "category name cannot be empty"))
 
 	req := httptest.NewRequest("DELETE", "/categories/", nil)
 
 	w := testutil.NewResponseRecorder()
 	router.ServeHTTP(w, req)
 
-	// Empty path param results in 404 from router, not hitting handler
+	// Router returns 404 because "/categories/" doesn't match "/categories/:name"
 	assert.Equal(t, http.StatusNotFound, w.Code)
+	mockService.AssertNotCalled(t, "DeleteCategory")
+}
+
+func TestCategoryHandler_Delete_SpecialCharacters(t *testing.T) {
+	testCases := []struct {
+		name         string
+		categoryName string
+		encodedPath  string
+	}{
+		{"ampersand", "Work & Personal", "/categories/Work%20%26%20Personal"},
+		{"hash", "Project#1", "/categories/Project%231"},
+		{"plus", "C++", "/categories/C%2B%2B"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			router, mockService := setupTaskTest()
+			handler := NewCategoryHandler(mockService)
+
+			router.DELETE("/categories/:name", testutil.WithAuthContext(router, "user-123", handler.Delete))
+
+			mockService.On("DeleteCategory", mock.Anything, "user-123", tc.categoryName).
+				Return(1, nil)
+
+			req := httptest.NewRequest("DELETE", tc.encodedPath, nil)
+
+			w := testutil.NewResponseRecorder()
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			mockService.AssertExpectations(t)
+		})
+	}
 }

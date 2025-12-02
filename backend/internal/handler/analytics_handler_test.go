@@ -281,6 +281,48 @@ func TestAnalyticsHandler_GetSummary_DaysOutOfRange(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 }
 
+func TestAnalyticsHandler_GetSummary_DaysBoundaryValues(t *testing.T) {
+	// Tests boundary values for days parameter: days > 0 && days <= 365
+	testCases := []struct {
+		name         string
+		daysParam    string
+		expectedDays int
+	}{
+		{"zero", "0", 30},     // 0 is not > 0, defaults to 30
+		{"one", "1", 1},       // minimum valid value
+		{"max_valid", "365", 365},  // maximum valid value
+		{"over_max", "366", 30},    // 366 > 365, defaults to 30
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			router, mockRepo := setupAnalyticsTest()
+			handler := NewAnalyticsHandler(mockRepo)
+
+			router.GET("/analytics/summary", testutil.WithAuthContext(router, "user-123", handler.GetSummary))
+
+			mockRepo.On("GetCompletionStats", mock.Anything, "user-123", tc.expectedDays).Return(&repository.CompletionStats{}, nil)
+			mockRepo.On("GetBumpAnalytics", mock.Anything, "user-123").Return(&repository.BumpAnalytics{
+				TasksByBumpCount: map[int]int{},
+			}, nil)
+			mockRepo.On("GetCategoryBreakdown", mock.Anything, "user-123", tc.expectedDays).Return([]repository.CategoryStats{}, nil)
+			mockRepo.On("GetPriorityDistribution", mock.Anything, "user-123").Return([]repository.PriorityDistribution{}, nil)
+
+			req := httptest.NewRequest("GET", "/analytics/summary?days="+tc.daysParam, nil)
+			w := testutil.NewResponseRecorder()
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			mockRepo.AssertExpectations(t)
+
+			var response map[string]interface{}
+			err := json.Unmarshal(w.Body.Bytes(), &response)
+			assert.NoError(t, err)
+			assert.Equal(t, float64(tc.expectedDays), response["period_days"])
+		})
+	}
+}
+
 func TestAnalyticsHandler_GetSummary_Unauthenticated(t *testing.T) {
 	router, mockRepo := setupAnalyticsTest()
 	handler := NewAnalyticsHandler(mockRepo)
@@ -502,6 +544,43 @@ func TestAnalyticsHandler_GetTrends_NegativeDays(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	mockRepo.AssertExpectations(t)
+}
+
+func TestAnalyticsHandler_GetTrends_DaysBoundaryValues(t *testing.T) {
+	// Tests boundary values for days parameter: days > 0 && days <= 365
+	testCases := []struct {
+		name         string
+		daysParam    string
+		expectedDays int
+	}{
+		{"zero", "0", 30},          // 0 is not > 0, defaults to 30
+		{"one", "1", 1},            // minimum valid value
+		{"max_valid", "365", 365},  // maximum valid value
+		{"over_max", "366", 30},    // 366 > 365, defaults to 30
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			router, mockRepo := setupAnalyticsTest()
+			handler := NewAnalyticsHandler(mockRepo)
+
+			router.GET("/analytics/trends", testutil.WithAuthContext(router, "user-123", handler.GetTrends))
+
+			mockRepo.On("GetVelocityMetrics", mock.Anything, "user-123", tc.expectedDays).Return([]repository.VelocityMetrics{}, nil)
+
+			req := httptest.NewRequest("GET", "/analytics/trends?days="+tc.daysParam, nil)
+			w := testutil.NewResponseRecorder()
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			mockRepo.AssertExpectations(t)
+
+			var response map[string]interface{}
+			err := json.Unmarshal(w.Body.Bytes(), &response)
+			assert.NoError(t, err)
+			assert.Equal(t, float64(tc.expectedDays), response["period_days"])
+		})
+	}
 }
 
 func TestAnalyticsHandler_GetTrends_Unauthenticated(t *testing.T) {
