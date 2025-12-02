@@ -9,6 +9,7 @@ import (
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // Helper to create a valid task for testing
@@ -630,6 +631,195 @@ func TestTaskService_DeleteCategory_EmptyName(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Equal(t, 0, count)
+}
+
+// =============================================================================
+// TaskService.List Tests
+// =============================================================================
+
+func TestTaskService_List_Success(t *testing.T) {
+	mockTaskRepo := new(MockTaskRepository)
+	mockHistoryRepo := new(MockTaskHistoryRepository)
+	service := NewTaskService(mockTaskRepo, mockHistoryRepo)
+
+	desc := "Task description"
+	expectedTasks := []*domain.Task{
+		{ID: "task-1", UserID: "user-123", Title: "Task 1", Status: domain.TaskStatusTodo},
+		{ID: "task-2", UserID: "user-123", Title: "Task 2", Description: &desc, Status: domain.TaskStatusInProgress},
+	}
+
+	mockTaskRepo.On("List", mock.Anything, "user-123", (*domain.TaskListFilter)(nil)).Return(expectedTasks, nil)
+
+	tasks, err := service.List(context.Background(), "user-123", nil)
+
+	require.NoError(t, err)
+	require.Len(t, tasks, 2)
+	assert.Equal(t, "task-1", tasks[0].ID)
+	assert.Equal(t, "task-2", tasks[1].ID)
+	mockTaskRepo.AssertExpectations(t)
+}
+
+func TestTaskService_List_WithStatusFilter(t *testing.T) {
+	mockTaskRepo := new(MockTaskRepository)
+	mockHistoryRepo := new(MockTaskHistoryRepository)
+	service := NewTaskService(mockTaskRepo, mockHistoryRepo)
+
+	status := domain.TaskStatusTodo
+	filter := &domain.TaskListFilter{Status: &status}
+
+	expectedTasks := []*domain.Task{
+		{ID: "task-1", UserID: "user-123", Title: "Task 1", Status: domain.TaskStatusTodo},
+	}
+
+	mockTaskRepo.On("List", mock.Anything, "user-123", filter).Return(expectedTasks, nil)
+
+	tasks, err := service.List(context.Background(), "user-123", filter)
+
+	require.NoError(t, err)
+	require.Len(t, tasks, 1)
+	assert.Equal(t, domain.TaskStatusTodo, tasks[0].Status)
+	mockTaskRepo.AssertExpectations(t)
+}
+
+func TestTaskService_List_WithCategoryFilter(t *testing.T) {
+	mockTaskRepo := new(MockTaskRepository)
+	mockHistoryRepo := new(MockTaskHistoryRepository)
+	service := NewTaskService(mockTaskRepo, mockHistoryRepo)
+
+	category := "work"
+	filter := &domain.TaskListFilter{Category: &category}
+
+	expectedTasks := []*domain.Task{
+		{ID: "task-1", UserID: "user-123", Title: "Task 1", Category: &category},
+	}
+
+	mockTaskRepo.On("List", mock.Anything, "user-123", filter).Return(expectedTasks, nil)
+
+	tasks, err := service.List(context.Background(), "user-123", filter)
+
+	require.NoError(t, err)
+	require.Len(t, tasks, 1)
+	assert.Equal(t, "work", *tasks[0].Category)
+	mockTaskRepo.AssertExpectations(t)
+}
+
+func TestTaskService_List_WithPagination(t *testing.T) {
+	mockTaskRepo := new(MockTaskRepository)
+	mockHistoryRepo := new(MockTaskHistoryRepository)
+	service := NewTaskService(mockTaskRepo, mockHistoryRepo)
+
+	filter := &domain.TaskListFilter{Limit: 10, Offset: 20}
+
+	expectedTasks := []*domain.Task{
+		{ID: "task-21", UserID: "user-123", Title: "Task 21"},
+	}
+
+	mockTaskRepo.On("List", mock.Anything, "user-123", filter).Return(expectedTasks, nil)
+
+	tasks, err := service.List(context.Background(), "user-123", filter)
+
+	require.NoError(t, err)
+	require.Len(t, tasks, 1)
+	mockTaskRepo.AssertExpectations(t)
+}
+
+func TestTaskService_List_EmptyResult(t *testing.T) {
+	mockTaskRepo := new(MockTaskRepository)
+	mockHistoryRepo := new(MockTaskHistoryRepository)
+	service := NewTaskService(mockTaskRepo, mockHistoryRepo)
+
+	mockTaskRepo.On("List", mock.Anything, "user-123", (*domain.TaskListFilter)(nil)).Return([]*domain.Task{}, nil)
+
+	tasks, err := service.List(context.Background(), "user-123", nil)
+
+	require.NoError(t, err)
+	assert.Empty(t, tasks)
+	mockTaskRepo.AssertExpectations(t)
+}
+
+func TestTaskService_List_RepoError(t *testing.T) {
+	mockTaskRepo := new(MockTaskRepository)
+	mockHistoryRepo := new(MockTaskHistoryRepository)
+	service := NewTaskService(mockTaskRepo, mockHistoryRepo)
+
+	mockTaskRepo.On("List", mock.Anything, "user-123", (*domain.TaskListFilter)(nil)).
+		Return(nil, errors.New("database error"))
+
+	tasks, err := service.List(context.Background(), "user-123", nil)
+
+	assert.Error(t, err)
+	assert.Nil(t, tasks)
+	mockTaskRepo.AssertExpectations(t)
+}
+
+// =============================================================================
+// TaskService.Complete Additional Tests
+// =============================================================================
+
+func TestTaskService_Complete_Forbidden(t *testing.T) {
+	mockTaskRepo := new(MockTaskRepository)
+	mockHistoryRepo := new(MockTaskHistoryRepository)
+	service := NewTaskService(mockTaskRepo, mockHistoryRepo)
+
+	existingTask := &domain.Task{
+		ID:     "task-123",
+		UserID: "other-user", // Different user owns this task
+		Title:  "Other user's task",
+		Status: domain.TaskStatusTodo,
+	}
+
+	mockTaskRepo.On("FindByID", mock.Anything, "task-123").Return(existingTask, nil)
+
+	task, err := service.Complete(context.Background(), "user-123", "task-123")
+
+	assert.Error(t, err)
+	assert.Nil(t, task)
+	var forbiddenErr *domain.ForbiddenError
+	assert.True(t, errors.As(err, &forbiddenErr))
+	mockTaskRepo.AssertExpectations(t)
+}
+
+// =============================================================================
+// TaskService.GetAtRiskTasks Additional Tests
+// =============================================================================
+
+func TestTaskService_GetAtRiskTasks_RepoError(t *testing.T) {
+	mockTaskRepo := new(MockTaskRepository)
+	mockHistoryRepo := new(MockTaskHistoryRepository)
+	service := NewTaskService(mockTaskRepo, mockHistoryRepo)
+
+	mockTaskRepo.On("FindAtRiskTasks", mock.Anything, "user-123").
+		Return(nil, errors.New("database error"))
+
+	tasks, err := service.GetAtRiskTasks(context.Background(), "user-123")
+
+	assert.Error(t, err)
+	assert.Nil(t, tasks)
+	mockTaskRepo.AssertExpectations(t)
+}
+
+// =============================================================================
+// TaskService.GetCalendar Additional Tests
+// =============================================================================
+
+func TestTaskService_GetCalendar_RepoError(t *testing.T) {
+	mockTaskRepo := new(MockTaskRepository)
+	mockHistoryRepo := new(MockTaskHistoryRepository)
+	service := NewTaskService(mockTaskRepo, mockHistoryRepo)
+
+	filter := &domain.CalendarFilter{
+		StartDate: time.Now(),
+		EndDate:   time.Now().Add(7 * 24 * time.Hour),
+	}
+
+	mockTaskRepo.On("FindByDateRange", mock.Anything, "user-123", filter).
+		Return(nil, errors.New("database error"))
+
+	response, err := service.GetCalendar(context.Background(), "user-123", filter)
+
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	mockTaskRepo.AssertExpectations(t)
 }
 
 // =============================================================================

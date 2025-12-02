@@ -3,12 +3,15 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 const testJWTSecret = "test-secret-key-for-jwt-testing-minimum-32-chars"
@@ -17,7 +20,10 @@ const testJWTExpiryHours = 24
 // Helper to create a valid user for testing
 func createTestUser(id, email string) *domain.User {
 	now := time.Now()
-	passwordHash, _ := domain.HashPassword("ValidPass123!")
+	passwordHash, err := domain.HashPassword("ValidPass123!")
+	if err != nil {
+		panic(fmt.Sprintf("Failed to hash password in test helper: %v", err))
+	}
 	return &domain.User{
 		ID:           id,
 		Email:        email,
@@ -47,8 +53,8 @@ func TestAuthService_Register_Success(t *testing.T) {
 
 	response, err := service.Register(context.Background(), dto)
 
-	assert.NoError(t, err)
-	assert.NotNil(t, response)
+	require.NoError(t, err)
+	require.NotNil(t, response)
 	assert.Equal(t, "test@example.com", response.User.Email)
 	assert.Equal(t, "Test User", response.User.Name)
 	assert.NotEmpty(t, response.AccessToken)
@@ -337,8 +343,8 @@ func TestAuthService_GenerateToken_ValidJWT(t *testing.T) {
 
 	// Token should be a valid JWT (3 parts separated by dots)
 	token := response.AccessToken
-	assert.Contains(t, token, ".")
-	parts := len(token) - len(token[:])
-	_ = parts // Just verify token is not empty and has structure
-	assert.Greater(t, len(token), 50) // JWT tokens are typically long
+	assert.NotEmpty(t, token)
+	parts := strings.Split(token, ".")
+	assert.Len(t, parts, 3, "JWT token should have 3 parts (header.payload.signature)")
+	assert.Greater(t, len(token), 50, "JWT tokens are typically longer than 50 characters")
 }

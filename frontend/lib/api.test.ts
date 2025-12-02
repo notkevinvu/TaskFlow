@@ -203,3 +203,80 @@ describe('isNetworkError', () => {
     expect(isNetworkError(undefined)).toBe(false)
   })
 })
+
+// =============================================================================
+// API Client Interceptor Tests
+// =============================================================================
+
+describe('api request interceptor', () => {
+  beforeEach(() => {
+    // Clear localStorage before each test
+    localStorage.clear()
+    vi.clearAllMocks()
+  })
+
+  it('adds Authorization header when token exists in localStorage', async () => {
+    // Set token in localStorage
+    localStorage.setItem('token', 'test-jwt-token')
+
+    // Import api dynamically to ensure localStorage is set first
+    const { api } = await import('./api')
+
+    // Create a mock config object
+    const config = {
+      headers: {} as Record<string, string>,
+    }
+
+    // Get the request interceptor (first one added)
+    // @ts-expect-error - accessing internal axios property for testing
+    const interceptors = api.interceptors.request.handlers
+    const interceptor = interceptors[0]
+
+    // Run the interceptor
+    const result = interceptor.fulfilled(config)
+
+    expect(result.headers.Authorization).toBe('Bearer test-jwt-token')
+  })
+
+  it('does not add Authorization header when no token in localStorage', async () => {
+    // Ensure localStorage is empty
+    localStorage.removeItem('token')
+
+    const { api } = await import('./api')
+
+    const config = {
+      headers: {} as Record<string, string>,
+    }
+
+    // @ts-expect-error - accessing internal axios property for testing
+    const interceptors = api.interceptors.request.handlers
+    const interceptor = interceptors[0]
+
+    const result = interceptor.fulfilled(config)
+
+    expect(result.headers.Authorization).toBeUndefined()
+  })
+
+  it('preserves existing headers when adding token', async () => {
+    localStorage.setItem('token', 'test-jwt-token')
+
+    const { api } = await import('./api')
+
+    const config = {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Custom-Header': 'custom-value',
+      } as Record<string, string>,
+    }
+
+    // @ts-expect-error - accessing internal axios property for testing
+    const interceptors = api.interceptors.request.handlers
+    const interceptor = interceptors[0]
+
+    const result = interceptor.fulfilled(config)
+
+    expect(result.headers.Authorization).toBe('Bearer test-jwt-token')
+    expect(result.headers['Content-Type']).toBe('application/json')
+    expect(result.headers['X-Custom-Header']).toBe('custom-value')
+  })
+})
