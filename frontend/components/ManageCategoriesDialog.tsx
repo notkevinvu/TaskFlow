@@ -32,11 +32,6 @@ interface ManageCategoriesDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-interface CategoryWithCount {
-  name: string;
-  count: number;
-}
-
 export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesDialogProps) {
   const { data: tasksData } = useTasks();
   const queryClient = useQueryClient();
@@ -97,7 +92,8 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
       await queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast.success(`Renamed "${oldName}" to "${editValue.trim()}"`);
       handleCancelEdit();
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
       toast.error(error.response?.data?.error || 'Failed to rename category');
     } finally {
       setIsRenaming(false);
@@ -111,7 +107,8 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
       await queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast.success(`Deleted category "${categoryName}"`);
       setDeleteCategory(null);
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
       toast.error(error.response?.data?.error || 'Failed to delete category');
     } finally {
       setIsDeleting(false);
@@ -211,7 +208,7 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Category</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the category "{deleteCategory}"?
+              Are you sure you want to delete the category &quot;{deleteCategory}&quot;?
               <br />
               <br />
               This will <strong>remove the category from {categories.find(c => c.name === deleteCategory)?.count || 0} task(s)</strong>, but the tasks themselves will not be deleted.

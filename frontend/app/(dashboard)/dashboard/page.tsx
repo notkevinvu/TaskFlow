@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTasks, useBumpTask, useCompleteTask, useDeleteTask, useAtRiskTasks, type TaskFilters as TaskFiltersType } from '@/hooks/useTasks';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +18,9 @@ import { Task } from "@/lib/api";
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  // Initialize selectedTaskId from URL on first render
+  const initialTaskId = searchParams.get('taskId');
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialTaskId);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -40,15 +42,13 @@ export default function DashboardPage() {
   const completeTask = useCompleteTask();
   const deleteTask = useDeleteTask();
 
-  // Read taskId from URL query params
-  useEffect(() => {
-    const taskId = searchParams.get('taskId');
-    if (taskId) {
-      setSelectedTaskId(taskId);
-    }
-  }, [searchParams]);
+  // Sync selectedTaskId when URL changes externally (e.g., browser back/forward)
+  // Using useMemo to derive the effective taskId from URL without setState in useEffect
+  const urlTaskId = searchParams.get('taskId');
+  const effectiveTaskId = urlTaskId !== null ? urlTaskId : selectedTaskId;
 
-  const tasks = tasksData?.tasks || [];
+  // Memoize tasks to prevent useMemo dependency issues
+  const tasks = useMemo(() => tasksData?.tasks || [], [tasksData?.tasks]);
   const atRiskCount = atRiskData?.count || 0;
   const quickWins = tasks.filter(
     (t) => t.estimated_effort === 'small' && t.bump_count === 0
@@ -85,7 +85,7 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-3xl font-bold">Today's Priorities</h2>
+          <h2 className="text-3xl font-bold">Today&apos;s Priorities</h2>
           <p className="text-muted-foreground">
             Loading your intelligently prioritized tasks...
           </p>
@@ -105,12 +105,12 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className={`transition-all duration-[180ms] ${selectedTaskId ? 'lg:pr-96' : ''}`}>
+    <div className={`transition-all duration-[180ms] ${effectiveTaskId ? 'lg:pr-96' : ''}`}>
       {/* Main Content */}
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold">Today's Priorities</h2>
+            <h2 className="text-3xl font-bold">Today&apos;s Priorities</h2>
             <p className="text-muted-foreground">
               Tasks sorted by intelligent priority algorithm
             </p>
@@ -280,7 +280,7 @@ export default function DashboardPage() {
                     )}
                     {task.context && (
                       <p className="text-sm italic text-muted-foreground mb-2">
-                        "{task.context}"
+                        &quot;{task.context}&quot;
                       </p>
                     )}
                     <div className="flex gap-4 text-sm text-muted-foreground">
@@ -334,7 +334,7 @@ export default function DashboardPage() {
                         e.stopPropagation();
                         if (window.confirm('Are you sure you want to delete this task?')) {
                           deleteTask.mutate(task.id);
-                          if (selectedTaskId === task.id) {
+                          if (effectiveTaskId === task.id) {
                             setSelectedTaskId(null);
                           }
                         }
@@ -355,9 +355,9 @@ export default function DashboardPage() {
     </div>
 
     {/* Task Details Sidebar */}
-    {selectedTaskId && (
+    {effectiveTaskId && (
       <TaskDetailsSidebar
-        taskId={selectedTaskId}
+        taskId={effectiveTaskId}
         onClose={() => setSelectedTaskId(null)}
       />
     )}
@@ -371,6 +371,7 @@ export default function DashboardPage() {
     {/* Edit Task Dialog */}
     {editingTask && (
       <EditTaskDialog
+        key={editingTask.id}
         open={!!editingTask}
         onOpenChange={(open) => !open && setEditingTask(null)}
         task={editingTask}

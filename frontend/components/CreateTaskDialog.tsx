@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useCreateTask } from '@/hooks/useTasks';
 import {
   Dialog,
@@ -31,22 +31,32 @@ interface CreateTaskDialogProps {
 
 export function CreateTaskDialog({ open, onOpenChange, initialDueDate }: CreateTaskDialogProps) {
   const createTask = useCreateTask();
-  const [formData, setFormData] = useState({
+  const prevOpenRef = useRef(false);
+
+  const getEmptyFormData = () => ({
     title: '',
     description: '',
     category: '',
     estimated_effort: 'medium' as 'small' | 'medium' | 'large' | 'xlarge',
     user_priority: 5,
-    due_date: initialDueDate || '',
+    due_date: '',
     context: '',
   });
 
-  // Update due_date when initialDueDate changes or dialog opens
-  useEffect(() => {
-    if (open && initialDueDate) {
-      setFormData(prev => ({ ...prev, due_date: initialDueDate }));
+  const [formData, setFormData] = useState(getEmptyFormData);
+
+  // Handle dialog open/close transitions
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen && !prevOpenRef.current) {
+      // Dialog is opening - reset form and apply initialDueDate if provided
+      setFormData({
+        ...getEmptyFormData(),
+        due_date: initialDueDate || '',
+      });
     }
-  }, [open, initialDueDate]);
+    prevOpenRef.current = newOpen;
+    onOpenChange(newOpen);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,7 +94,7 @@ export function CreateTaskDialog({ open, onOpenChange, initialDueDate }: CreateT
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[525px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
@@ -134,7 +144,7 @@ export function CreateTaskDialog({ open, onOpenChange, initialDueDate }: CreateT
               <Label htmlFor="effort">Estimated Effort</Label>
               <Select
                 value={formData.estimated_effort}
-                onValueChange={(value: any) => setFormData({ ...formData, estimated_effort: value })}
+                onValueChange={(value: 'small' | 'medium' | 'large' | 'xlarge') => setFormData({ ...formData, estimated_effort: value })}
               >
                 <SelectTrigger id="effort">
                   <SelectValue />

@@ -23,8 +23,9 @@ export default function LoginPage() {
     try {
       await login(email, password);
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      setError(error.response?.data?.error || 'Login failed. Please check your credentials.');
     }
   };
 
@@ -76,7 +77,7 @@ export default function LoginPage() {
             </Button>
 
             <div className="text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Link href="/register" className="text-primary underline hover:text-primary/80">
                 Sign up
               </Link>

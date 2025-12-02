@@ -29,7 +29,7 @@ interface TaskFiltersProps {
 export function TaskFilters({ filters, onChange, onClear, availableCategories }: TaskFiltersProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const updateFilter = (key: keyof TaskFilterState, value: any) => {
+  const updateFilter = (key: keyof TaskFilterState, value: string | number) => {
     onChange({ ...filters, [key]: value });
   };
 
