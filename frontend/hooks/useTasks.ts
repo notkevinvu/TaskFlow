@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { taskAPI, CreateTaskDTO } from '@/lib/api';
+import { taskAPI, CreateTaskDTO, getApiErrorMessage } from '@/lib/api';
 import { toast } from 'sonner';
 
 export interface TaskFilters {
@@ -50,9 +50,8 @@ export function useCreateTask() {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast.success('Task created with priority calculated!');
     },
-    onError: (err: Error) => {
-      const error = err as Error & { response?: { data?: { error?: string } } };
-      toast.error(error.response?.data?.error || 'Failed to create task');
+    onError: (err: unknown) => {
+      toast.error(getApiErrorMessage(err, 'Failed to create task', 'Task Create'));
     },
   });
 }
@@ -67,9 +66,8 @@ export function useUpdateTask() {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast.success(`Task updated! New priority: ${Math.round(response.data.priority_score)}`);
     },
-    onError: (err: Error) => {
-      const error = err as Error & { response?: { data?: { error?: string } } };
-      toast.error(error.response?.data?.error || 'Failed to update task');
+    onError: (err: unknown) => {
+      toast.error(getApiErrorMessage(err, 'Failed to update task', 'Task Update'));
     },
   });
 }
@@ -84,9 +82,8 @@ export function useBumpTask() {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast.info(`Task delayed. New priority: ${Math.round(response.data.task.priority_score)}`);
     },
-    onError: (err: Error) => {
-      const error = err as Error & { response?: { data?: { error?: string } } };
-      toast.error(error.response?.data?.error || 'Failed to bump task');
+    onError: (err: unknown) => {
+      toast.error(getApiErrorMessage(err, 'Failed to bump task', 'Task Bump'));
     },
   });
 }
@@ -100,9 +97,8 @@ export function useCompleteTask() {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast.success('Task completed!');
     },
-    onError: (err: Error) => {
-      const error = err as Error & { response?: { data?: { error?: string } } };
-      toast.error(error.response?.data?.error || 'Failed to complete task');
+    onError: (err: unknown) => {
+      toast.error(getApiErrorMessage(err, 'Failed to complete task', 'Task Complete'));
     },
   });
 }
@@ -116,9 +112,8 @@ export function useDeleteTask() {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast.success('Task deleted');
     },
-    onError: (err: Error) => {
-      const error = err as Error & { response?: { data?: { error?: string } } };
-      toast.error(error.response?.data?.error || 'Failed to delete task');
+    onError: (err: unknown) => {
+      toast.error(getApiErrorMessage(err, 'Failed to delete task', 'Task Delete'));
     },
   });
 }

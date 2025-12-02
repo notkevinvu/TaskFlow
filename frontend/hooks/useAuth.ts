@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { authAPI } from '@/lib/api';
+import { authAPI, isAuthError, isNetworkError } from '@/lib/api';
 
 interface User {
   id: string;
@@ -12,6 +12,7 @@ interface User {
 interface AuthStore {
   user: User | null;
   isLoading: boolean;
+  connectionError: boolean; // True when network error prevented auth check
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, name: string, password: string) => Promise<void>;
   logout: () => void;
@@ -22,6 +23,7 @@ interface AuthStore {
 export const useAuth = create<AuthStore>((set) => ({
   user: null,
   isLoading: false,
+  connectionError: false,
 
   login: async (email, password) => {
     set({ isLoading: true });
@@ -59,13 +61,30 @@ export const useAuth = create<AuthStore>((set) => ({
       return;
     }
 
-    set({ isLoading: true });
+    set({ isLoading: true, connectionError: false });
     try {
       const response = await authAPI.me();
-      set({ user: response.data, isLoading: false });
-    } catch {
-      localStorage.removeItem('token');
-      set({ user: null, isLoading: false });
+      set({ user: response.data, isLoading: false, connectionError: false });
+    } catch (err: unknown) {
+      // Always log the error for debugging
+      console.error('[Auth] Session verification failed:', err);
+
+      // Only clear token for authentication errors (401, 403)
+      // For network errors, keep the token and let user retry
+      if (isAuthError(err)) {
+        localStorage.removeItem('token');
+        set({ user: null, isLoading: false, connectionError: false });
+      } else if (isNetworkError(err)) {
+        // Network error - keep token and set connectionError flag
+        // User can retry when connection is restored
+        console.warn('[Auth] Network error during session check - keeping token');
+        set({ user: null, isLoading: false, connectionError: true });
+      } else {
+        // Unknown error - clear token to be safe, notify user
+        console.error('[Auth] Unknown error type - clearing token for safety');
+        localStorage.removeItem('token');
+        set({ user: null, isLoading: false, connectionError: false });
+      }
     }
   },
 

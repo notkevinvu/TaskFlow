@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Pencil, Trash2, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import { categoryAPI } from '@/lib/api';
+import { categoryAPI, getApiErrorMessage } from '@/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface ManageCategoriesDialogProps {
@@ -93,8 +93,7 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
       toast.success(`Renamed "${oldName}" to "${editValue.trim()}"`);
       handleCancelEdit();
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
-      toast.error(error.response?.data?.error || 'Failed to rename category');
+      toast.error(getApiErrorMessage(err, 'Failed to rename category', 'Category Rename'));
     } finally {
       setIsRenaming(false);
     }
@@ -108,8 +107,7 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
       toast.success(`Deleted category "${categoryName}"`);
       setDeleteCategory(null);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
-      toast.error(error.response?.data?.error || 'Failed to delete category');
+      toast.error(getApiErrorMessage(err, 'Failed to delete category', 'Category Delete'));
     } finally {
       setIsDeleting(false);
     }

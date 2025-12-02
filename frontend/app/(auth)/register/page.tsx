@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useAuth } from '@/hooks/useAuth';
+import { getApiErrorMessage } from '@/lib/api';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -36,8 +37,7 @@ export default function RegisterPage() {
       await register(email, name, password);
       router.push('/dashboard');
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
-      setError(error.response?.data?.error || 'Registration failed. Please try again.');
+      setError(getApiErrorMessage(err, 'Registration failed. Please try again.', 'Register'));
     }
   };
 

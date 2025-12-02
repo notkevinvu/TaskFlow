@@ -1,4 +1,104 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
+
+// =============================================================================
+// Error Handling Utilities
+// =============================================================================
+
+/**
+ * Type guard to check if an error is an Axios error.
+ * Note: Returns true for both errors with responses (API errors)
+ * and errors without responses (network errors).
+ */
+export function isAxiosError(error: unknown): error is AxiosError<{ error?: string }> {
+  return axios.isAxiosError(error);
+}
+
+/**
+ * Extract a user-friendly error message from an API error.
+ * Handles Axios errors (with status-specific messages for 401, 403, 404, 5xx),
+ * network errors, timeouts, and generic Error objects.
+ *
+ * @param err - The caught error (unknown type)
+ * @param fallback - Default message if error cannot be parsed
+ * @param logContext - Optional context string. When provided, logs error via console.error
+ * @returns A user-friendly error message
+ *
+ * @example
+ * try {
+ *   await api.post('/tasks', data);
+ * } catch (err) {
+ *   toast.error(getApiErrorMessage(err, 'Failed to create task', 'TaskCreate'));
+ * }
+ */
+export function getApiErrorMessage(
+  err: unknown,
+  fallback: string,
+  logContext?: string
+): string {
+  // Always log the error for debugging
+  if (logContext) {
+    console.error(`[${logContext}]`, err);
+  }
+
+  // Axios error with response (API returned an error)
+  if (isAxiosError(err) && err.response?.data?.error) {
+    return err.response.data.error;
+  }
+
+  // Axios network error (no response received)
+  if (isAxiosError(err) && !err.response) {
+    if (err.code === 'ECONNABORTED') {
+      return 'Request timed out. Please try again.';
+    }
+    if (err.code === 'ERR_NETWORK') {
+      return 'Network error. Please check your connection.';
+    }
+    return 'Unable to connect to server. Please try again.';
+  }
+
+  // Axios error with response but no specific error message
+  if (isAxiosError(err) && err.response) {
+    const status = err.response.status;
+    if (status === 401) return 'Session expired. Please log in again.';
+    if (status === 403) return 'You do not have permission to perform this action.';
+    if (status === 404) return 'The requested resource was not found.';
+    if (status >= 500) return 'Server error. Please try again later.';
+  }
+
+  // Standard Error object
+  if (err instanceof Error) {
+    return err.message || fallback;
+  }
+
+  return fallback;
+}
+
+/**
+ * Check if an error is an authentication or authorization error (401/403).
+ * Used to determine if user credentials/session are invalid.
+ */
+export function isAuthError(err: unknown): boolean {
+  if (isAxiosError(err) && err.response) {
+    return err.response.status === 401 || err.response.status === 403;
+  }
+  return false;
+}
+
+/**
+ * Check if an error is a network/connection error.
+ * Returns true when the request was made but no response was received
+ * (e.g., server unreachable, DNS failure, CORS blocked, timeout).
+ */
+export function isNetworkError(err: unknown): boolean {
+  if (isAxiosError(err) && !err.response) {
+    return true;
+  }
+  return false;
+}
+
+// =============================================================================
+// API Client Setup
+// =============================================================================
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080',
