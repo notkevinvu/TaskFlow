@@ -883,6 +883,406 @@ func TestTaskRepository_GetPriorityDistribution(t *testing.T) {
 	})
 }
 
+func TestTaskRepository_GetCategoryBreakdown(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	pool := setupTestDB(t)
+	repo := NewTaskRepository(pool)
+	ctx := context.Background()
+	userID := createTestUser(t, ctx, pool)
+
+	// Create tasks with various categories and statuses
+	workCat := "Work"
+	personalCat := "Personal"
+
+	task1 := &domain.Task{
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		Title:         "Work Done",
+		Category:      &workCat,
+		Status:        domain.TaskStatusDone,
+		UserPriority:  5,
+		PriorityScore: 50,
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
+	}
+	task2 := &domain.Task{
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		Title:         "Work Todo",
+		Category:      &workCat,
+		Status:        domain.TaskStatusTodo,
+		UserPriority:  5,
+		PriorityScore: 50,
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
+	}
+	task3 := &domain.Task{
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		Title:         "Personal Done",
+		Category:      &personalCat,
+		Status:        domain.TaskStatusDone,
+		UserPriority:  5,
+		PriorityScore: 50,
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
+	}
+
+	require.NoError(t, repo.Create(ctx, task1))
+	require.NoError(t, repo.Create(ctx, task2))
+	require.NoError(t, repo.Create(ctx, task3))
+
+	t.Run("returns breakdown per category", func(t *testing.T) {
+		breakdown, err := repo.GetCategoryBreakdown(ctx, userID, 30)
+		require.NoError(t, err)
+		assert.NotEmpty(t, breakdown)
+
+		// Find Work category in results
+		var workStats *CategoryStats
+		for i := range breakdown {
+			if breakdown[i].Category == "Work" {
+				workStats = &breakdown[i]
+				break
+			}
+		}
+
+		require.NotNil(t, workStats, "Work category should be in breakdown")
+		assert.Equal(t, 2, workStats.TotalCount)
+		assert.Equal(t, 1, workStats.CompletedCount)
+		assert.InDelta(t, 50.0, workStats.CompletionRate, 0.1)
+	})
+
+	t.Run("calculates completion rate correctly", func(t *testing.T) {
+		breakdown, err := repo.GetCategoryBreakdown(ctx, userID, 30)
+		require.NoError(t, err)
+
+		// Find Personal category (100% completion rate)
+		var personalStats *CategoryStats
+		for i := range breakdown {
+			if breakdown[i].Category == "Personal" {
+				personalStats = &breakdown[i]
+				break
+			}
+		}
+
+		require.NotNil(t, personalStats, "Personal category should be in breakdown")
+		assert.Equal(t, 1, personalStats.TotalCount)
+		assert.Equal(t, 1, personalStats.CompletedCount)
+		assert.InDelta(t, 100.0, personalStats.CompletionRate, 0.1)
+	})
+}
+
+func TestTaskRepository_GetVelocityMetrics(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	pool := setupTestDB(t)
+	repo := NewTaskRepository(pool)
+	ctx := context.Background()
+	userID := createTestUser(t, ctx, pool)
+
+	// Create completed tasks with different completion dates
+	now := time.Now().UTC()
+	completedAt := now
+
+	task1 := &domain.Task{
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		Title:         "Completed Today",
+		Status:        domain.TaskStatusDone,
+		UserPriority:  5,
+		PriorityScore: 50,
+		CreatedAt:     now.Add(-24 * time.Hour),
+		UpdatedAt:     now,
+		CompletedAt:   &completedAt,
+	}
+
+	require.NoError(t, repo.Create(ctx, task1))
+
+	t.Run("returns velocity metrics", func(t *testing.T) {
+		metrics, err := repo.GetVelocityMetrics(ctx, userID, 7)
+		require.NoError(t, err)
+		// Should return data (may be empty if no completions in date range)
+		assert.NotNil(t, metrics)
+	})
+
+	t.Run("formats dates correctly", func(t *testing.T) {
+		metrics, err := repo.GetVelocityMetrics(ctx, userID, 30)
+		require.NoError(t, err)
+
+		// Check date format if we have results
+		for _, m := range metrics {
+			if m.Date != "" {
+				// Date should be in YYYY-MM-DD format
+				assert.Regexp(t, `^\d{4}-\d{2}-\d{2}$`, m.Date)
+			}
+		}
+	})
+}
+
+func TestTaskRepository_List_SearchFilter(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	pool := setupTestDB(t)
+	repo := NewTaskRepository(pool)
+	ctx := context.Background()
+	userID := createTestUser(t, ctx, pool)
+
+	// Create tasks with searchable content
+	desc1 := "This task involves database migrations"
+	desc2 := "This task is about frontend styling"
+
+	task1 := &domain.Task{
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		Title:         "Database Work",
+		Description:   &desc1,
+		Status:        domain.TaskStatusTodo,
+		UserPriority:  5,
+		PriorityScore: 50,
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
+	}
+	task2 := &domain.Task{
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		Title:         "Frontend Work",
+		Description:   &desc2,
+		Status:        domain.TaskStatusTodo,
+		UserPriority:  5,
+		PriorityScore: 50,
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
+	}
+
+	require.NoError(t, repo.Create(ctx, task1))
+	require.NoError(t, repo.Create(ctx, task2))
+
+	t.Run("filters by search query in title", func(t *testing.T) {
+		search := "Database"
+		filter := &domain.TaskListFilter{Search: &search}
+		tasks, err := repo.List(ctx, userID, filter)
+		require.NoError(t, err)
+		assert.Len(t, tasks, 1)
+		assert.Equal(t, "Database Work", tasks[0].Title)
+	})
+
+	t.Run("filters by search query in description", func(t *testing.T) {
+		search := "migrations"
+		filter := &domain.TaskListFilter{Search: &search}
+		tasks, err := repo.List(ctx, userID, filter)
+		require.NoError(t, err)
+		assert.Len(t, tasks, 1)
+		assert.Equal(t, "Database Work", tasks[0].Title)
+	})
+
+	t.Run("returns empty for unmatched search", func(t *testing.T) {
+		search := "nonexistent"
+		filter := &domain.TaskListFilter{Search: &search}
+		tasks, err := repo.List(ctx, userID, filter)
+		require.NoError(t, err)
+		assert.Empty(t, tasks)
+	})
+}
+
+func TestTaskRepository_List_DateFilters(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	pool := setupTestDB(t)
+	repo := NewTaskRepository(pool)
+	ctx := context.Background()
+	userID := createTestUser(t, ctx, pool)
+
+	// Create tasks with different due dates
+	now := time.Now().UTC()
+	yesterday := now.Add(-24 * time.Hour)
+	tomorrow := now.Add(24 * time.Hour)
+	nextWeek := now.Add(7 * 24 * time.Hour)
+
+	task1 := &domain.Task{
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		Title:         "Due Yesterday",
+		DueDate:       &yesterday,
+		Status:        domain.TaskStatusTodo,
+		UserPriority:  5,
+		PriorityScore: 50,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	task2 := &domain.Task{
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		Title:         "Due Tomorrow",
+		DueDate:       &tomorrow,
+		Status:        domain.TaskStatusTodo,
+		UserPriority:  5,
+		PriorityScore: 60,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	task3 := &domain.Task{
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		Title:         "Due Next Week",
+		DueDate:       &nextWeek,
+		Status:        domain.TaskStatusTodo,
+		UserPriority:  5,
+		PriorityScore: 40,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+
+	require.NoError(t, repo.Create(ctx, task1))
+	require.NoError(t, repo.Create(ctx, task2))
+	require.NoError(t, repo.Create(ctx, task3))
+
+	t.Run("filters by DueDateStart", func(t *testing.T) {
+		startDate := now
+		filter := &domain.TaskListFilter{DueDateStart: &startDate}
+		tasks, err := repo.List(ctx, userID, filter)
+		require.NoError(t, err)
+		// Should exclude "Due Yesterday", include "Due Tomorrow" and "Due Next Week"
+		assert.Len(t, tasks, 2)
+	})
+
+	t.Run("filters by DueDateEnd", func(t *testing.T) {
+		endDate := tomorrow.Add(time.Hour)
+		filter := &domain.TaskListFilter{DueDateEnd: &endDate}
+		tasks, err := repo.List(ctx, userID, filter)
+		require.NoError(t, err)
+		// Should include "Due Yesterday" and "Due Tomorrow", exclude "Due Next Week"
+		assert.Len(t, tasks, 2)
+	})
+
+	t.Run("filters by date range", func(t *testing.T) {
+		startDate := now
+		endDate := tomorrow.Add(time.Hour)
+		filter := &domain.TaskListFilter{DueDateStart: &startDate, DueDateEnd: &endDate}
+		tasks, err := repo.List(ctx, userID, filter)
+		require.NoError(t, err)
+		// Should only include "Due Tomorrow"
+		assert.Len(t, tasks, 1)
+		assert.Equal(t, "Due Tomorrow", tasks[0].Title)
+	})
+}
+
+func TestTaskRepository_List_CombinedFilters(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	pool := setupTestDB(t)
+	repo := NewTaskRepository(pool)
+	ctx := context.Background()
+	userID := createTestUser(t, ctx, pool)
+
+	// Create tasks with various attributes
+	workCat := "Work"
+	personalCat := "Personal"
+
+	task1 := &domain.Task{
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		Title:         "Work Todo High",
+		Category:      &workCat,
+		Status:        domain.TaskStatusTodo,
+		UserPriority:  8,
+		PriorityScore: 80,
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
+	}
+	task2 := &domain.Task{
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		Title:         "Work Todo Low",
+		Category:      &workCat,
+		Status:        domain.TaskStatusTodo,
+		UserPriority:  3,
+		PriorityScore: 30,
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
+	}
+	task3 := &domain.Task{
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		Title:         "Personal Todo High",
+		Category:      &personalCat,
+		Status:        domain.TaskStatusTodo,
+		UserPriority:  8,
+		PriorityScore: 80,
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
+	}
+	task4 := &domain.Task{
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		Title:         "Work Done High",
+		Category:      &workCat,
+		Status:        domain.TaskStatusDone,
+		UserPriority:  8,
+		PriorityScore: 80,
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
+	}
+
+	require.NoError(t, repo.Create(ctx, task1))
+	require.NoError(t, repo.Create(ctx, task2))
+	require.NoError(t, repo.Create(ctx, task3))
+	require.NoError(t, repo.Create(ctx, task4))
+
+	t.Run("combines status and category filters", func(t *testing.T) {
+		status := domain.TaskStatusTodo
+		filter := &domain.TaskListFilter{Status: &status, Category: &workCat}
+		tasks, err := repo.List(ctx, userID, filter)
+		require.NoError(t, err)
+		// Should return Work + Todo tasks only
+		assert.Len(t, tasks, 2)
+		for _, task := range tasks {
+			assert.Equal(t, domain.TaskStatusTodo, task.Status)
+			assert.Equal(t, &workCat, task.Category)
+		}
+	})
+
+	t.Run("combines status, category, and minPriority filters", func(t *testing.T) {
+		status := domain.TaskStatusTodo
+		minPriority := 50
+		filter := &domain.TaskListFilter{
+			Status:      &status,
+			Category:    &workCat,
+			MinPriority: &minPriority,
+		}
+		tasks, err := repo.List(ctx, userID, filter)
+		require.NoError(t, err)
+		// Should return only "Work Todo High" (Work + Todo + priority >= 50)
+		assert.Len(t, tasks, 1)
+		assert.Equal(t, "Work Todo High", tasks[0].Title)
+	})
+
+	t.Run("combines all filters with pagination", func(t *testing.T) {
+		status := domain.TaskStatusTodo
+		filter := &domain.TaskListFilter{
+			Status: &status,
+			Limit:  1,
+			Offset: 0,
+		}
+		tasks, err := repo.List(ctx, userID, filter)
+		require.NoError(t, err)
+		// Should return only 1 task due to limit
+		assert.Len(t, tasks, 1)
+		// Should be highest priority first (80)
+		assert.Equal(t, 80, tasks[0].PriorityScore)
+	})
+}
+
 // Helper function to create string pointer
 func stringPtr(s string) *string {
 	return &s

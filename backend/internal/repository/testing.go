@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"testing"
@@ -51,7 +52,8 @@ func setupTestDB(t *testing.T) *pgxpool.Pool {
 	// Fall back to DATABASE_URL if provided (for local development)
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL != "" {
-		t.Log("Falling back to DATABASE_URL for test database")
+		t.Log("WARNING: Falling back to DATABASE_URL for test database")
+		t.Log("WARNING: Tests will NOT be isolated. Data may persist between test runs.")
 		pool, err := pgxpool.New(context.Background(), databaseURL)
 		if err != nil {
 			t.Fatalf("Failed to connect to test database: %v", err)
@@ -75,7 +77,8 @@ func trySetupTestContainer(t *testing.T) (testDB *TestDB, err error) {
 	// Recover from panics (testcontainers panics on Windows without Docker)
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("testcontainers panic: %v", r)
+			stack := debug.Stack()
+			err = fmt.Errorf("testcontainers panic: %v\nStack trace:\n%s", r, string(stack))
 		}
 	}()
 
