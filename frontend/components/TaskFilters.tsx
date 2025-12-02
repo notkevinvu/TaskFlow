@@ -124,8 +124,8 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
   };
 
   const applyPreset = (preset: FilterPreset) => {
-    // Call getFilters() to get fresh dates
-    onChange({ ...filters, ...preset.getFilters() });
+    // Replace all filters with preset (don't merge) for predictable behavior
+    onChange(preset.getFilters());
   };
 
   // Convert filter date strings to Date objects for the calendar (using local timezone)

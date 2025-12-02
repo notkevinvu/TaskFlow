@@ -1,7 +1,7 @@
 # TaskFlow Design System
 
-**Version:** 1.1
-**Last Updated:** 2025-01-27
+**Version:** 1.2
+**Last Updated:** 2025-12-02
 **Status:** Living Document
 
 This document tracks UI/UX patterns, component guidelines, and interaction standards for TaskFlow.
@@ -334,6 +334,147 @@ useEffect(() => {
 - Query params: `?search=text&status=todo&category=Work&min_priority=75&max_priority=100`
 - Filters combine with AND logic (all must match)
 - Results maintain priority sorting
+
+#### Date Range Picker
+
+**Usage:** Filter tasks by due date range
+
+**Implementation:**
+```tsx
+<Popover>
+  <PopoverTrigger asChild>
+    <Button variant="outline" className="w-full justify-start text-left font-normal">
+      <CalendarIcon className="mr-2 h-4 w-4" />
+      {dateRange ? `${format(from, 'MMM d')} - ${format(to, 'MMM d')}` : 'Pick a date range'}
+    </Button>
+  </PopoverTrigger>
+  <PopoverContent className="w-auto p-0" align="start">
+    <Calendar
+      mode="range"
+      selected={dateRange}
+      onSelect={handleDateRangeChange}
+      numberOfMonths={2}
+    />
+  </PopoverContent>
+</Popover>
+```
+
+**Features:**
+- Two-month calendar view for easy range selection
+- Displays selected range in button text
+- "Clear dates" button inside popover
+- Uses local timezone parsing (avoids UTC shift issues)
+- Safe date formatting with fallback for invalid dates
+
+**Applied to:**
+- ✅ TaskFilters component
+
+**Design Notes:**
+- Uses shadcn/ui Calendar component with `mode="range"`
+- Date strings stored as `YYYY-MM-DD` format for API compatibility
+- `parseLocalDate()` helper ensures dates render in user's local timezone
+
+---
+
+#### Filter Presets (Quick Filters)
+
+**Usage:** One-click filter application for common scenarios
+
+**Implementation:**
+```tsx
+<div className="flex flex-wrap gap-2">
+  {presets.map((preset) => (
+    <Button
+      key={preset.id}
+      variant="outline"
+      size="sm"
+      onClick={() => applyPreset(preset)}
+      className="h-7 text-xs"
+    >
+      {preset.label}
+    </Button>
+  ))}
+</div>
+```
+
+**Available Presets:**
+| Preset | Filters Applied |
+|--------|-----------------|
+| High Priority | `minPriority: 75, maxPriority: 100` |
+| Critical Only | `minPriority: 90, maxPriority: 100` |
+| Due This Week | `dueDateStart: today, dueDateEnd: endOfWeek` |
+| Overdue | `dueDateStart: 2000-01-01, dueDateEnd: yesterday` |
+| In Progress | `status: 'in_progress'` |
+
+**Features:**
+- Presets **replace** existing filters (don't merge) for predictable behavior
+- Date-based presets use `getFilters()` function for fresh dates on each click
+- Small button size (`h-7 text-xs`) to fit multiple presets in row
+- Zap icon indicates "quick" actions
+
+**Applied to:**
+- ✅ TaskFilters component
+
+**Design Notes:**
+- `getFilterPresets()` returns fresh preset array on each render
+- Each preset has `getFilters()` method to compute dates at click time (not module load)
+- This prevents stale dates if user keeps page open across midnight
+
+---
+
+#### Filter URL Persistence
+
+**Usage:** Shareable/bookmarkable filter links
+
+**Implementation:**
+```tsx
+// Parse filters from URL on page load
+function parseFiltersFromURL(searchParams: URLSearchParams): TaskFilterState {
+  // Validate all inputs before using
+  if (status && VALID_STATUSES.includes(status)) {
+    filters.status = status;
+  }
+  // parseInt with NaN check
+  if (minPriority) {
+    const parsed = parseInt(minPriority, 10);
+    if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+      filters.minPriority = parsed;
+    }
+  }
+  // Date validation (YYYY-MM-DD format)
+  if (dueDateStart && isValidDateString(dueDateStart)) {
+    filters.dueDateStart = dueDateStart;
+  }
+}
+
+// Sync filters to URL on change
+useEffect(() => {
+  const newUrl = pathname + serializeFiltersToURL(filters, searchQuery, selectedTaskId);
+  router.replace(newUrl, { scroll: false });
+}, [filters, searchQuery, selectedTaskId]);
+```
+
+**Features:**
+- All filters persist to URL query params
+- URL updates use `router.replace()` (no browser history spam)
+- Invalid URL params are silently ignored (graceful degradation)
+- Status validated against known values
+- Priority values validated (0-100 range, not NaN)
+- Date strings validated (YYYY-MM-DD format)
+
+**Applied to:**
+- ✅ Dashboard page
+
+**URL Format:**
+```
+/dashboard?status=todo&category=Work&minPriority=75&maxPriority=100&dueDateStart=2024-12-01&dueDateEnd=2024-12-07
+```
+
+**Design Notes:**
+- Uses `{ scroll: false }` to prevent page scroll on URL updates
+- Defensive parsing prevents crashes from malformed URLs
+- Search query also persisted (`?search=keyword`)
+- Task ID persisted for sidebar deep links
 
 ---
 
@@ -1328,6 +1469,15 @@ focus-visible:ring-offset-2
 ---
 
 ## Changelog
+
+### 2025-12-02 (Filter Enhancements - v1.2)
+- ✅ Added Date Range Picker pattern (shadcn Calendar with `mode="range"`)
+- ✅ Added Filter Presets pattern (Quick Filters with replace behavior)
+- ✅ Added Filter URL Persistence pattern (shareable/bookmarkable links)
+- ✅ Documented `parseLocalDate()` for timezone-safe date handling
+- ✅ Documented `safeFormatDate()` for graceful error handling
+- ✅ Updated TaskFilters documentation with new features
+- ✅ Version bumped to 1.2
 
 ### 2025-01-27 (Phase 2.5 Completion - v1.1)
 - ✅ **Major Update:** Comprehensive Phase 2.5 component documentation
