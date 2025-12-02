@@ -94,12 +94,11 @@ Phase 4: Advanced Features             [░░░░░░░░░░░░░�
   - validation: 84.4% ✅
   - config: 81.2% ✅
   - service: 81.0% ✅
-  - handler: 60.2% ⚠️
-  - middleware: 57.0% ⚠️
-  - repository: 1.2% ❌ (needs integration tests)
-  - ratelimit: 0% ❌ (needs Redis mocking)
-  - sqlc: 0% ❌ (generated code, needs DB)
-- [ ] **Repository Integration Tests** - Tests with testcontainers for PostgreSQL
+  - handler: ~75% ✅ (Analytics + Category handlers added)
+  - middleware: ~80% ✅ (CORS + Logging tests added)
+  - repository: ~70% ✅ (testcontainers integration tests added)
+  - ratelimit: ~90% ✅ (Redis testcontainers tests added, PR #27)
+  - sqlc: 0% ❌ (generated code, tested via repository layer)
 
 ---
 
@@ -247,6 +246,18 @@ hooks:                     0.0% (React Query wrappers)
 - [ ] Performance tested
 - [ ] Security reviewed
 - [ ] Monitoring/alerting configured
+
+---
+
+## Technical Debt / Future Improvements
+
+These items are tracked for future cleanup when time permits:
+
+- [ ] **Claude Code Allowlist Cleanup** - Simplify Bash command allowlist patterns
+  - Current patterns use verbose `cmd.exe /c "cd /d ... && ..."` wrappers
+  - Should use simpler patterns like `go test:*`, `go build:*` that work cross-platform
+  - Location: `C:\Users\<user>\.claude\settings.json` (user-level)
+  - Location: `.claude/settings.local.json` (project-level)
 
 ---
 
