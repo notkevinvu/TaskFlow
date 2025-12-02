@@ -42,17 +42,21 @@ func (l *RedisLimiter) Allow(ctx context.Context, identifier string, limit int, 
 	key := fmt.Sprintf("ratelimit:%s", identifier)
 	now := time.Now()
 	nowMs := now.UnixMilli()
+	nowNano := now.UnixNano() // Use nanoseconds for unique member IDs
 	windowMs := window.Milliseconds()
 	windowStartMs := nowMs - windowMs
 
 	// Lua script for atomic sliding window check
 	// Uses sorted set where score = timestamp in milliseconds
+	// Member uses nanoseconds for uniqueness (prevents collisions when multiple
+	// requests arrive in the same millisecond)
 	script := redis.NewScript(`
 		local key = KEYS[1]
 		local limit = tonumber(ARGV[1])
 		local window_start = tonumber(ARGV[2])
-		local now = tonumber(ARGV[3])
+		local now_ms = tonumber(ARGV[3])
 		local window_seconds = tonumber(ARGV[4])
+		local now_nano = ARGV[5]
 
 		-- Remove requests older than the window
 		redis.call('ZREMRANGEBYSCORE', key, 0, window_start)
@@ -61,8 +65,9 @@ func (l *RedisLimiter) Allow(ctx context.Context, identifier string, limit int, 
 		local current = redis.call('ZCARD', key)
 
 		if current < limit then
-			-- Add current request with timestamp as score and unique member
-			redis.call('ZADD', key, now, now)
+			-- Add current request with millisecond timestamp as score
+			-- Use nanosecond timestamp as member for uniqueness
+			redis.call('ZADD', key, now_ms, now_nano)
 			-- Set expiration on the key (not EXPIREAT which uses absolute timestamp)
 			redis.call('EXPIRE', key, window_seconds)
 			return {1, current + 1}
@@ -71,7 +76,7 @@ func (l *RedisLimiter) Allow(ctx context.Context, identifier string, limit int, 
 		end
 	`)
 
-	result, err := script.Run(ctx, l.client, []string{key}, limit, windowStartMs, nowMs, int(window.Seconds())).Int64Slice()
+	result, err := script.Run(ctx, l.client, []string{key}, limit, windowStartMs, nowMs, int(window.Seconds()), nowNano).Int64Slice()
 	if err != nil {
 		// Fail open - allow request if Redis is down
 		return true, fmt.Errorf("redis error: %w", err)
