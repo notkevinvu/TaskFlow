@@ -745,3 +745,195 @@ func (r *TaskRepository) GetPriorityDistribution(ctx context.Context, userID str
 
 	return distribution, nil
 }
+
+// Insights analytics methods
+
+// GetCategoryBumpStats retrieves average bump counts per category for avoidance pattern detection
+func (r *TaskRepository) GetCategoryBumpStats(ctx context.Context, userID string) ([]domain.CategoryBumpStats, error) {
+	userUUID, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := r.queries.GetCategoryBumpStats(ctx, userUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	stats := make([]domain.CategoryBumpStats, len(results))
+	for i, row := range results {
+		stats[i] = domain.CategoryBumpStats{
+			Category:  row.Category,
+			AvgBumps:  row.AvgBumps,
+			TaskCount: int(row.TaskCount),
+		}
+	}
+
+	return stats, nil
+}
+
+// GetCompletionByDayOfWeek retrieves task completion counts grouped by day of week
+func (r *TaskRepository) GetCompletionByDayOfWeek(ctx context.Context, userID string, daysBack int) ([]domain.DayOfWeekStats, error) {
+	userUUID, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := r.queries.GetCompletionByDayOfWeek(ctx, sqlc.GetCompletionByDayOfWeekParams{
+		UserID:  userUUID,
+		Column2: int32(daysBack),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	stats := make([]domain.DayOfWeekStats, len(results))
+	for i, row := range results {
+		stats[i] = domain.DayOfWeekStats{
+			DayOfWeek:      int(row.DayOfWeek),
+			CompletedCount: int(row.CompletedCount),
+		}
+	}
+
+	return stats, nil
+}
+
+// GetAgingQuickWins retrieves small effort tasks that are aging
+func (r *TaskRepository) GetAgingQuickWins(ctx context.Context, userID string, minAgeDays int, limit int) ([]*domain.Task, error) {
+	userUUID, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := r.queries.GetAgingQuickWins(ctx, sqlc.GetAgingQuickWinsParams{
+		UserID:  userUUID,
+		Column2: int32(minAgeDays),
+		Limit:   int32(limit),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	tasks := make([]*domain.Task, len(results))
+	for i, row := range results {
+		dt := sqlcRowToDomain(row.ID, row.UserID, row.Title, row.Description, row.Status,
+			row.UserPriority, row.DueDate, row.EstimatedEffort, row.Category, row.Context,
+			row.RelatedPeople, row.PriorityScore, row.BumpCount, row.CreatedAt, row.UpdatedAt, row.CompletedAt)
+		tasks[i] = &dt
+	}
+
+	return tasks, nil
+}
+
+// GetDeadlineClusters retrieves dates with multiple tasks due
+func (r *TaskRepository) GetDeadlineClusters(ctx context.Context, userID string, windowDays int) ([]domain.DeadlineCluster, error) {
+	userUUID, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := r.queries.GetDeadlineClusters(ctx, sqlc.GetDeadlineClustersParams{
+		UserID:  userUUID,
+		Column2: windowDays, // interface{} accepts int
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	clusters := make([]domain.DeadlineCluster, len(results))
+	for i, row := range results {
+		// Convert interface{} titles to []string
+		var titles []string
+		if row.Titles != nil {
+			if arr, ok := row.Titles.([]interface{}); ok {
+				titles = make([]string, len(arr))
+				for j, v := range arr {
+					if s, ok := v.(string); ok {
+						titles[j] = s
+					}
+				}
+			}
+		}
+
+		// Convert pgtype.Date to time.Time
+		var dueDate time.Time
+		if row.DueDate.Valid {
+			dueDate = row.DueDate.Time
+		}
+
+		clusters[i] = domain.DeadlineCluster{
+			DueDate:   dueDate,
+			TaskCount: int(row.TaskCount),
+			Titles:    titles,
+		}
+	}
+
+	return clusters, nil
+}
+
+// GetCompletionTimeStats retrieves completion time statistics for time estimation
+// Uses manual SQL due to optional parameters that sqlc doesn't handle well
+func (r *TaskRepository) GetCompletionTimeStats(ctx context.Context, userID string, category *string, effort *domain.TaskEffort) (*domain.CompletionTimeStats, error) {
+	query := `
+		SELECT
+			COUNT(*)::int as sample_size,
+			COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY
+				EXTRACT(EPOCH FROM (completed_at - created_at)) / 86400
+			), 0)::float as median_days,
+			COALESCE(AVG(EXTRACT(EPOCH FROM (completed_at - created_at)) / 86400), 0)::float as avg_days
+		FROM tasks
+		WHERE user_id = $1
+		  AND status = 'done'
+		  AND completed_at IS NOT NULL
+	`
+	args := []interface{}{userID}
+	argNum := 2
+
+	if category != nil {
+		query += fmt.Sprintf(" AND category = $%d", argNum)
+		args = append(args, *category)
+		argNum++
+	}
+
+	if effort != nil {
+		query += fmt.Sprintf(" AND estimated_effort = $%d", argNum)
+		args = append(args, string(*effort))
+	}
+
+	var stats domain.CompletionTimeStats
+	err := r.db.QueryRow(ctx, query, args...).Scan(
+		&stats.SampleSize,
+		&stats.MedianDays,
+		&stats.AvgDays,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	stats.CategoryMedian = stats.MedianDays // Use same median for now
+	return &stats, nil
+}
+
+// GetCategoryDistribution retrieves distribution of pending tasks by category
+func (r *TaskRepository) GetCategoryDistribution(ctx context.Context, userID string) ([]domain.CategoryDistribution, error) {
+	userUUID, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := r.queries.GetCategoryDistribution(ctx, userUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	dist := make([]domain.CategoryDistribution, len(results))
+	for i, row := range results {
+		dist[i] = domain.CategoryDistribution{
+			Category:   row.Category,
+			TaskCount:  int(row.TaskCount),
+			Percentage: row.Percentage,
+		}
+	}
+
+	return dist, nil
+}

@@ -9,6 +9,7 @@ import { CompletionChart } from '@/components/charts/CompletionChart';
 import { CategoryChart } from '@/components/charts/CategoryChart';
 import { PriorityChart } from '@/components/charts/PriorityChart';
 import { BumpChart } from '@/components/charts/BumpChart';
+import { InsightsList } from '@/components/insights/InsightsList';
 
 export default function AnalyticsPage() {
   const [timePeriod, setTimePeriod] = useState<number>(30);
@@ -198,6 +199,9 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Smart Insights Section */}
+      <InsightsList />
 
       {/* Charts Grid */}
       <div className="grid gap-6 lg:grid-cols-2">

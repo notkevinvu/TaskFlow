@@ -132,3 +132,84 @@ ORDER BY
             ELSE 4
         END
     );
+
+-- Insights analytics queries
+
+-- name: GetCategoryBumpStats :many
+-- Gets average bump count per category for detecting avoidance patterns
+SELECT
+    COALESCE(category, 'Uncategorized') as category,
+    AVG(bump_count)::float as avg_bumps,
+    COUNT(*)::int as task_count
+FROM tasks
+WHERE user_id = $1 AND status != 'done'
+GROUP BY category
+HAVING AVG(bump_count) > 1
+ORDER BY avg_bumps DESC;
+
+-- name: GetCompletionByDayOfWeek :many
+-- Gets task completions grouped by day of week for peak performance detection
+SELECT
+    EXTRACT(DOW FROM completed_at)::int as day_of_week,
+    COUNT(*)::int as completed_count
+FROM tasks
+WHERE user_id = $1
+  AND status = 'done'
+  AND completed_at >= NOW() - INTERVAL '1 day' * $2
+GROUP BY day_of_week
+ORDER BY completed_count DESC;
+
+-- name: GetAgingQuickWins :many
+-- Gets small effort tasks that are aging (quick wins)
+SELECT id, user_id, title, description, status, user_priority,
+       due_date, estimated_effort, category, context, related_people,
+       priority_score, bump_count, created_at, updated_at, completed_at
+FROM tasks
+WHERE user_id = $1
+  AND estimated_effort = 'small'
+  AND status != 'done'
+  AND created_at <= NOW() - INTERVAL '1 day' * $2
+ORDER BY created_at ASC
+LIMIT $3;
+
+-- name: GetDeadlineClusters :many
+-- Gets dates with multiple tasks due (deadline clustering)
+SELECT
+    DATE(due_date) as due_date,
+    COUNT(*)::int as task_count,
+    array_agg(title) as titles
+FROM tasks
+WHERE user_id = $1
+  AND status != 'done'
+  AND due_date IS NOT NULL
+  AND due_date >= NOW()
+  AND due_date <= NOW() + INTERVAL '1 day' * $2
+GROUP BY DATE(due_date)
+HAVING COUNT(*) >= 3
+ORDER BY due_date;
+
+-- name: GetCompletionTimeStats :one
+-- Gets completion time statistics for time estimation
+SELECT
+    COUNT(*)::int as sample_size,
+    COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY
+        EXTRACT(EPOCH FROM (completed_at - created_at)) / 86400
+    ), 0)::float as median_days,
+    COALESCE(AVG(EXTRACT(EPOCH FROM (completed_at - created_at)) / 86400), 0)::float as avg_days
+FROM tasks
+WHERE user_id = $1
+  AND status = 'done'
+  AND completed_at IS NOT NULL
+  AND ($2::text IS NULL OR category = $2)
+  AND ($3::task_effort IS NULL OR estimated_effort = $3);
+
+-- name: GetCategoryDistribution :many
+-- Gets distribution of pending tasks by category for overload detection
+SELECT
+    COALESCE(category, 'Uncategorized') as category,
+    COUNT(*)::int as task_count,
+    (COUNT(*)::float / NULLIF(SUM(COUNT(*)) OVER (), 0) * 100)::float as percentage
+FROM tasks
+WHERE user_id = $1 AND status != 'done'
+GROUP BY category
+ORDER BY task_count DESC;

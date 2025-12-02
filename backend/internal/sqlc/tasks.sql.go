@@ -91,6 +91,82 @@ func (q *Queries) DeleteTask(ctx context.Context, arg DeleteTaskParams) error {
 	return err
 }
 
+const getAgingQuickWins = `-- name: GetAgingQuickWins :many
+SELECT id, user_id, title, description, status, user_priority,
+       due_date, estimated_effort, category, context, related_people,
+       priority_score, bump_count, created_at, updated_at, completed_at
+FROM tasks
+WHERE user_id = $1
+  AND estimated_effort = 'small'
+  AND status != 'done'
+  AND created_at <= NOW() - INTERVAL '1 day' * $2
+ORDER BY created_at ASC
+LIMIT $3
+`
+
+type GetAgingQuickWinsParams struct {
+	UserID  pgtype.UUID `json:"user_id"`
+	Column2 interface{} `json:"column_2"`
+	Limit   int32       `json:"limit"`
+}
+
+type GetAgingQuickWinsRow struct {
+	ID              pgtype.UUID        `json:"id"`
+	UserID          pgtype.UUID        `json:"user_id"`
+	Title           string             `json:"title"`
+	Description     *string            `json:"description"`
+	Status          TaskStatus         `json:"status"`
+	UserPriority    int32              `json:"user_priority"`
+	DueDate         pgtype.Timestamptz `json:"due_date"`
+	EstimatedEffort NullTaskEffort     `json:"estimated_effort"`
+	Category        *string            `json:"category"`
+	Context         *string            `json:"context"`
+	RelatedPeople   []string           `json:"related_people"`
+	PriorityScore   int32              `json:"priority_score"`
+	BumpCount       int32              `json:"bump_count"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	CompletedAt     pgtype.Timestamptz `json:"completed_at"`
+}
+
+// Gets small effort tasks that are aging (quick wins)
+func (q *Queries) GetAgingQuickWins(ctx context.Context, arg GetAgingQuickWinsParams) ([]GetAgingQuickWinsRow, error) {
+	rows, err := q.db.Query(ctx, getAgingQuickWins, arg.UserID, arg.Column2, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetAgingQuickWinsRow{}
+	for rows.Next() {
+		var i GetAgingQuickWinsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Title,
+			&i.Description,
+			&i.Status,
+			&i.UserPriority,
+			&i.DueDate,
+			&i.EstimatedEffort,
+			&i.Category,
+			&i.Context,
+			&i.RelatedPeople,
+			&i.PriorityScore,
+			&i.BumpCount,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CompletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAtRiskTasks = `-- name: GetAtRiskTasks :many
 SELECT id, user_id, title, description, status, user_priority,
        due_date, estimated_effort, category, context, related_people,
@@ -244,6 +320,128 @@ func (q *Queries) GetCategoryBreakdown(ctx context.Context, arg GetCategoryBreak
 	return items, nil
 }
 
+const getCategoryBumpStats = `-- name: GetCategoryBumpStats :many
+
+SELECT
+    COALESCE(category, 'Uncategorized') as category,
+    AVG(bump_count)::float as avg_bumps,
+    COUNT(*)::int as task_count
+FROM tasks
+WHERE user_id = $1 AND status != 'done'
+GROUP BY category
+HAVING AVG(bump_count) > 1
+ORDER BY avg_bumps DESC
+`
+
+type GetCategoryBumpStatsRow struct {
+	Category  string  `json:"category"`
+	AvgBumps  float64 `json:"avg_bumps"`
+	TaskCount int32   `json:"task_count"`
+}
+
+// Insights analytics queries
+// Gets average bump count per category for detecting avoidance patterns
+func (q *Queries) GetCategoryBumpStats(ctx context.Context, userID pgtype.UUID) ([]GetCategoryBumpStatsRow, error) {
+	rows, err := q.db.Query(ctx, getCategoryBumpStats, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetCategoryBumpStatsRow{}
+	for rows.Next() {
+		var i GetCategoryBumpStatsRow
+		if err := rows.Scan(&i.Category, &i.AvgBumps, &i.TaskCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getCategoryDistribution = `-- name: GetCategoryDistribution :many
+SELECT
+    COALESCE(category, 'Uncategorized') as category,
+    COUNT(*)::int as task_count,
+    (COUNT(*)::float / NULLIF(SUM(COUNT(*)) OVER (), 0) * 100)::float as percentage
+FROM tasks
+WHERE user_id = $1 AND status != 'done'
+GROUP BY category
+ORDER BY task_count DESC
+`
+
+type GetCategoryDistributionRow struct {
+	Category   string  `json:"category"`
+	TaskCount  int32   `json:"task_count"`
+	Percentage float64 `json:"percentage"`
+}
+
+// Gets distribution of pending tasks by category for overload detection
+func (q *Queries) GetCategoryDistribution(ctx context.Context, userID pgtype.UUID) ([]GetCategoryDistributionRow, error) {
+	rows, err := q.db.Query(ctx, getCategoryDistribution, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetCategoryDistributionRow{}
+	for rows.Next() {
+		var i GetCategoryDistributionRow
+		if err := rows.Scan(&i.Category, &i.TaskCount, &i.Percentage); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getCompletionByDayOfWeek = `-- name: GetCompletionByDayOfWeek :many
+SELECT
+    EXTRACT(DOW FROM completed_at)::int as day_of_week,
+    COUNT(*)::int as completed_count
+FROM tasks
+WHERE user_id = $1
+  AND status = 'done'
+  AND completed_at >= NOW() - INTERVAL '1 day' * $2
+GROUP BY day_of_week
+ORDER BY completed_count DESC
+`
+
+type GetCompletionByDayOfWeekParams struct {
+	UserID  pgtype.UUID `json:"user_id"`
+	Column2 interface{} `json:"column_2"`
+}
+
+type GetCompletionByDayOfWeekRow struct {
+	DayOfWeek      int32 `json:"day_of_week"`
+	CompletedCount int32 `json:"completed_count"`
+}
+
+// Gets task completions grouped by day of week for peak performance detection
+func (q *Queries) GetCompletionByDayOfWeek(ctx context.Context, arg GetCompletionByDayOfWeekParams) ([]GetCompletionByDayOfWeekRow, error) {
+	rows, err := q.db.Query(ctx, getCompletionByDayOfWeek, arg.UserID, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetCompletionByDayOfWeekRow{}
+	for rows.Next() {
+		var i GetCompletionByDayOfWeekRow
+		if err := rows.Scan(&i.DayOfWeek, &i.CompletedCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getCompletionStats = `-- name: GetCompletionStats :one
 
 SELECT
@@ -272,6 +470,89 @@ func (q *Queries) GetCompletionStats(ctx context.Context, arg GetCompletionStats
 	var i GetCompletionStatsRow
 	err := row.Scan(&i.TotalTasks, &i.CompletedTasks, &i.PendingTasks)
 	return i, err
+}
+
+const getCompletionTimeStats = `-- name: GetCompletionTimeStats :one
+SELECT
+    COUNT(*)::int as sample_size,
+    COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY
+        EXTRACT(EPOCH FROM (completed_at - created_at)) / 86400
+    ), 0)::float as median_days,
+    COALESCE(AVG(EXTRACT(EPOCH FROM (completed_at - created_at)) / 86400), 0)::float as avg_days
+FROM tasks
+WHERE user_id = $1
+  AND status = 'done'
+  AND completed_at IS NOT NULL
+  AND ($2::text IS NULL OR category = $2)
+  AND ($3::task_effort IS NULL OR estimated_effort = $3)
+`
+
+type GetCompletionTimeStatsParams struct {
+	UserID  pgtype.UUID `json:"user_id"`
+	Column2 string      `json:"column_2"`
+	Column3 TaskEffort  `json:"column_3"`
+}
+
+type GetCompletionTimeStatsRow struct {
+	SampleSize int32   `json:"sample_size"`
+	MedianDays float64 `json:"median_days"`
+	AvgDays    float64 `json:"avg_days"`
+}
+
+// Gets completion time statistics for time estimation
+func (q *Queries) GetCompletionTimeStats(ctx context.Context, arg GetCompletionTimeStatsParams) (GetCompletionTimeStatsRow, error) {
+	row := q.db.QueryRow(ctx, getCompletionTimeStats, arg.UserID, arg.Column2, arg.Column3)
+	var i GetCompletionTimeStatsRow
+	err := row.Scan(&i.SampleSize, &i.MedianDays, &i.AvgDays)
+	return i, err
+}
+
+const getDeadlineClusters = `-- name: GetDeadlineClusters :many
+SELECT
+    DATE(due_date) as due_date,
+    COUNT(*)::int as task_count,
+    array_agg(title) as titles
+FROM tasks
+WHERE user_id = $1
+  AND status != 'done'
+  AND due_date IS NOT NULL
+  AND due_date >= NOW()
+  AND due_date <= NOW() + INTERVAL '1 day' * $2
+GROUP BY DATE(due_date)
+HAVING COUNT(*) >= 3
+ORDER BY due_date
+`
+
+type GetDeadlineClustersParams struct {
+	UserID  pgtype.UUID `json:"user_id"`
+	Column2 interface{} `json:"column_2"`
+}
+
+type GetDeadlineClustersRow struct {
+	DueDate   pgtype.Date `json:"due_date"`
+	TaskCount int32       `json:"task_count"`
+	Titles    interface{} `json:"titles"`
+}
+
+// Gets dates with multiple tasks due (deadline clustering)
+func (q *Queries) GetDeadlineClusters(ctx context.Context, arg GetDeadlineClustersParams) ([]GetDeadlineClustersRow, error) {
+	rows, err := q.db.Query(ctx, getDeadlineClusters, arg.UserID, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetDeadlineClustersRow{}
+	for rows.Next() {
+		var i GetDeadlineClustersRow
+		if err := rows.Scan(&i.DueDate, &i.TaskCount, &i.Titles); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getPriorityDistribution = `-- name: GetPriorityDistribution :many

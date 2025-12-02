@@ -79,12 +79,14 @@ func main() {
 	// Initialize services
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryHours)
 	taskService := service.NewTaskService(taskRepo, taskHistoryRepo)
+	insightsService := service.NewInsightsService(taskRepo)
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(authService)
 	taskHandler := handler.NewTaskHandler(taskService)
 	categoryHandler := handler.NewCategoryHandler(taskService)
 	analyticsHandler := handler.NewAnalyticsHandler(taskRepo)
+	insightsHandler := handler.NewInsightsHandler(insightsService, taskService)
 
 	// Set Gin mode
 	gin.SetMode(cfg.GinMode)
@@ -142,11 +144,13 @@ func main() {
 			tasks.POST("", taskHandler.Create)
 			tasks.GET("", taskHandler.List)
 			tasks.GET("/calendar", taskHandler.GetCalendar)
+			tasks.POST("/suggest-category", insightsHandler.SuggestCategory)
 			tasks.GET("/:id", taskHandler.Get)
 			tasks.PUT("/:id", taskHandler.Update)
 			tasks.DELETE("/:id", taskHandler.Delete)
 			tasks.POST("/:id/bump", taskHandler.Bump)
 			tasks.POST("/:id/complete", taskHandler.Complete)
+			tasks.GET("/:id/estimate", insightsHandler.GetTimeEstimate)
 		}
 
 		// Category routes (protected)
@@ -163,6 +167,13 @@ func main() {
 		{
 			analytics.GET("/summary", analyticsHandler.GetSummary)
 			analytics.GET("/trends", analyticsHandler.GetTrends)
+		}
+
+		// Insights routes (protected)
+		insights := v1.Group("/insights")
+		insights.Use(middleware.AuthRequired(cfg.JWTSecret))
+		{
+			insights.GET("", insightsHandler.GetInsights)
 		}
 	}
 
