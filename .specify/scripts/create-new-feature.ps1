@@ -105,11 +105,14 @@ function Get-NextBranchNumber {
         [string]$SpecsDir
     )
     
-    # Fetch all remotes to get latest branch info (suppress errors if no remotes)
+    # Fetch all remotes to get latest branch info
     try {
-        git fetch --all --prune 2>$null | Out-Null
+        $fetchOutput = git fetch --all --prune 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "[specify] Could not fetch from remote (offline or no remote configured). Using local branch info only."
+        }
     } catch {
-        # Ignore fetch errors
+        Write-Warning "[specify] Could not fetch from remote: $_. Using local branch info only."
     }
     
     # Find remote branches matching the pattern using git ls-remote
@@ -193,7 +196,7 @@ try {
 
 Set-Location $repoRoot
 
-$specsDir = Join-Path $repoRoot 'specs'
+$specsDir = Join-Path $repoRoot '.specify/specs'
 New-Item -ItemType Directory -Path $specsDir -Force | Out-Null
 
 # Function to generate branch name with stop word filtering and length filtering
@@ -287,9 +290,14 @@ if ($branchName.Length -gt $maxBranchLength) {
 
 if ($hasGit) {
     try {
-        git checkout -b $branchName | Out-Null
+        git checkout -b $branchName 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "[specify] Failed to create git branch '$branchName'. Branch may already exist or git operation failed."
+            exit 1
+        }
     } catch {
-        Write-Warning "Failed to create git branch: $branchName"
+        Write-Error "[specify] Failed to create git branch '$branchName': $_"
+        exit 1
     }
 } else {
     Write-Warning "[specify] Warning: Git repository not detected; skipped branch creation for $branchName"

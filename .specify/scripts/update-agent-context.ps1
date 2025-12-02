@@ -414,7 +414,7 @@ function Update-AllExistingAgents {
     return $ok
 }
 
-function Print-Summary {
+function Write-Summary {
     Write-Host ''
     Write-Info 'Summary of changes:'
     if ($NEW_LANG) { Write-Host "  - Added language: $NEW_LANG" }
@@ -437,7 +437,7 @@ function Main {
         Write-Info 'No agent specified, updating all existing agent files...'
         if (-not (Update-AllExistingAgents)) { $success = $false }
     }
-    Print-Summary
+    Write-Summary
     if ($success) { Write-Success 'Agent context update completed successfully'; exit 0 } else { Write-Err 'Agent context update completed with errors'; exit 1 }
 }
 
