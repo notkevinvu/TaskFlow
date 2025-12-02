@@ -34,6 +34,13 @@ type TaskRepository interface {
 	GetCategoryBreakdown(ctx context.Context, userID string, daysBack int) ([]repository.CategoryStats, error)
 	GetVelocityMetrics(ctx context.Context, userID string, daysBack int) ([]repository.VelocityMetrics, error)
 	GetPriorityDistribution(ctx context.Context, userID string) ([]repository.PriorityDistribution, error)
+	// Insights analytics methods
+	GetCategoryBumpStats(ctx context.Context, userID string) ([]domain.CategoryBumpStats, error)
+	GetCompletionByDayOfWeek(ctx context.Context, userID string, daysBack int) ([]domain.DayOfWeekStats, error)
+	GetAgingQuickWins(ctx context.Context, userID string, minAgeDays int, limit int) ([]*domain.Task, error)
+	GetDeadlineClusters(ctx context.Context, userID string, windowDays int) ([]domain.DeadlineCluster, error)
+	GetCompletionTimeStats(ctx context.Context, userID string, category *string, effort *domain.TaskEffort) (*domain.CompletionTimeStats, error)
+	GetCategoryDistribution(ctx context.Context, userID string) ([]domain.CategoryDistribution, error)
 }
 
 // TaskHistoryRepository defines the interface for task history data access

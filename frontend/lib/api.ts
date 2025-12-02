@@ -278,3 +278,69 @@ export const analyticsAPI = {
   getTrends: (params?: { days?: number }) =>
     api.get<AnalyticsTrends>('/api/v1/analytics/trends', { params }),
 };
+
+// =============================================================================
+// Insights Types & API
+// =============================================================================
+
+export type InsightType =
+  | 'avoidance_pattern'
+  | 'peak_performance'
+  | 'quick_wins'
+  | 'deadline_clustering'
+  | 'at_risk_alert'
+  | 'category_overload';
+
+export type InsightPriority = 1 | 2 | 3 | 4 | 5;
+
+export interface Insight {
+  type: InsightType;
+  title: string;
+  message: string;
+  priority: InsightPriority;
+  action_url?: string;
+  data?: Record<string, unknown>;
+  generated_at: string;
+}
+
+export interface InsightResponse {
+  insights: Insight[];
+  cached_at: string;
+}
+
+export interface TimeEstimate {
+  estimated_days: number;
+  confidence_level: 'low' | 'medium' | 'high';
+  based_on: number;
+  factors: {
+    base_estimate: number;
+    category_factor: number;
+    effort_factor: number;
+    bump_factor: number;
+  };
+}
+
+export interface CategorySuggestion {
+  category: string;
+  confidence: number;
+  matched_keywords?: string[];
+}
+
+export interface CategorySuggestionResponse {
+  suggestions: CategorySuggestion[];
+}
+
+// Insights API
+export const insightsAPI = {
+  // Get smart suggestions and insights
+  getInsights: () =>
+    api.get<InsightResponse>('/api/v1/insights'),
+
+  // Get time estimate for a specific task
+  getTimeEstimate: (taskId: string) =>
+    api.get<TimeEstimate>(`/api/v1/tasks/${taskId}/estimate`),
+
+  // Get category suggestions based on task content
+  suggestCategory: (data: { title: string; description?: string }) =>
+    api.post<CategorySuggestionResponse>('/api/v1/tasks/suggest-category', data),
+};

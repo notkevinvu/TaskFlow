@@ -27,3 +27,10 @@ type TaskService interface {
 	RenameCategory(ctx context.Context, userID, oldName, newName string) (int, error)
 	DeleteCategory(ctx context.Context, userID, categoryName string) (int, error)
 }
+
+// InsightsService defines the interface for smart insights and suggestions
+type InsightsService interface {
+	GetInsights(ctx context.Context, userID string) (*domain.InsightResponse, error)
+	EstimateCompletionTime(ctx context.Context, userID string, task *domain.Task) (*domain.TimeEstimate, error)
+	SuggestCategory(ctx context.Context, userID string, req *domain.CategorySuggestionRequest) (*domain.CategorySuggestionResponse, error)
+}

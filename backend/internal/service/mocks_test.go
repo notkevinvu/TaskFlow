@@ -123,6 +123,56 @@ func (m *MockTaskRepository) GetPriorityDistribution(ctx context.Context, userID
 	return args.Get(0).([]repository.PriorityDistribution), args.Error(1)
 }
 
+// Insights-related methods
+
+func (m *MockTaskRepository) GetCategoryBumpStats(ctx context.Context, userID string) ([]domain.CategoryBumpStats, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.CategoryBumpStats), args.Error(1)
+}
+
+func (m *MockTaskRepository) GetCompletionByDayOfWeek(ctx context.Context, userID string, daysBack int) ([]domain.DayOfWeekStats, error) {
+	args := m.Called(ctx, userID, daysBack)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.DayOfWeekStats), args.Error(1)
+}
+
+func (m *MockTaskRepository) GetAgingQuickWins(ctx context.Context, userID string, minAgeDays int, limit int) ([]*domain.Task, error) {
+	args := m.Called(ctx, userID, minAgeDays, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Task), args.Error(1)
+}
+
+func (m *MockTaskRepository) GetDeadlineClusters(ctx context.Context, userID string, windowDays int) ([]domain.DeadlineCluster, error) {
+	args := m.Called(ctx, userID, windowDays)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.DeadlineCluster), args.Error(1)
+}
+
+func (m *MockTaskRepository) GetCompletionTimeStats(ctx context.Context, userID string, category *string, effort *domain.TaskEffort) (*domain.CompletionTimeStats, error) {
+	args := m.Called(ctx, userID, category, effort)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.CompletionTimeStats), args.Error(1)
+}
+
+func (m *MockTaskRepository) GetCategoryDistribution(ctx context.Context, userID string) ([]domain.CategoryDistribution, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.CategoryDistribution), args.Error(1)
+}
+
 // MockTaskHistoryRepository is a mock implementation of ports.TaskHistoryRepository
 type MockTaskHistoryRepository struct {
 	mock.Mock
