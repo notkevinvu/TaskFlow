@@ -1,23 +1,23 @@
 # TaskFlow - Project Status
 
-**Last Updated:** 2025-11-25
+**Last Updated:** 2025-12-02
 
 ---
 
-## 📊 Overall Progress
+## Overall Progress
 
 ```
 Phase 1: Frontend & Database Setup     [████████████████████] 100%
 Phase 2: Backend Implementation        [████████████████████] 100%
 Phase 2 Enhancements                   [████████████████████] 100%
-Phase 2.5: Quick Wins + Core Features  [░░░░░░░░░░░░░░░░░░░░]   0%  ← YOU ARE HERE
-Phase 3: Production Readiness          [░░░░░░░░░░░░░░░░░░░░]   0%
+Phase 2.5: Quick Wins + Core Features  [████████████████████] 100%
+Phase 3: Production Readiness          [████████████░░░░░░░░]  60%  <- YOU ARE HERE
 Phase 4: Advanced Features             [░░░░░░░░░░░░░░░░░░░░]   0%
 ```
 
 ---
 
-## ✅ Completed Features
+## Completed Features
 
 ### Phase 1: Frontend & Database (Completed)
 - [x] Next.js 16 + React 19 + TypeScript setup
@@ -29,7 +29,7 @@ Phase 4: Advanced Features             [░░░░░░░░░░░░░�
 - [x] Header/footer layout components
 
 ### Phase 2: Backend Implementation (Completed)
-- [x] Go 1.23 backend with Gin framework
+- [x] Go 1.24 backend with Gin framework
 - [x] Clean Architecture structure (handler → service → repository layers)
 - [x] PostgreSQL migrations (users, tasks tables)
 - [x] JWT authentication
@@ -52,66 +52,56 @@ Phase 4: Advanced Features             [░░░░░░░░░░░░░�
 - [x] Priority scale refinement (#3)
 - [x] UX polish and hover states (#3)
 
----
+### Phase 2.5: Quick Wins + Core Features (Completed)
+- [x] **Security:** JWT_SECRET required (panics if missing)
+- [x] **Calendar:** Popover collision detection (`avoidCollisions={true}`)
+- [x] **Categories:** CategorySelect dropdown in task forms
+- [x] **Categories:** Display badges on task cards
+- [x] **Search:** TaskSearch component with debouncing
+- [x] **Filtering:** TaskFilters component (category, status, priority)
+- [x] **Analytics:** Recharts integration
+- [x] **Analytics:** CompletionChart, CategoryChart, PriorityChart, BumpChart
+- [x] **Design System:** Documentation in `docs/design-system.md` (PR #9)
 
-## 🚧 In Progress: Phase 2.5 - Quick Wins + Core Features
+### Phase 3: Production Readiness (In Progress)
 
-**Timeline:** 7-10 days
-**Goal:** Polish UX, add core features, fix critical security issues
+#### Completed (PRs #10-#23)
+- [x] **sqlc Migration** - Type-safe SQL queries (PR #10)
+- [x] **Interface-Based DI** - Testable architecture (PR #11)
+- [x] **Custom Error Types** - ValidationError, NotFoundError, etc. (PR #12)
+- [x] **Input Validation** - Text sanitization, length limits (PR #12)
+- [x] **Structured Logging** - slog with JSON/text modes (PR #14)
+- [x] **Redis Rate Limiting** - With in-memory fallback (PR #15)
+- [x] **Database Indexes** - Composite indexes for search performance (PR #16)
+- [x] **Testing Infrastructure** - testify, testcontainers setup (PR #17)
+- [x] **AuthHandler Tests** - Comprehensive auth endpoint tests (PR #17)
+- [x] **Test Improvements** - Based on code review feedback (PR #18)
+- [x] **TaskHandler Tests** - Comprehensive task endpoint tests (PR #19)
+- [x] **GitHub Actions CI/CD** - Automated testing pipeline (PR #22)
+- [x] **Frontend Error Handling** - Shared utilities, global query cache (PR #23)
+- [x] **Health Endpoints** - `/health` with database + Redis checks
 
-### Day 1: Critical Fixes & Quick Wins
-**Morning:**
-- [ ] Security: Remove JWT_SECRET defaults (make required)
-- [ ] UX: Fix calendar popover positioning (collision detection)
-
-**Afternoon:**
-- [ ] Categories: Add dropdown to task forms
-- [ ] Categories: Display badges on task cards
-
-### Days 2-3: Search & Filtering
-- [ ] Backend: Search/filter API endpoints
-- [ ] Frontend: Search input with debouncing
-- [ ] Frontend: Filter UI (category, status, priority)
-- [ ] Integration: Combine filters, maintain sorting
-
-### Days 4-6: Analytics Dashboard
-- [ ] Backend: Analytics aggregation queries
-- [ ] Frontend: Install Recharts
-- [ ] Frontend: Build chart components (completion, velocity, category breakdown)
-- [ ] Integration: Connect charts to live data
-
-### Day 7: Design System Documentation
-- [ ] Audit all components used
-- [ ] Document patterns in `docs/design-system.md`
-- [ ] Add code examples and guidelines
-
----
-
-## 📅 Upcoming: Phase 3 - Production Readiness
-
-**Timeline:** 2 weeks
-**Goal:** Harden for production deployment
-
-### Week 1: Backend Hardening
-- [ ] Interface-based dependency injection
-- [ ] Unit tests (services, priority calculator)
-- [ ] Integration tests (repositories with testcontainers)
-- [ ] Test coverage > 70%
-
-### Week 2: Infrastructure
-- [ ] Redis rate limiting migration
-- [ ] Structured logging with slog
-- [ ] CI/CD pipeline (GitHub Actions)
-- [ ] Health check endpoints
-- [ ] ~~Multi-stage Docker builds~~ (Deferred - not needed for local dev)
+#### Remaining
+- [ ] **Test Coverage Target** - Currently at 19.2%, target is 70%
+  - priority: 100% ✅
+  - config: 81.2% ✅
+  - validation: 84.4% ✅
+  - logger: 100% ✅
+  - handler: 60.2% (needs improvement)
+  - repository: 1.2% ❌
+  - service: 0% ❌
+  - middleware: 0% ❌
+- [ ] **Frontend Tests** - Vitest not yet configured
+- [ ] **Service Layer Tests** - Unit tests for TaskService, AuthService
+- [ ] **Repository Integration Tests** - Tests with testcontainers
 
 ---
 
-## 🔮 Future: Phase 4 - Advanced Features
+## Upcoming: Phase 4 - Advanced Features
 
 **Deferred features awaiting Phase 3 completion:**
 
-- **Anonymous user support** (Phase 3.5 or early Phase 4) - Allow trial without registration
+- **Anonymous user support** - Allow trial without registration
 - Background jobs & workers
 - Advanced analytics (ML predictions)
 - Performance optimization
@@ -121,62 +111,64 @@ Phase 4: Advanced Features             [░░░░░░░░░░░░░�
 
 ---
 
-## 🎯 Current Focus: Phase 2.5 Day 1
+## Current Focus: Phase 3 Completion
 
 ### Immediate Next Steps
 
-1. **Create feature branch:** `git checkout -b feature/phase-2.5-quick-wins`
+1. **Increase Test Coverage** (Primary Goal)
+   - Add service layer tests (TaskService, AuthService)
+   - Add repository integration tests
+   - Add middleware tests (auth, rate limiting)
+   - Target: 70% overall coverage
 
-2. **Security Fix** (30 minutes)
-   - File: `backend/internal/config/config.go`
-   - Action: Make JWT_SECRET required (panic if missing)
-   - Verify: Backend crashes without JWT_SECRET
+2. **Configure Frontend Tests**
+   - Set up Vitest with happy-dom
+   - Add component tests for critical UI
+   - Configure coverage reporting
 
-3. **Calendar Popover** (1-2 hours)
-   - File: `frontend/components/calendar/MiniCalendar.tsx` or similar
-   - Action: Add collision detection, adjust positioning
-   - Verify: Popover stays within viewport
-
-4. **Categories Dropdown** (2-3 hours)
-   - Files: `frontend/components/tasks/TaskForm.tsx`, task cards
-   - Action: Add category select, display badges
-   - Verify: Can create/edit tasks with categories
+3. **Optional Enhancements**
+   - Date range picker for task filtering
+   - Filter presets (High Priority, Due This Week, etc.)
+   - Filter URL persistence for shareable links
 
 ---
 
-## 📦 Technology Stack
+## Technology Stack
 
 ### Frontend
 - **Framework:** Next.js 16 (App Router)
 - **Language:** TypeScript
 - **Styling:** Tailwind CSS
 - **Components:** shadcn/ui
-- **State:** React Query (data fetching), useState/Context (local state)
-- **Forms:** React Hook Form (planned)
-- **Charts:** Recharts (planned for analytics)
+- **State:** React Query (server state), Zustand (auth state)
+- **Charts:** Recharts
+- **Testing:** Vitest (planned)
 
 ### Backend
-- **Language:** Go 1.23
+- **Language:** Go 1.24
 - **Framework:** Gin
 - **Architecture:** Clean Architecture (ports & adapters)
 - **Database:** PostgreSQL 16 (Supabase)
-- **ORM:** pgx (connection pooling)
+- **ORM:** sqlc + pgx
 - **Auth:** JWT (golang-jwt/jwt/v5)
 - **Password:** bcrypt
+- **Logging:** slog (structured)
+- **Rate Limiting:** Redis with in-memory fallback
+- **Testing:** testify, testcontainers
 
 ### Infrastructure
 - **Database:** Supabase PostgreSQL
+- **Cache:** Redis (rate limiting)
+- **CI/CD:** GitHub Actions
 - **Development:** Local backend + Supabase cloud
-- **Planned:** Redis (rate limiting), GitHub Actions (CI/CD)
-- **Deferred:** Docker (only if specifically needed for deployment)
 
 ---
 
-## 📁 Key Files Reference
+## Key Files Reference
 
 ### Documentation
-- `docs/implementation/phase-2.5-quick-wins-and-core-features.md` - Current phase plan
 - `docs/implementation/phase-3-weeks-5-6.md` - Production readiness plan
+- `docs/implementation/phase-4-month-2-plus.md` - Advanced features plan
 - `docs/architecture/backend-analysis-report.md` - Architecture review
 - `docs/design-system.md` - UI/UX patterns
 - `docs/product/PRD.md` - Product requirements
@@ -185,85 +177,71 @@ Phase 4: Advanced Features             [░░░░░░░░░░░░░�
 - `backend/cmd/server/main.go` - Application entry point
 - `backend/internal/handler/task_handler.go` - Task API endpoints
 - `backend/internal/service/task_service.go` - Task business logic
-- `backend/internal/service/priority_service.go` - **Priority algorithm**
+- `backend/internal/domain/priority/calculator.go` - Priority algorithm
 - `backend/internal/repository/task_repository.go` - Database queries
-- `backend/internal/config/config.go` - Configuration (JWT_SECRET issue)
+- `backend/internal/sqlc/` - Generated type-safe SQL
 
 ### Frontend Core
 - `frontend/app/(dashboard)/dashboard/page.tsx` - Main task list
+- `frontend/app/(dashboard)/analytics/page.tsx` - Analytics dashboard
 - `frontend/hooks/useTasks.ts` - React Query hooks
-- `frontend/lib/api.ts` - API client
-- `frontend/components/ui/` - shadcn components
+- `frontend/hooks/useAnalytics.ts` - Analytics hooks
+- `frontend/lib/api.ts` - API client with error utilities
+- `frontend/components/charts/` - Recharts components
 
 ---
 
-## 🐛 Known Issues
+## Metrics
 
-### Critical (Phase 2.5 will fix)
-1. JWT_SECRET has unsafe defaults in config
-2. Calendar popover can overflow viewport
-3. No task categories in UI (backend field exists)
-4. No search/filtering functionality
-
-### Important (Phase 3 will fix)
-1. In-memory rate limiting (doesn't scale)
-2. No structured logging (uses log.Println)
-3. No automated tests
-4. Handlers tightly coupled to concrete services
-
-### Nice to Have (Phase 4+)
-1. No real-time updates
-2. No mobile app
-3. No advanced analytics visualizations
-
----
-
-## 📈 Metrics
+### Test Coverage (Backend)
+```
+total:                    19.2%
+priority:                100.0% ✅
+logger:                  100.0% ✅
+validation:               84.4% ✅
+config:                   81.2% ✅
+handler:                  60.2% ⚠️
+repository:                1.2% ❌
+service:                   0.0% ❌
+middleware:                0.0% ❌
+```
 
 ### Codebase
-- **Backend Files:** ~25 Go files
-- **Frontend Files:** ~40 TypeScript/TSX files
-- **Test Coverage:** 0% (tests planned for Phase 3)
+- **Backend Files:** ~35 Go files
+- **Frontend Files:** ~50 TypeScript/TSX files
 - **API Endpoints:** ~15 endpoints
-
-### Features
-- **Complete:** 3 major phases
-- **In Progress:** 1 phase (Phase 2.5)
-- **Planned:** 2 phases (Phase 3, Phase 4)
+- **Merged PRs:** 23
 
 ---
 
-## 🎯 Success Criteria
-
-### Phase 2.5 Exit Criteria
-- [ ] No critical security issues
-- [ ] Core features complete (search, filter, analytics, categories)
-- [ ] Polished UX (calendar, design consistency)
-- [ ] Design system documented
+## Success Criteria
 
 ### Phase 3 Exit Criteria
+- [x] Structured logging implemented (slog)
+- [x] Scalable rate limiting (Redis)
+- [x] CI/CD pipeline running
+- [x] Health check endpoints
+- [x] Interface-based DI
+- [x] Custom error types
 - [ ] Test coverage > 70%
-- [ ] Structured logging implemented
-- [ ] Scalable rate limiting (Redis)
-- [ ] CI/CD pipeline running
-- [ ] ~~Production-ready Docker builds~~ (Deferred)
+- [ ] Frontend tests configured
 
 ### Production Launch Criteria
-- [ ] All Phase 2.5 features complete
+- [x] All Phase 2.5 features complete
 - [ ] All Phase 3 features complete
-- [ ] No critical bugs
+- [ ] Test coverage > 70%
 - [ ] Performance tested
 - [ ] Security reviewed
 - [ ] Monitoring/alerting configured
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 When starting new work:
 1. Check this document for current phase
 2. Read the relevant implementation plan in `docs/implementation/`
-3. Create a feature branch: `feature/phase-X-feature-name`
+3. Create a feature branch from up-to-date main: `feature/phase-X-feature-name`
 4. Update checklists as you complete tasks
 5. Create PR when feature is complete
 
