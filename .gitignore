@@ -12,3 +12,7 @@ Thumbs.db
 # Environment files
 .env.local
 .env.*.local
+
+# Demongrep (codebase search tool)
+.demongrep.db/
+.fastembed_cache/
