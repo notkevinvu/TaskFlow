@@ -46,6 +46,9 @@ export function useTimeEstimate(taskId: string | undefined) {
 /**
  * Fetch category suggestions for task content.
  * This is a one-time fetch, not a reactive query, so we use a plain function.
+ *
+ * @throws Error if the API call fails - callers should handle errors appropriately
+ * (e.g., show toast, fallback to empty suggestions, etc.)
  */
 export async function suggestCategory(
   title: string,
@@ -55,7 +58,23 @@ export async function suggestCategory(
     const response = await insightsAPI.suggestCategory({ title, description });
     return response.data;
   } catch (error) {
-    console.error('[suggestCategory]', error);
+    // Log error for debugging but propagate to caller
+    throw new Error(getApiErrorMessage(error, 'Failed to fetch category suggestions', 'suggestCategory'));
+  }
+}
+
+/**
+ * Safe version of suggestCategory that returns empty suggestions on error.
+ * Use this when you want graceful degradation (e.g., auto-suggest while typing).
+ */
+export async function suggestCategorySafe(
+  title: string,
+  description?: string
+): Promise<CategorySuggestionResponse> {
+  try {
+    return await suggestCategory(title, description);
+  } catch {
+    // Silently fail and return empty suggestions
     return { suggestions: [] };
   }
 }

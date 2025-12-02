@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -64,7 +66,12 @@ func (s *InsightsService) GetInsights(ctx context.Context, userID string) (*doma
 // checkAvoidancePattern detects categories with high average bump counts
 func (s *InsightsService) checkAvoidancePattern(ctx context.Context, userID string) *domain.Insight {
 	stats, err := s.taskRepo.GetCategoryBumpStats(ctx, userID)
-	if err != nil || len(stats) == 0 {
+	if err != nil {
+		slog.Warn("Failed to get category bump stats for avoidance pattern insight",
+			"user_id", userID, "error", err)
+		return nil
+	}
+	if len(stats) == 0 {
 		return nil
 	}
 
@@ -92,12 +99,24 @@ func (s *InsightsService) checkAvoidancePattern(ctx context.Context, userID stri
 // checkPeakPerformance identifies the day when user completes most tasks
 func (s *InsightsService) checkPeakPerformance(ctx context.Context, userID string) *domain.Insight {
 	stats, err := s.taskRepo.GetCompletionByDayOfWeek(ctx, userID, 90) // Last 90 days
-	if err != nil || len(stats) == 0 {
+	if err != nil {
+		slog.Warn("Failed to get completion stats by day of week for peak performance insight",
+			"user_id", userID, "error", err)
+		return nil
+	}
+	if len(stats) == 0 {
 		return nil
 	}
 
 	// Need at least 5 completions to be meaningful
 	if stats[0].CompletedCount < 5 {
+		return nil
+	}
+
+	// Bounds check for DayOfWeek (0=Sunday, 6=Saturday)
+	if stats[0].DayOfWeek < 0 || stats[0].DayOfWeek > 6 {
+		slog.Warn("Invalid day of week value from database",
+			"user_id", userID, "day_of_week", stats[0].DayOfWeek)
 		return nil
 	}
 
@@ -121,7 +140,12 @@ func (s *InsightsService) checkPeakPerformance(ctx context.Context, userID strin
 // checkQuickWins finds small effort tasks that are aging
 func (s *InsightsService) checkQuickWins(ctx context.Context, userID string) *domain.Insight {
 	tasks, err := s.taskRepo.GetAgingQuickWins(ctx, userID, 5, 10) // 5+ days old, limit 10
-	if err != nil || len(tasks) == 0 {
+	if err != nil {
+		slog.Warn("Failed to get aging quick wins for insight",
+			"user_id", userID, "error", err)
+		return nil
+	}
+	if len(tasks) == 0 {
 		return nil
 	}
 
@@ -156,7 +180,12 @@ func (s *InsightsService) checkQuickWins(ctx context.Context, userID string) *do
 // checkDeadlineClustering finds dates with multiple tasks due
 func (s *InsightsService) checkDeadlineClustering(ctx context.Context, userID string) *domain.Insight {
 	clusters, err := s.taskRepo.GetDeadlineClusters(ctx, userID, 14) // Next 14 days
-	if err != nil || len(clusters) == 0 {
+	if err != nil {
+		slog.Warn("Failed to get deadline clusters for insight",
+			"user_id", userID, "error", err)
+		return nil
+	}
+	if len(clusters) == 0 {
 		return nil
 	}
 
@@ -181,7 +210,12 @@ func (s *InsightsService) checkDeadlineClustering(ctx context.Context, userID st
 // checkAtRiskTasks finds tasks with high bump counts
 func (s *InsightsService) checkAtRiskTasks(ctx context.Context, userID string) *domain.Insight {
 	tasks, err := s.taskRepo.FindAtRiskTasks(ctx, userID)
-	if err != nil || len(tasks) == 0 {
+	if err != nil {
+		slog.Warn("Failed to get at-risk tasks for insight",
+			"user_id", userID, "error", err)
+		return nil
+	}
+	if len(tasks) == 0 {
 		return nil
 	}
 
@@ -219,7 +253,12 @@ func (s *InsightsService) checkAtRiskTasks(ctx context.Context, userID string) *
 // checkCategoryOverload finds if a single category dominates the backlog
 func (s *InsightsService) checkCategoryOverload(ctx context.Context, userID string) *domain.Insight {
 	dist, err := s.taskRepo.GetCategoryDistribution(ctx, userID)
-	if err != nil || len(dist) == 0 {
+	if err != nil {
+		slog.Warn("Failed to get category distribution for insight",
+			"user_id", userID, "error", err)
+		return nil
+	}
+	if len(dist) == 0 {
 		return nil
 	}
 
@@ -349,7 +388,11 @@ func (s *InsightsService) SuggestCategory(ctx context.Context, userID string, re
 
 	// Also check user's existing categories
 	existingCategories, err := s.taskRepo.GetCategories(ctx, userID)
-	if err == nil {
+	if err != nil {
+		slog.Warn("Failed to get existing categories for suggestions",
+			"user_id", userID, "error", err)
+		// Continue with pattern-based suggestions only
+	} else {
 		for _, existingCat := range existingCategories {
 			catLower := strings.ToLower(existingCat)
 			if strings.Contains(text, catLower) {
@@ -357,7 +400,8 @@ func (s *InsightsService) SuggestCategory(ctx context.Context, userID string, re
 				found := false
 				for i, s := range suggestions {
 					if strings.EqualFold(s.Category, existingCat) {
-						suggestions[i].Confidence += 0.2 // Boost existing category matches
+						// Boost existing category matches, clamped to max 1.0
+						suggestions[i].Confidence = math.Min(suggestions[i].Confidence+0.2, 1.0)
 						found = true
 						break
 					}
