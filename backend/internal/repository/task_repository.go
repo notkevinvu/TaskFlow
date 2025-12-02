@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -1001,11 +1002,12 @@ func (r *TaskRepository) GetCategoryTrends(ctx context.Context, userID string, d
 		categorySet[row.Category] = true
 	}
 
-	// Build unique categories list
+	// Build unique categories list and sort for deterministic ordering
 	categories := make([]string, 0, len(categorySet))
 	for cat := range categorySet {
 		categories = append(categories, cat)
 	}
+	sort.Strings(categories)
 
 	// Convert to ordered slice of CategoryTrendPoint
 	weeks := make([]domain.CategoryTrendPoint, 0, len(weekMap))
@@ -1016,14 +1018,10 @@ func (r *TaskRepository) GetCategoryTrends(ctx context.Context, userID string, d
 		})
 	}
 
-	// Sort by week start date
-	for i := 0; i < len(weeks)-1; i++ {
-		for j := i + 1; j < len(weeks); j++ {
-			if weeks[i].WeekStart > weeks[j].WeekStart {
-				weeks[i], weeks[j] = weeks[j], weeks[i]
-			}
-		}
-	}
+	// Sort by week start date using sort.Slice (O(n log n))
+	sort.Slice(weeks, func(i, j int) bool {
+		return weeks[i].WeekStart < weeks[j].WeekStart
+	})
 
 	return &domain.CategoryTrends{
 		Weeks:      weeks,

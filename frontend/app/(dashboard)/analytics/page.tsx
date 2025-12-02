@@ -18,8 +18,8 @@ export default function AnalyticsPage() {
 
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useAnalyticsSummary(timePeriod);
   const { data: trends, isLoading: trendsLoading, error: trendsError } = useAnalyticsTrends(timePeriod);
-  const { data: heatmapData, isLoading: heatmapLoading } = useProductivityHeatmap(90); // Use 90 days for heatmap
-  const { data: categoryTrendsData, isLoading: categoryTrendsLoading } = useCategoryTrends(90); // Use 90 days for trends
+  const { data: heatmapData, isLoading: heatmapLoading, error: heatmapError } = useProductivityHeatmap(90);
+  const { data: categoryTrendsData, isLoading: categoryTrendsLoading, error: categoryTrendsError } = useCategoryTrends(90);
 
   const isLoading = summaryLoading || trendsLoading;
 
@@ -229,6 +229,14 @@ export default function AnalyticsPage() {
         <div className="lg:col-span-2">
           {heatmapLoading ? (
             <Skeleton className="h-64" />
+          ) : heatmapError ? (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-center text-destructive">
+                  Failed to load productivity heatmap. Please try again.
+                </p>
+              </CardContent>
+            </Card>
           ) : heatmapData ? (
             <ProductivityHeatmap data={heatmapData} />
           ) : null}
@@ -238,6 +246,14 @@ export default function AnalyticsPage() {
         <div className="lg:col-span-2">
           {categoryTrendsLoading ? (
             <Skeleton className="h-64" />
+          ) : categoryTrendsError ? (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-center text-destructive">
+                  Failed to load category trends. Please try again.
+                </p>
+              </CardContent>
+            </Card>
           ) : categoryTrendsData ? (
             <CategoryTrendsChart data={categoryTrendsData} />
           ) : null}

@@ -32,7 +32,8 @@ const CATEGORY_COLORS = [
 export function CategoryTrendsChart({ data }: CategoryTrendsChartProps) {
   const { trends } = data;
 
-  if (!trends.weeks || trends.weeks.length === 0) {
+  // Guard against missing or empty data
+  if (!trends?.weeks || trends.weeks.length === 0 || !trends?.categories) {
     return (
       <Card>
         <CardHeader>
@@ -53,9 +54,9 @@ export function CategoryTrendsChart({ data }: CategoryTrendsChartProps) {
       week: new Date(week.week_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     };
 
-    // Add each category's count
+    // Add each category's count (with null guard for week.categories)
     trends.categories.forEach(category => {
-      point[category] = week.categories[category] || 0;
+      point[category] = week.categories?.[category] ?? 0;
     });
 
     return point;
@@ -65,7 +66,7 @@ export function CategoryTrendsChart({ data }: CategoryTrendsChartProps) {
   const categoryTotals: Record<string, number> = {};
   trends.categories.forEach(category => {
     categoryTotals[category] = trends.weeks.reduce((sum, week) => {
-      return sum + (week.categories[category] || 0);
+      return sum + (week.categories?.[category] ?? 0);
     }, 0);
   });
 

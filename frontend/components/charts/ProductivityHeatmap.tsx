@@ -35,6 +35,22 @@ function getColorIntensity(count: number, maxCount: number): string {
 export function ProductivityHeatmap({ data }: ProductivityHeatmapProps) {
   const { heatmap } = data;
 
+  // Guard against missing heatmap data
+  if (!heatmap?.cells) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Productivity Heatmap</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-48 flex items-center justify-center text-muted-foreground">
+            No heatmap data available
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // Create a lookup map for quick access
   const cellMap = new Map<string, number>();
   heatmap.cells.forEach(cell => {
