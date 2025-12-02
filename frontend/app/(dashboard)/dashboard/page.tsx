@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useTasks, useBumpTask, useCompleteTask, useDeleteTask, useAtRiskTasks, type TaskFilters as TaskFiltersType } from '@/hooks/useTasks';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,16 +16,107 @@ import { TaskFilters, type TaskFilterState } from "@/components/TaskFilters";
 import { Plus, Trash2, Pencil, FolderKanban, Loader2 } from "lucide-react";
 import { Task } from "@/lib/api";
 
+// Valid status values for validation
+const VALID_STATUSES = ['todo', 'in_progress', 'done'];
+
+// Validate date string format (YYYY-MM-DD) and that it parses to a valid date
+function isValidDateString(dateStr: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+}
+
+// Helper to parse filters from URL search params with validation
+function parseFiltersFromURL(searchParams: URLSearchParams): TaskFilterState {
+  const filters: TaskFilterState = {};
+  const status = searchParams.get('status');
+  const category = searchParams.get('category');
+  const minPriority = searchParams.get('minPriority');
+  const maxPriority = searchParams.get('maxPriority');
+  const dueDateStart = searchParams.get('dueDateStart');
+  const dueDateEnd = searchParams.get('dueDateEnd');
+
+  // Validate status against known values
+  if (status && VALID_STATUSES.includes(status)) {
+    filters.status = status;
+  }
+
+  if (category) filters.category = category;
+
+  // Validate priority values are numbers in valid range (0-100)
+  if (minPriority) {
+    const parsed = parseInt(minPriority, 10);
+    if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+      filters.minPriority = parsed;
+    }
+  }
+  if (maxPriority) {
+    const parsed = parseInt(maxPriority, 10);
+    if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+      filters.maxPriority = parsed;
+    }
+  }
+
+  // Validate date strings
+  if (dueDateStart && isValidDateString(dueDateStart)) {
+    filters.dueDateStart = dueDateStart;
+  }
+  if (dueDateEnd && isValidDateString(dueDateEnd)) {
+    filters.dueDateEnd = dueDateEnd;
+  }
+
+  return filters;
+}
+
+// Helper to serialize filters to URL search params
+function serializeFiltersToURL(
+  filters: TaskFilterState,
+  search: string,
+  taskId: string | null
+): string {
+  const params = new URLSearchParams();
+
+  if (search) params.set('search', search);
+  if (taskId) params.set('taskId', taskId);
+  if (filters.status) params.set('status', filters.status);
+  if (filters.category) params.set('category', filters.category);
+  if (filters.minPriority !== undefined) params.set('minPriority', filters.minPriority.toString());
+  if (filters.maxPriority !== undefined) params.set('maxPriority', filters.maxPriority.toString());
+  if (filters.dueDateStart) params.set('dueDateStart', filters.dueDateStart);
+  if (filters.dueDateEnd) params.set('dueDateEnd', filters.dueDateEnd);
+
+  const queryString = params.toString();
+  return queryString ? `?${queryString}` : '';
+}
+
 export default function DashboardPage() {
   const searchParams = useSearchParams();
-  // Initialize selectedTaskId from URL on first render
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Initialize state from URL on first render
   const initialTaskId = searchParams.get('taskId');
+  const initialSearch = searchParams.get('search') || '';
+  const initialFilters = parseFiltersFromURL(searchParams);
+
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialTaskId);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState<TaskFilterState>({});
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [filters, setFilters] = useState<TaskFilterState>(initialFilters);
+
+  // Update URL when filters change (debounced via useEffect)
+  useEffect(() => {
+    const newUrl = pathname + serializeFiltersToURL(filters, searchQuery, selectedTaskId);
+    const currentUrl = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : '');
+
+    // Only update if URL actually changed
+    if (newUrl !== currentUrl) {
+      router.replace(newUrl, { scroll: false });
+    }
+  }, [filters, searchQuery, selectedTaskId, pathname, router, searchParams]);
 
   // Build filter params for API
   const filterParams: TaskFiltersType = {
@@ -34,6 +125,8 @@ export default function DashboardPage() {
     category: filters.category,
     min_priority: filters.minPriority,
     max_priority: filters.maxPriority,
+    due_date_start: filters.dueDateStart,
+    due_date_end: filters.dueDateEnd,
   };
 
   const { data: tasksData, isLoading, isFetching } = useTasks(filterParams);
