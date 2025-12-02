@@ -403,7 +403,8 @@ func TestRedisLimiter_GetLimitInfo(t *testing.T) {
 
 		// Exceed the limit
 		for i := 0; i < limit+5; i++ {
-			limiter.Allow(ctx, identifier, limit, window)
+			_, err := limiter.Allow(ctx, identifier, limit, window)
+			require.NoError(t, err)
 		}
 
 		info, err := limiter.GetLimitInfo(ctx, identifier, limit, window)
@@ -608,6 +609,10 @@ func TestRedisLimiter_EdgeCases(t *testing.T) {
 		limit := 5
 		window := time.Minute
 
+		// Reset to ensure clean state (especially important when using REDIS_URL fallback)
+		err := limiter.Reset(ctx, identifier)
+		require.NoError(t, err)
+
 		// Should work even with empty identifier (creates key "ratelimit:")
 		allowed, err := limiter.Allow(ctx, identifier, limit, window)
 		require.NoError(t, err)
@@ -631,5 +636,20 @@ func TestRedisLimiter_EdgeCases(t *testing.T) {
 		allowed, err = limiter.Allow(ctx, identifier, limit, window)
 		require.NoError(t, err)
 		assert.False(t, allowed)
+	})
+
+	t.Run("handles zero limit", func(t *testing.T) {
+		identifier := "test-zero-limit"
+		limit := 0
+		window := time.Minute
+
+		err := limiter.Reset(ctx, identifier)
+		require.NoError(t, err)
+
+		// With limit=0, the Lua script condition (current < limit) is never true
+		// so all requests should be blocked - this documents expected behavior
+		allowed, err := limiter.Allow(ctx, identifier, limit, window)
+		require.NoError(t, err)
+		assert.False(t, allowed, "zero limit should block all requests")
 	})
 }
