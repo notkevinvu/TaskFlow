@@ -1,5 +1,7 @@
 # TaskFlow - Intelligent Task Prioritization System
 
+[![CI](https://github.com/notkevinvu/TaskFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/notkevinvu/TaskFlow/actions/workflows/ci.yml)
+
 An intelligent task management system that automatically prioritizes tasks using multi-factor algorithms, helping you focus on what matters most.
 
 ## Features
