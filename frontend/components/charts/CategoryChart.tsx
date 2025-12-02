@@ -68,9 +68,9 @@ export function CategoryChart({ data }: CategoryChartProps) {
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '6px',
               }}
-              formatter={(value: number, name: string, props: any) => [
-                `${value} tasks (${props.payload.completionRate}% complete)`,
-                props.payload.name,
+              formatter={(value: number, _name: string, props: { payload?: { completionRate?: number; name?: string } }) => [
+                `${value} tasks (${props.payload?.completionRate ?? 0}% complete)`,
+                props.payload?.name ?? '',
               ]}
             />
             <Legend />

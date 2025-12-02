@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useUpdateTask } from '@/hooks/useTasks';
 import {
   Dialog,
@@ -30,32 +30,21 @@ interface EditTaskDialogProps {
   task: Task;
 }
 
+// Note: Parent should pass key={task.id} to ensure form resets when task changes
 export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps) {
   const updateTask = useUpdateTask();
+
+  // Initialize form data from task prop
+  // Parent uses key={task.id} to remount this component when task changes
   const [formData, setFormData] = useState({
     title: task.title,
     description: task.description || '',
     category: task.category || '',
-    estimated_effort: task.estimated_effort || 'medium' as 'small' | 'medium' | 'large' | 'xlarge',
+    estimated_effort: (task.estimated_effort || 'medium') as 'small' | 'medium' | 'large' | 'xlarge',
     user_priority: task.user_priority,
     due_date: task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
     context: task.context || '',
   });
-
-  // Update form data when task changes
-  useEffect(() => {
-    if (task) {
-      setFormData({
-        title: task.title,
-        description: task.description || '',
-        category: task.category || '',
-        estimated_effort: task.estimated_effort || 'medium',
-        user_priority: task.user_priority,
-        due_date: task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
-        context: task.context || '',
-      });
-    }
-  }, [task]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,7 +125,7 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
               <Label htmlFor="effort">Estimated Effort</Label>
               <Select
                 value={formData.estimated_effort}
-                onValueChange={(value: any) => setFormData({ ...formData, estimated_effort: value })}
+                onValueChange={(value: 'small' | 'medium' | 'large' | 'xlarge') => setFormData({ ...formData, estimated_effort: value })}
               >
                 <SelectTrigger id="effort">
                   <SelectValue />

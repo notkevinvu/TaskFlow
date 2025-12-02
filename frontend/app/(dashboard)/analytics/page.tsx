@@ -42,7 +42,7 @@ export default function AnalyticsPage() {
 
       // Try to extract backend error details
       if ('response' in error && error.response && typeof error.response === 'object') {
-        const response = error.response as any;
+        const response = error.response as { data?: unknown };
         if (response.data) {
           backendDetails = JSON.stringify(response.data, null, 2);
         }

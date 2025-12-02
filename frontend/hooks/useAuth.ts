@@ -63,7 +63,7 @@ export const useAuth = create<AuthStore>((set) => ({
     try {
       const response = await authAPI.me();
       set({ user: response.data, isLoading: false });
-    } catch (error) {
+    } catch {
       localStorage.removeItem('token');
       set({ user: null, isLoading: false });
     }

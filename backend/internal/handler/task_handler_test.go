@@ -202,13 +202,14 @@ func TestTaskHandler_Create_ValidationError(t *testing.T) {
 
 	router.POST("/tasks", testutil.WithAuthContext(router, "user-123", handler.Create))
 
-	// Mock validation error
+	// Mock validation error from service (e.g., business rule violation)
+	// Note: We send a valid title to pass Gin binding, but the service rejects it
 	mockService.On("Create", mock.Anything, "user-123", mock.Anything).
-		Return(nil, domain.NewValidationError("title", "title is required"))
+		Return(nil, domain.NewValidationError("title", "title contains prohibited content"))
 
-	// Create request
+	// Create request with valid title (passes binding, but service rejects)
 	reqBody := map[string]interface{}{
-		"title": "",
+		"title": "Valid Title",
 	}
 	jsonBody, _ := json.Marshal(reqBody)
 	req := httptest.NewRequest("POST", "/tasks", bytes.NewBuffer(jsonBody))

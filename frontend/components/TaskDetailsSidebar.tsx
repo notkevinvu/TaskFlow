@@ -170,7 +170,7 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                     <CardTitle className="text-sm font-medium">Context</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm italic text-muted-foreground">"{task.context}"</p>
+                    <p className="text-sm italic text-muted-foreground">&quot;{task.context}&quot;</p>
                   </CardContent>
                 </Card>
               )}

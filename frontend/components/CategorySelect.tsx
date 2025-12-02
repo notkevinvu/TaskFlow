@@ -31,8 +31,8 @@ const COMMON_CATEGORIES = [
 
 export function CategorySelect({ value, onChange, id }: CategorySelectProps) {
   const { data: tasksData } = useTasks();
-  const [isCustom, setIsCustom] = useState(false);
-  const [customValue, setCustomValue] = useState('');
+  const [isCustomMode, setIsCustomMode] = useState(false);
+  const [customInputValue, setCustomInputValue] = useState('');
 
   // Extract unique categories from existing tasks
   const existingCategories = useMemo(() => {
@@ -54,25 +54,23 @@ export function CategorySelect({ value, onChange, id }: CategorySelectProps) {
     return Array.from(combined).sort();
   }, [existingCategories]);
 
-  // Check if current value is in the list
+  // Check if current value is in the list - derived during render
   const valueInList = allCategories.includes(value);
 
-  // If value exists but not in list, treat it as custom
-  useMemo(() => {
-    if (value && !valueInList && !isCustom) {
-      setIsCustom(true);
-      setCustomValue(value);
-    }
-  }, [value, valueInList, isCustom]);
+  // Show custom input if user explicitly chose custom mode OR if the value isn't in the list
+  const isCustom = isCustomMode || (value !== '' && !valueInList);
+
+  // The displayed custom value is either user input or the prop value (for external custom values)
+  const displayedCustomValue = isCustomMode ? customInputValue : value;
 
   const handleSelectChange = (newValue: string) => {
     if (newValue === '__custom__') {
-      setIsCustom(true);
-      setCustomValue('');
+      setIsCustomMode(true);
+      setCustomInputValue('');
       onChange('');
     } else {
-      setIsCustom(false);
-      setCustomValue('');
+      setIsCustomMode(false);
+      setCustomInputValue('');
       onChange(newValue);
     }
   };
@@ -81,14 +79,14 @@ export function CategorySelect({ value, onChange, id }: CategorySelectProps) {
     const newValue = e.target.value;
     // Limit to 50 characters (matching backend validation)
     if (newValue.length <= 50) {
-      setCustomValue(newValue);
+      setCustomInputValue(newValue);
       onChange(newValue);
     }
   };
 
   const handleBackToSelect = () => {
-    setIsCustom(false);
-    setCustomValue('');
+    setIsCustomMode(false);
+    setCustomInputValue('');
     onChange('');
   };
 
@@ -109,14 +107,14 @@ export function CategorySelect({ value, onChange, id }: CategorySelectProps) {
         </div>
         <Input
           id={id || 'custom-category'}
-          value={customValue}
+          value={displayedCustomValue}
           onChange={handleCustomInputChange}
           placeholder="Enter category name..."
           maxLength={50}
           autoFocus
         />
         <p className="text-xs text-muted-foreground">
-          {customValue.length}/50 characters
+          {displayedCustomValue.length}/50 characters
         </p>
       </div>
     );

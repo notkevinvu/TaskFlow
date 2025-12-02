@@ -65,9 +65,9 @@ export function PriorityChart({ data }: PriorityChartProps) {
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '6px',
               }}
-              formatter={(value: number, name: string, props: any) => [
+              formatter={(value: number, _name: string, props: { payload?: { fullRange?: string } }) => [
                 `${value} tasks`,
-                props.payload.fullRange,
+                props.payload?.fullRange ?? '',
               ]}
             />
             <Legend />

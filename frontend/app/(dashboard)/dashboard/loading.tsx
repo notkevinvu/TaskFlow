@@ -6,7 +6,7 @@ export default function DashboardLoading() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold">Today's Priorities</h2>
+          <h2 className="text-3xl font-bold">Today&apos;s Priorities</h2>
           <p className="text-muted-foreground">
             Loading your intelligently prioritized tasks...
           </p>
