@@ -1,5 +1,10 @@
 # Claude Code local settings
 .claude/settings.local.json
+.claude/CLEANUP_SUMMARY.md
+
+# Speckit feature outputs (branch-specific, not tracked)
+.specify/specs/
+*speckit-output.log
 
 # OS files
 .DS_Store
