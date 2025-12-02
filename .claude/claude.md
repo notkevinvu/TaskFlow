@@ -8,7 +8,7 @@ This file contains project-specific guidelines and conventions for Claude to fol
 
 TaskFlow is an intelligent task prioritization system built with:
 - **Frontend:** Next.js 16 + React 19 + TypeScript + Tailwind CSS + shadcn/ui
-- **Backend:** Go 1.23 + Gin framework + Clean Architecture
+- **Backend:** Go 1.24 + Gin framework + Clean Architecture
 - **Database:** Supabase PostgreSQL 16
 - **Auth:** JWT with bcrypt password hashing
 
@@ -74,6 +74,13 @@ TaskFlow is an intelligent task prioritization system built with:
 ---
 
 ## Development Workflow
+
+### Branching Strategy
+
+**IMPORTANT:** When implementing features or fixes (outside the formal speckit flow):
+1. Always create a new branch from the **most up-to-date main branch**
+2. Run `git checkout main && git pull origin main` before creating the feature branch
+3. Use descriptive branch names: `feature/feature-name`, `fix/issue-description`, `chore/task-name`
 
 ### Making Changes
 
