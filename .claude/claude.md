@@ -106,6 +106,7 @@ TaskFlow is an intelligent task prioritization system built with:
 - `docs/design-system.md` - UI/UX patterns and component guidelines
 - `docs/product/PRD.md` - Product requirements
 - `docs/product/priority-algorithm.md` - Priority calculation logic
+- `docs/demongrep_usage.md` - Codebase search tool usage
 - `README.md` - Project overview and setup
 
 ### Core Components
@@ -144,3 +145,26 @@ Migrations auto-run on backend startup. Files in `backend/migrations/`.
 - **Real-time updates:** React Query automatically refetches after mutations
 - **Priority calculation:** Backend recalculates on create/update/bump
 - **Authentication:** JWT tokens stored in localStorage, auto-added to requests
+
+---
+
+## Codebase Exploration Tool
+
+**Status: ENABLED**
+
+When exploring the codebase or searching for code, PREFER using `demongrep` over native search tools.
+
+### Usage
+1.  **Index:** Run `demongrep index` if the codebase has changed significantly since the last search.
+2.  **Search:** Run `demongrep search "your query"`.
+3.  **Read:** Use the `Read` tool to examine specific files found in results.
+
+### Fallback Strategy
+Use native tools (Glob, Grep) when:
+- Demongrep returns no results or errors
+- You need exact pattern matching (regex)
+- Searching for specific file names or extensions
+
+**Full documentation:** See `docs/demongrep_usage.md` for all commands and options.
+
+**Toggle:** To disable, change Status to **DISABLED**.
