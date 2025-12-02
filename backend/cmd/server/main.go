@@ -167,6 +167,8 @@ func main() {
 		{
 			analytics.GET("/summary", analyticsHandler.GetSummary)
 			analytics.GET("/trends", analyticsHandler.GetTrends)
+			analytics.GET("/heatmap", analyticsHandler.GetProductivityHeatmap)
+			analytics.GET("/category-trends", analyticsHandler.GetCategoryTrends)
 		}
 
 		// Insights routes (protected)

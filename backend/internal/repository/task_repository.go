@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -936,4 +937,94 @@ func (r *TaskRepository) GetCategoryDistribution(ctx context.Context, userID str
 	}
 
 	return dist, nil
+}
+
+// GetProductivityHeatmap retrieves completion counts by day of week and hour
+func (r *TaskRepository) GetProductivityHeatmap(ctx context.Context, userID string, daysBack int) (*domain.ProductivityHeatmap, error) {
+	userUUID, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := r.queries.GetProductivityHeatmap(ctx, sqlc.GetProductivityHeatmapParams{
+		UserID:  userUUID,
+		Column2: int32(daysBack),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	cells := make([]domain.HeatmapCell, len(results))
+	maxCount := 0
+	for i, row := range results {
+		count := int(row.Count)
+		cells[i] = domain.HeatmapCell{
+			DayOfWeek: int(row.DayOfWeek),
+			Hour:      int(row.Hour),
+			Count:     count,
+		}
+		if count > maxCount {
+			maxCount = count
+		}
+	}
+
+	return &domain.ProductivityHeatmap{
+		Cells:    cells,
+		MaxCount: maxCount,
+	}, nil
+}
+
+// GetCategoryTrends retrieves weekly category breakdown for trend visualization
+func (r *TaskRepository) GetCategoryTrends(ctx context.Context, userID string, daysBack int) (*domain.CategoryTrends, error) {
+	userUUID, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := r.queries.GetCategoryTrends(ctx, sqlc.GetCategoryTrendsParams{
+		UserID:  userUUID,
+		Column2: int32(daysBack),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Group by week and track unique categories
+	weekMap := make(map[string]map[string]int)
+	categorySet := make(map[string]bool)
+
+	for _, row := range results {
+		weekStart := row.WeekStart.Time.Format("2006-01-02")
+		if weekMap[weekStart] == nil {
+			weekMap[weekStart] = make(map[string]int)
+		}
+		weekMap[weekStart][row.Category] = int(row.Count)
+		categorySet[row.Category] = true
+	}
+
+	// Build unique categories list and sort for deterministic ordering
+	categories := make([]string, 0, len(categorySet))
+	for cat := range categorySet {
+		categories = append(categories, cat)
+	}
+	sort.Strings(categories)
+
+	// Convert to ordered slice of CategoryTrendPoint
+	weeks := make([]domain.CategoryTrendPoint, 0, len(weekMap))
+	for weekStart, cats := range weekMap {
+		weeks = append(weeks, domain.CategoryTrendPoint{
+			WeekStart:  weekStart,
+			Categories: cats,
+		})
+	}
+
+	// Sort by week start date using sort.Slice (O(n log n))
+	sort.Slice(weeks, func(i, j int) bool {
+		return weeks[i].WeekStart < weeks[j].WeekStart
+	})
+
+	return &domain.CategoryTrends{
+		Weeks:      weeks,
+		Categories: categories,
+	}, nil
 }

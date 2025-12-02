@@ -180,6 +180,22 @@ func (m *MockTaskRepository) GetCategoryDistribution(ctx context.Context, userID
 	return args.Get(0).([]domain.CategoryDistribution), args.Error(1)
 }
 
+func (m *MockTaskRepository) GetProductivityHeatmap(ctx context.Context, userID string, daysBack int) (*domain.ProductivityHeatmap, error) {
+	args := m.Called(ctx, userID, daysBack)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.ProductivityHeatmap), args.Error(1)
+}
+
+func (m *MockTaskRepository) GetCategoryTrends(ctx context.Context, userID string, daysBack int) (*domain.CategoryTrends, error) {
+	args := m.Called(ctx, userID, daysBack)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.CategoryTrends), args.Error(1)
+}
+
 // setupAnalyticsTest creates a test router and mock repository
 func setupAnalyticsTest() (*gin.Engine, *MockTaskRepository) {
 	router := testutil.SetupTestRouter()
@@ -683,4 +699,179 @@ func TestAnalyticsHandler_GetTrends_EmptyMetrics(t *testing.T) {
 	assert.NoError(t, err)
 	metrics := response["velocity_metrics"].([]interface{})
 	assert.Empty(t, metrics)
+}
+
+// =============================================================================
+// GetProductivityHeatmap Tests
+// =============================================================================
+
+func TestAnalyticsHandler_GetProductivityHeatmap_Success(t *testing.T) {
+	router, mockRepo := setupAnalyticsTest()
+	handler := NewAnalyticsHandler(mockRepo)
+
+	router.GET("/analytics/heatmap", testutil.WithAuthContext(router, "user-123", handler.GetProductivityHeatmap))
+
+	mockRepo.On("GetProductivityHeatmap", mock.Anything, "user-123", 90).Return(&domain.ProductivityHeatmap{
+		Cells: []domain.HeatmapCell{
+			{DayOfWeek: 1, Hour: 9, Count: 5},
+			{DayOfWeek: 1, Hour: 14, Count: 3},
+			{DayOfWeek: 3, Hour: 10, Count: 7},
+		},
+		MaxCount: 7,
+	}, nil)
+
+	req := httptest.NewRequest("GET", "/analytics/heatmap", nil)
+	w := testutil.NewResponseRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockRepo.AssertExpectations(t)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, float64(90), response["period_days"])
+	assert.NotNil(t, response["heatmap"])
+}
+
+func TestAnalyticsHandler_GetProductivityHeatmap_Unauthenticated(t *testing.T) {
+	router, mockRepo := setupAnalyticsTest()
+	handler := NewAnalyticsHandler(mockRepo)
+
+	router.GET("/analytics/heatmap", handler.GetProductivityHeatmap)
+
+	req := httptest.NewRequest("GET", "/analytics/heatmap", nil)
+	w := testutil.NewResponseRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	mockRepo.AssertNotCalled(t, "GetProductivityHeatmap")
+}
+
+func TestAnalyticsHandler_GetProductivityHeatmap_WithCustomDays(t *testing.T) {
+	router, mockRepo := setupAnalyticsTest()
+	handler := NewAnalyticsHandler(mockRepo)
+
+	router.GET("/analytics/heatmap", testutil.WithAuthContext(router, "user-123", handler.GetProductivityHeatmap))
+
+	mockRepo.On("GetProductivityHeatmap", mock.Anything, "user-123", 30).Return(&domain.ProductivityHeatmap{
+		Cells:    []domain.HeatmapCell{},
+		MaxCount: 0,
+	}, nil)
+
+	req := httptest.NewRequest("GET", "/analytics/heatmap?days=30", nil)
+	w := testutil.NewResponseRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockRepo.AssertExpectations(t)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, float64(30), response["period_days"])
+}
+
+func TestAnalyticsHandler_GetProductivityHeatmap_Error(t *testing.T) {
+	router, mockRepo := setupAnalyticsTest()
+	handler := NewAnalyticsHandler(mockRepo)
+
+	router.GET("/analytics/heatmap", testutil.WithAuthContext(router, "user-123", handler.GetProductivityHeatmap))
+
+	mockRepo.On("GetProductivityHeatmap", mock.Anything, "user-123", 90).
+		Return(nil, domain.NewInternalError("database error", nil))
+
+	req := httptest.NewRequest("GET", "/analytics/heatmap", nil)
+	w := testutil.NewResponseRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	mockRepo.AssertExpectations(t)
+}
+
+// =============================================================================
+// GetCategoryTrends Tests
+// =============================================================================
+
+func TestAnalyticsHandler_GetCategoryTrends_Success(t *testing.T) {
+	router, mockRepo := setupAnalyticsTest()
+	handler := NewAnalyticsHandler(mockRepo)
+
+	router.GET("/analytics/category-trends", testutil.WithAuthContext(router, "user-123", handler.GetCategoryTrends))
+
+	mockRepo.On("GetCategoryTrends", mock.Anything, "user-123", 90).Return(&domain.CategoryTrends{
+		Weeks: []domain.CategoryTrendPoint{
+			{WeekStart: "2025-11-25", Categories: map[string]int{"Work": 5, "Personal": 3}},
+			{WeekStart: "2025-12-02", Categories: map[string]int{"Work": 7, "Personal": 2}},
+		},
+		Categories: []string{"Work", "Personal"},
+	}, nil)
+
+	req := httptest.NewRequest("GET", "/analytics/category-trends", nil)
+	w := testutil.NewResponseRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockRepo.AssertExpectations(t)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, float64(90), response["period_days"])
+	assert.NotNil(t, response["trends"])
+}
+
+func TestAnalyticsHandler_GetCategoryTrends_Unauthenticated(t *testing.T) {
+	router, mockRepo := setupAnalyticsTest()
+	handler := NewAnalyticsHandler(mockRepo)
+
+	router.GET("/analytics/category-trends", handler.GetCategoryTrends)
+
+	req := httptest.NewRequest("GET", "/analytics/category-trends", nil)
+	w := testutil.NewResponseRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	mockRepo.AssertNotCalled(t, "GetCategoryTrends")
+}
+
+func TestAnalyticsHandler_GetCategoryTrends_WithCustomDays(t *testing.T) {
+	router, mockRepo := setupAnalyticsTest()
+	handler := NewAnalyticsHandler(mockRepo)
+
+	router.GET("/analytics/category-trends", testutil.WithAuthContext(router, "user-123", handler.GetCategoryTrends))
+
+	mockRepo.On("GetCategoryTrends", mock.Anything, "user-123", 60).Return(&domain.CategoryTrends{
+		Weeks:      []domain.CategoryTrendPoint{},
+		Categories: []string{},
+	}, nil)
+
+	req := httptest.NewRequest("GET", "/analytics/category-trends?days=60", nil)
+	w := testutil.NewResponseRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockRepo.AssertExpectations(t)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, float64(60), response["period_days"])
+}
+
+func TestAnalyticsHandler_GetCategoryTrends_Error(t *testing.T) {
+	router, mockRepo := setupAnalyticsTest()
+	handler := NewAnalyticsHandler(mockRepo)
+
+	router.GET("/analytics/category-trends", testutil.WithAuthContext(router, "user-123", handler.GetCategoryTrends))
+
+	mockRepo.On("GetCategoryTrends", mock.Anything, "user-123", 90).
+		Return(nil, domain.NewInternalError("database error", nil))
+
+	req := httptest.NewRequest("GET", "/analytics/category-trends", nil)
+	w := testutil.NewResponseRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	mockRepo.AssertExpectations(t)
 }

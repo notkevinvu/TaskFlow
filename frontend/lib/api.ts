@@ -268,6 +268,39 @@ export interface AnalyticsTrends {
   velocity_metrics: VelocityMetric[];
 }
 
+// Heatmap types
+export interface HeatmapCell {
+  day_of_week: number; // 0 = Sunday, 6 = Saturday
+  hour: number; // 0-23
+  count: number;
+}
+
+export interface ProductivityHeatmap {
+  cells: HeatmapCell[];
+  max_count: number;
+}
+
+export interface HeatmapResponse {
+  period_days: number;
+  heatmap: ProductivityHeatmap;
+}
+
+// Category trends types
+export interface CategoryTrendPoint {
+  week_start: string; // YYYY-MM-DD
+  categories: Record<string, number>;
+}
+
+export interface CategoryTrends {
+  weeks: CategoryTrendPoint[];
+  categories: string[];
+}
+
+export interface CategoryTrendsResponse {
+  period_days: number;
+  trends: CategoryTrends;
+}
+
 // Analytics API
 export const analyticsAPI = {
   // Get comprehensive analytics summary
@@ -277,6 +310,14 @@ export const analyticsAPI = {
   // Get completion trends over time
   getTrends: (params?: { days?: number }) =>
     api.get<AnalyticsTrends>('/api/v1/analytics/trends', { params }),
+
+  // Get productivity heatmap data
+  getHeatmap: (params?: { days?: number }) =>
+    api.get<HeatmapResponse>('/api/v1/analytics/heatmap', { params }),
+
+  // Get category trends over time
+  getCategoryTrends: (params?: { days?: number }) =>
+    api.get<CategoryTrendsResponse>('/api/v1/analytics/category-trends', { params }),
 };
 
 // =============================================================================

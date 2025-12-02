@@ -213,3 +213,31 @@ FROM tasks
 WHERE user_id = $1 AND status != 'done'
 GROUP BY category
 ORDER BY task_count DESC;
+
+-- name: GetProductivityHeatmap :many
+-- Gets completion counts by day of week and hour for heatmap visualization
+SELECT
+    EXTRACT(DOW FROM completed_at)::int as day_of_week,
+    EXTRACT(HOUR FROM completed_at)::int as hour,
+    COUNT(*)::int as count
+FROM tasks
+WHERE user_id = $1
+  AND status = 'done'
+  AND completed_at IS NOT NULL
+  AND completed_at >= NOW() - ($2::int || ' days')::interval
+GROUP BY day_of_week, hour
+ORDER BY day_of_week, hour;
+
+-- name: GetCategoryTrends :many
+-- Gets weekly task completion counts by category for trend visualization
+SELECT
+    DATE_TRUNC('week', completed_at)::date as week_start,
+    COALESCE(category, 'Uncategorized') as category,
+    COUNT(*)::int as count
+FROM tasks
+WHERE user_id = $1
+  AND status = 'done'
+  AND completed_at IS NOT NULL
+  AND completed_at >= NOW() - ($2::int || ' days')::interval
+GROUP BY week_start, category
+ORDER BY week_start, category;

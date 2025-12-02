@@ -41,6 +41,9 @@ type TaskRepository interface {
 	GetDeadlineClusters(ctx context.Context, userID string, windowDays int) ([]domain.DeadlineCluster, error)
 	GetCompletionTimeStats(ctx context.Context, userID string, category *string, effort *domain.TaskEffort) (*domain.CompletionTimeStats, error)
 	GetCategoryDistribution(ctx context.Context, userID string) ([]domain.CategoryDistribution, error)
+	// Enhanced analytics methods
+	GetProductivityHeatmap(ctx context.Context, userID string, daysBack int) (*domain.ProductivityHeatmap, error)
+	GetCategoryTrends(ctx context.Context, userID string, daysBack int) (*domain.CategoryTrends, error)
 }
 
 // TaskHistoryRepository defines the interface for task history data access
