@@ -2,6 +2,8 @@
 
 `demongrep` is a high-performance codebase exploration tool designed to be more token-efficient than standard tools. This guide focuses on using `demongrep` via the Command Line Interface (CLI).
 
+> *Documented for demongrep v0.1.0. Run `demongrep --help` to see current options.*
+
 ## Quick Start
 
 Ensure you are in the root of your repository.
@@ -24,9 +26,10 @@ Builds the vector and keyword index for the current directory.
 ```bash
 demongrep index
 ```
+- **Arguments:**
+    - `[PATH]`: Directory to index (default: current). Example: `demongrep index ./backend`
 - **Options:**
-    - `--path <path>`: Index a specific directory (default: current).
-    - `--force`: Force re-indexing even if files haven't changed.
+    - `-f, --force`: Force re-indexing even if files haven't changed.
 
 ### 2. Searching (`search`)
 Performs a hybrid search (Keyword + Vector) by default.
@@ -36,9 +39,12 @@ demongrep search "query string"
 - **Options:**
     - `-m, --max-results <n>`: Limit results (default: 25).
     - `--vector-only`: Use vector-only search (disable hybrid).
-    - `--rerank`: Enable neural reranking for better accuracy.
+    - `--rerank`: Enable neural reranking (Jina Reranker) for better accuracy.
     - `--filter-path <path>`: Filter results to files under a path.
     - `-c, --content`: Show full chunk content.
+    - `-s, --sync`: Force re-index changed files before searching.
+    - `--json`: Output JSON format (useful for automation/agents).
+    - `--compact`: Show file paths only (like `grep -l`).
 
 ### 3. Statistics (`stats`)
 View information about the current index.

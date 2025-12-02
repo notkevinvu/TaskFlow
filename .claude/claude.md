@@ -106,6 +106,7 @@ TaskFlow is an intelligent task prioritization system built with:
 - `docs/design-system.md` - UI/UX patterns and component guidelines
 - `docs/product/PRD.md` - Product requirements
 - `docs/product/priority-algorithm.md` - Priority calculation logic
+- `docs/demongrep_usage.md` - Codebase search tool usage
 - `README.md` - Project overview and setup
 
 ### Core Components
