@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
+	"github.com/notkevinvu/taskflow/backend/internal/metrics"
 	"github.com/notkevinvu/taskflow/backend/internal/middleware"
 	"github.com/notkevinvu/taskflow/backend/internal/ports"
 )
@@ -40,6 +41,17 @@ func (h *TaskHandler) Create(c *gin.Context) {
 		middleware.AbortWithError(c, err)
 		return
 	}
+
+	// Record metrics
+	category := ""
+	if task.Category != nil {
+		category = *task.Category
+	}
+	effort := "medium"
+	if task.EstimatedEffort != nil {
+		effort = string(*task.EstimatedEffort)
+	}
+	metrics.RecordTaskCreated(category, effort)
 
 	c.JSON(http.StatusCreated, task)
 }
@@ -210,10 +222,22 @@ func (h *TaskHandler) Delete(c *gin.Context) {
 
 	taskID := c.Param("id")
 
+	// Get task before deletion to record metrics
+	task, getErr := h.taskService.Get(c.Request.Context(), userID, taskID)
+
 	err := h.taskService.Delete(c.Request.Context(), userID, taskID)
 	if err != nil {
 		middleware.AbortWithError(c, err)
 		return
+	}
+
+	// Record metrics if we got the task info
+	if getErr == nil && task != nil {
+		category := ""
+		if task.Category != nil {
+			category = *task.Category
+		}
+		metrics.RecordTaskDeleted(category)
 	}
 
 	c.Status(http.StatusNoContent)
@@ -235,6 +259,13 @@ func (h *TaskHandler) Bump(c *gin.Context) {
 		middleware.AbortWithError(c, err)
 		return
 	}
+
+	// Record metrics
+	category := ""
+	if task.Category != nil {
+		category = *task.Category
+	}
+	metrics.RecordTaskBumped(category)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Task bumped successfully",
@@ -258,6 +289,17 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 		middleware.AbortWithError(c, err)
 		return
 	}
+
+	// Record metrics
+	category := ""
+	if task.Category != nil {
+		category = *task.Category
+	}
+	effort := "medium"
+	if task.EstimatedEffort != nil {
+		effort = string(*task.EstimatedEffort)
+	}
+	metrics.RecordTaskCompleted(category, effort)
 
 	c.JSON(http.StatusOK, task)
 }

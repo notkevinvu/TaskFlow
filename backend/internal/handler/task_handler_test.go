@@ -529,7 +529,13 @@ func TestTaskHandler_Delete_Success(t *testing.T) {
 
 	router.DELETE("/tasks/:id", testutil.WithAuthContext(router, "user-123", handler.Delete))
 
-	// Mock expectations
+	// Mock expectations - Get is called first for metrics recording
+	category := "Work"
+	mockService.On("Get", mock.Anything, "user-123", "task-123").
+		Return(&domain.Task{
+			ID:       "task-123",
+			Category: &category,
+		}, nil)
 	mockService.On("Delete", mock.Anything, "user-123", "task-123").
 		Return(nil)
 
@@ -552,6 +558,9 @@ func TestTaskHandler_Delete_NotFound(t *testing.T) {
 
 	router.DELETE("/tasks/:id", testutil.WithAuthContext(router, "user-123", handler.Delete))
 
+	// Mock Get returning not found (still attempt delete for consistency)
+	mockService.On("Get", mock.Anything, "user-123", "nonexistent").
+		Return(nil, domain.NewNotFoundError("task", "nonexistent"))
 	// Mock not found error
 	mockService.On("Delete", mock.Anything, "user-123", "nonexistent").
 		Return(domain.NewNotFoundError("task", "nonexistent"))
