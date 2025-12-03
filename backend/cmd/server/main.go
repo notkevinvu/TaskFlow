@@ -17,10 +17,12 @@ import (
 	"github.com/notkevinvu/taskflow/backend/internal/config"
 	"github.com/notkevinvu/taskflow/backend/internal/handler"
 	"github.com/notkevinvu/taskflow/backend/internal/logger"
+	"github.com/notkevinvu/taskflow/backend/internal/metrics"
 	"github.com/notkevinvu/taskflow/backend/internal/middleware"
 	"github.com/notkevinvu/taskflow/backend/internal/ratelimit"
 	"github.com/notkevinvu/taskflow/backend/internal/repository"
 	"github.com/notkevinvu/taskflow/backend/internal/service"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -96,10 +98,14 @@ func main() {
 
 	// Apply middleware in order (RequestLogger before ErrorHandler to capture error context)
 	router.Use(gin.Recovery())                        // Recover from panics
+	router.Use(metrics.Middleware())                  // Prometheus metrics (before other middleware to capture all requests)
 	router.Use(middleware.RequestLogger())            // Log all requests with error context
 	router.Use(middleware.CORS(cfg.AllowedOrigins))   // CORS
 	router.Use(middleware.RateLimiter(redisLimiter, cfg.RateLimitRPM)) // Rate limiting with Redis backend
 	router.Use(middleware.ErrorHandler())             // Error handler must be last to catch errors from routes
+
+	// Prometheus metrics endpoint (no auth required for scraping)
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {

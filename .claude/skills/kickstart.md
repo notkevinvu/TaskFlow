@@ -1,5 +1,6 @@
 ---
 description: Kickstart informal development tasks with automatic branch setup, planning, PR creation, and review cycles
+trigger: kickstart
 ---
 
 ## User Input
