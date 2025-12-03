@@ -100,6 +100,18 @@ function getFilterPresets(): FilterPreset[] {
   ];
 }
 
+// Check if two filter states are equal
+function filtersEqual(a: TaskFilterState, b: TaskFilterState): boolean {
+  return (
+    a.status === b.status &&
+    a.category === b.category &&
+    a.minPriority === b.minPriority &&
+    a.maxPriority === b.maxPriority &&
+    a.dueDateStart === b.dueDateStart &&
+    a.dueDateEnd === b.dueDateEnd
+  );
+}
+
 interface TaskFiltersProps {
   filters: TaskFilterState;
   onChange: (filters: TaskFilterState) => void;
@@ -110,56 +122,136 @@ interface TaskFiltersProps {
 export function TaskFilters({ filters, onChange, onClear, availableCategories }: TaskFiltersProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Pending filters - local state that only applies on "Apply" click
+  const [pendingFilters, setPendingFilters] = useState<TaskFilterState>(filters);
+
+  // Date picker popover state
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [pendingDateRange, setPendingDateRange] = useState<DateRange | undefined>(undefined);
+
   // Get fresh presets on each render (for date-based presets)
   const presets = useMemo(() => getFilterPresets(), []);
 
-  const updateFilter = (key: keyof TaskFilterState, value: string | number) => {
-    onChange({ ...filters, [key]: value });
+  // Handle panel expand/collapse - sync pending filters when opening
+  const handleExpandToggle = () => {
+    if (!isExpanded) {
+      // Opening the panel - sync pending filters from applied filters
+      setPendingFilters(filters);
+    }
+    setIsExpanded(!isExpanded);
   };
 
-  const removeFilter = (key: keyof TaskFilterState) => {
-    const newFilters = { ...filters };
+  // Handle date picker open/close - initialize pending date range when opening
+  const handleDatePickerOpenChange = (open: boolean) => {
+    if (open) {
+      // Initialize pending date range from current pending filters
+      const range: DateRange | undefined =
+        pendingFilters.dueDateStart || pendingFilters.dueDateEnd
+          ? {
+              from: pendingFilters.dueDateStart ? parseLocalDate(pendingFilters.dueDateStart) : undefined,
+              to: pendingFilters.dueDateEnd ? parseLocalDate(pendingFilters.dueDateEnd) : undefined,
+            }
+          : undefined;
+      setPendingDateRange(range);
+    }
+    setDatePickerOpen(open);
+  };
+
+  const updatePendingFilter = (key: keyof TaskFilterState, value: string | number | undefined) => {
+    if (value === undefined) {
+      const newFilters = { ...pendingFilters };
+      delete newFilters[key];
+      setPendingFilters(newFilters);
+    } else {
+      setPendingFilters({ ...pendingFilters, [key]: value });
+    }
+  };
+
+  const removePendingFilter = (key: keyof TaskFilterState) => {
+    const newFilters = { ...pendingFilters };
     delete newFilters[key];
-    onChange(newFilters);
+    setPendingFilters(newFilters);
   };
 
   const applyPreset = (preset: FilterPreset) => {
-    // Replace all filters with preset (don't merge) for predictable behavior
-    onChange(preset.getFilters());
+    // Replace all pending filters with preset
+    setPendingFilters(preset.getFilters());
   };
 
-  // Convert filter date strings to Date objects for the calendar (using local timezone)
-  const dateRange: DateRange | undefined = useMemo(() => {
-    if (!filters.dueDateStart && !filters.dueDateEnd) return undefined;
-    return {
-      from: filters.dueDateStart ? parseLocalDate(filters.dueDateStart) : undefined,
-      to: filters.dueDateEnd ? parseLocalDate(filters.dueDateEnd) : undefined,
-    };
-  }, [filters.dueDateStart, filters.dueDateEnd]);
+  // Handle date selection in calendar - supports deselection
+  const handleDateSelect = (range: DateRange | undefined) => {
+    if (!range) {
+      setPendingDateRange(undefined);
+      return;
+    }
 
-  const handleDateRangeChange = (range: DateRange | undefined) => {
-    const newFilters = { ...filters };
-    if (range?.from) {
-      newFilters.dueDateStart = format(range.from, 'yyyy-MM-dd');
+    // Handle deselection: if clicking on already selected start or end date
+    if (pendingDateRange) {
+      const clickedDate = range.from;
+      if (clickedDate) {
+        const clickedTime = clickedDate.getTime();
+
+        // If clicking on the start date, clear it
+        if (pendingDateRange.from && clickedTime === pendingDateRange.from.getTime() && !range.to) {
+          setPendingDateRange({ from: undefined, to: pendingDateRange.to });
+          return;
+        }
+
+        // If clicking on the end date, clear it
+        if (pendingDateRange.to && clickedTime === pendingDateRange.to.getTime()) {
+          setPendingDateRange({ from: pendingDateRange.from, to: undefined });
+          return;
+        }
+      }
+    }
+
+    setPendingDateRange(range);
+  };
+
+  // Confirm date range selection
+  const confirmDateRange = () => {
+    const newFilters = { ...pendingFilters };
+    if (pendingDateRange?.from) {
+      newFilters.dueDateStart = format(pendingDateRange.from, 'yyyy-MM-dd');
     } else {
       delete newFilters.dueDateStart;
     }
-    if (range?.to) {
-      newFilters.dueDateEnd = format(range.to, 'yyyy-MM-dd');
+    if (pendingDateRange?.to) {
+      newFilters.dueDateEnd = format(pendingDateRange.to, 'yyyy-MM-dd');
     } else {
       delete newFilters.dueDateEnd;
     }
-    onChange(newFilters);
+    setPendingFilters(newFilters);
+    setDatePickerOpen(false);
   };
 
-  const clearDateRange = () => {
-    const newFilters = { ...filters };
+  // Reset date range in picker
+  const resetDateRange = () => {
+    setPendingDateRange(undefined);
+  };
+
+  // Clear date range from pending filters
+  const clearPendingDateRange = () => {
+    const newFilters = { ...pendingFilters };
     delete newFilters.dueDateStart;
     delete newFilters.dueDateEnd;
-    onChange(newFilters);
+    setPendingFilters(newFilters);
   };
 
-  // Simplified active filter count calculation
+  // Apply all pending filters
+  const applyFilters = () => {
+    onChange(pendingFilters);
+  };
+
+  // Reset pending filters to empty
+  const resetFilters = () => {
+    setPendingFilters({});
+  };
+
+  // Check if there are pending changes
+  const hasPendingChanges = !filtersEqual(pendingFilters, filters);
+
+  // Count of currently applied filters (shown in badge)
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (filters.status) count++;
@@ -169,6 +261,16 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
     return count;
   }, [filters]);
 
+  // Count of pending filter selections
+  const pendingFilterCount = useMemo(() => {
+    let count = 0;
+    if (pendingFilters.status) count++;
+    if (pendingFilters.category) count++;
+    if (pendingFilters.minPriority !== undefined && pendingFilters.maxPriority !== undefined) count++;
+    if (pendingFilters.dueDateStart || pendingFilters.dueDateEnd) count++;
+    return count;
+  }, [pendingFilters]);
+
   const priorityRanges = [
     { label: 'Critical (90-100)', min: 90, max: 100 },
     { label: 'High (75-89)', min: 75, max: 89 },
@@ -176,13 +278,16 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
     { label: 'Low (0-49)', min: 0, max: 49 },
   ];
 
+  // Check if date range is complete (both dates selected)
+  const isDateRangeComplete = pendingDateRange?.from && pendingDateRange?.to;
+
   return (
     <div className="space-y-3">
       {/* Filter Toggle Button */}
       <div className="flex items-center gap-2">
         <Button
           variant="outline"
-          onClick={() => setIsExpanded(!isExpanded)}
+          onClick={handleExpandToggle}
           className="flex items-center gap-2"
         >
           <Filter className="h-4 w-4" />
@@ -206,14 +311,18 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
         )}
       </div>
 
-      {/* Active Filter Chips */}
+      {/* Active Filter Chips (showing applied filters) */}
       {activeFilterCount > 0 && (
         <div className="flex flex-wrap gap-2">
           {filters.status && (
             <Badge variant="secondary" className="flex items-center gap-1">
               Status: {filters.status}
               <button
-                onClick={() => removeFilter('status')}
+                onClick={() => {
+                  const newFilters = { ...filters };
+                  delete newFilters.status;
+                  onChange(newFilters);
+                }}
                 className="ml-1 hover:text-destructive"
               >
                 <X className="h-3 w-3" />
@@ -224,7 +333,11 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
             <Badge variant="secondary" className="flex items-center gap-1">
               Category: {filters.category}
               <button
-                onClick={() => removeFilter('category')}
+                onClick={() => {
+                  const newFilters = { ...filters };
+                  delete newFilters.category;
+                  onChange(newFilters);
+                }}
                 className="ml-1 hover:text-destructive"
               >
                 <X className="h-3 w-3" />
@@ -236,8 +349,10 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
               Priority: {filters.minPriority}-{filters.maxPriority}
               <button
                 onClick={() => {
-                  removeFilter('minPriority');
-                  removeFilter('maxPriority');
+                  const newFilters = { ...filters };
+                  delete newFilters.minPriority;
+                  delete newFilters.maxPriority;
+                  onChange(newFilters);
                 }}
                 className="ml-1 hover:text-destructive"
               >
@@ -251,7 +366,12 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
               {' - '}
               {safeFormatDate(filters.dueDateEnd, 'MMM d')}
               <button
-                onClick={clearDateRange}
+                onClick={() => {
+                  const newFilters = { ...filters };
+                  delete newFilters.dueDateStart;
+                  delete newFilters.dueDateEnd;
+                  onChange(newFilters);
+                }}
                 className="ml-1 hover:text-destructive"
               >
                 <X className="h-3 w-3" />
@@ -290,9 +410,11 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
             <div className="space-y-2">
               <label className="text-sm font-medium">Status</label>
               <Select
-                value={filters.status || ''}
+                value={pendingFilters.status || ''}
                 onValueChange={(value) =>
-                  value && value !== '__all__' ? updateFilter('status', value) : removeFilter('status')
+                  value && value !== '__all__'
+                    ? updatePendingFilter('status', value)
+                    : removePendingFilter('status')
                 }
               >
                 <SelectTrigger>
@@ -311,9 +433,11 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
             <div className="space-y-2">
               <label className="text-sm font-medium">Category</label>
               <Select
-                value={filters.category || ''}
+                value={pendingFilters.category || ''}
                 onValueChange={(value) =>
-                  value && value !== '__all__' ? updateFilter('category', value) : removeFilter('category')
+                  value && value !== '__all__'
+                    ? updatePendingFilter('category', value)
+                    : removePendingFilter('category')
                 }
               >
                 <SelectTrigger>
@@ -341,18 +465,19 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
               <label className="text-sm font-medium">Priority Range</label>
               <Select
                 value={
-                  filters.minPriority !== undefined && filters.maxPriority !== undefined
-                    ? `${filters.minPriority}-${filters.maxPriority}`
+                  pendingFilters.minPriority !== undefined && pendingFilters.maxPriority !== undefined
+                    ? `${pendingFilters.minPriority}-${pendingFilters.maxPriority}`
                     : ''
                 }
                 onValueChange={(value) => {
                   if (value === '__all__') {
-                    removeFilter('minPriority');
-                    removeFilter('maxPriority');
+                    const newFilters = { ...pendingFilters };
+                    delete newFilters.minPriority;
+                    delete newFilters.maxPriority;
+                    setPendingFilters(newFilters);
                   } else {
                     const [min, max] = value.split('-').map(Number);
-                    updateFilter('minPriority', min);
-                    updateFilter('maxPriority', max);
+                    setPendingFilters({ ...pendingFilters, minPriority: min, maxPriority: max });
                   }
                 }}
               >
@@ -373,18 +498,18 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
             {/* Date Range Filter */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Due Date Range</label>
-              <Popover>
+              <Popover open={datePickerOpen} onOpenChange={handleDatePickerOpenChange}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className="w-full justify-start text-left font-normal"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {filters.dueDateStart || filters.dueDateEnd ? (
+                    {pendingFilters.dueDateStart || pendingFilters.dueDateEnd ? (
                       <>
-                        {safeFormatDate(filters.dueDateStart, 'MMM d')}
+                        {safeFormatDate(pendingFilters.dueDateStart, 'MMM d')}
                         {' - '}
-                        {safeFormatDate(filters.dueDateEnd, 'MMM d')}
+                        {safeFormatDate(pendingFilters.dueDateEnd, 'MMM d')}
                       </>
                     ) : (
                       <span className="text-muted-foreground">Pick a date range</span>
@@ -394,25 +519,71 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="range"
-                    selected={dateRange}
-                    onSelect={handleDateRangeChange}
+                    selected={pendingDateRange}
+                    onSelect={handleDateSelect}
                     numberOfMonths={2}
                   />
-                  {dateRange && (
-                    <div className="p-3 border-t">
+                  <div className="p-3 border-t space-y-2">
+                    {/* Selection status */}
+                    <p className="text-xs text-muted-foreground text-center">
+                      {!pendingDateRange?.from && !pendingDateRange?.to && 'Select start and end dates'}
+                      {pendingDateRange?.from && !pendingDateRange?.to && 'Now select an end date'}
+                      {pendingDateRange?.from && pendingDateRange?.to && 'Date range selected'}
+                    </p>
+                    {/* Action buttons */}
+                    <div className="flex gap-2">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={clearDateRange}
-                        className="w-full"
+                        onClick={resetDateRange}
+                        className="flex-1"
+                        disabled={!pendingDateRange?.from && !pendingDateRange?.to}
                       >
-                        Clear dates
+                        Reset
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={confirmDateRange}
+                        className="flex-1"
+                        disabled={!isDateRangeComplete}
+                      >
+                        Confirm
                       </Button>
                     </div>
-                  )}
+                  </div>
                 </PopoverContent>
               </Popover>
+              {/* Clear date range button (when dates are set) */}
+              {(pendingFilters.dueDateStart || pendingFilters.dueDateEnd) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearPendingDateRange}
+                  className="w-full h-7 text-xs"
+                >
+                  Clear dates
+                </Button>
+              )}
             </div>
+          </div>
+
+          {/* Apply/Reset Buttons */}
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={resetFilters}
+              disabled={pendingFilterCount === 0}
+            >
+              Reset
+            </Button>
+            <Button
+              size="sm"
+              onClick={applyFilters}
+              disabled={!hasPendingChanges}
+            >
+              Apply{pendingFilterCount > 0 && ` (${pendingFilterCount})`}
+            </Button>
           </div>
         </div>
       )}

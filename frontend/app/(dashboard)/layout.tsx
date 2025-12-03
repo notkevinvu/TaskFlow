@@ -129,9 +129,8 @@ export default function DashboardLayout({
             <ThemeToggle />
             <Button
               variant="outline"
-              size="sm"
               onClick={handleLogout}
-              className="flex-1 transition-all hover:scale-105 hover:shadow-md cursor-pointer"
+              className="flex-1 h-10 transition-all hover:scale-105 hover:shadow-md cursor-pointer"
             >
               Sign Out
             </Button>
