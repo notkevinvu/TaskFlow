@@ -18,6 +18,23 @@ import { Button } from "@/components/ui/button";
 type SortField = 'title' | 'completed_at' | 'category' | 'bump_count';
 type SortDirection = 'asc' | 'desc';
 
+interface SortIconProps {
+  field: SortField;
+  currentSortField: SortField;
+  sortDirection: SortDirection;
+}
+
+function SortIcon({ field, currentSortField, sortDirection }: SortIconProps) {
+  if (currentSortField !== field) {
+    return <ArrowUpDown className="h-4 w-4 ml-1" />;
+  }
+  return sortDirection === 'asc' ? (
+    <ArrowUp className="h-4 w-4 ml-1" />
+  ) : (
+    <ArrowDown className="h-4 w-4 ml-1" />
+  );
+}
+
 interface ArchiveTableProps {
   tasks: Task[];
   selectedIds: Set<string>;
@@ -80,17 +97,6 @@ export function ArchiveTable({ tasks, selectedIds, onSelectionChange, onTaskClic
   const allSelected = tasks.length > 0 && selectedIds.size === tasks.length;
   const someSelected = selectedIds.size > 0 && selectedIds.size < tasks.length;
 
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="h-4 w-4 ml-1" />;
-    }
-    return sortDirection === 'asc' ? (
-      <ArrowUp className="h-4 w-4 ml-1" />
-    ) : (
-      <ArrowDown className="h-4 w-4 ml-1" />
-    );
-  };
-
   return (
     <div className="rounded-md border">
       <Table>
@@ -111,7 +117,7 @@ export function ArchiveTable({ tasks, selectedIds, onSelectionChange, onTaskClic
                 onClick={() => handleSort('title')}
               >
                 Title
-                <SortIcon field="title" />
+                <SortIcon field="title" currentSortField={sortField} sortDirection={sortDirection} />
               </Button>
             </TableHead>
             <TableHead>
@@ -121,7 +127,7 @@ export function ArchiveTable({ tasks, selectedIds, onSelectionChange, onTaskClic
                 onClick={() => handleSort('category')}
               >
                 Category
-                <SortIcon field="category" />
+                <SortIcon field="category" currentSortField={sortField} sortDirection={sortDirection} />
               </Button>
             </TableHead>
             <TableHead>
@@ -131,7 +137,7 @@ export function ArchiveTable({ tasks, selectedIds, onSelectionChange, onTaskClic
                 onClick={() => handleSort('completed_at')}
               >
                 Completed
-                <SortIcon field="completed_at" />
+                <SortIcon field="completed_at" currentSortField={sortField} sortDirection={sortDirection} />
               </Button>
             </TableHead>
             <TableHead>
@@ -141,7 +147,7 @@ export function ArchiveTable({ tasks, selectedIds, onSelectionChange, onTaskClic
                 onClick={() => handleSort('bump_count')}
               >
                 Bumps
-                <SortIcon field="bump_count" />
+                <SortIcon field="bump_count" currentSortField={sortField} sortDirection={sortDirection} />
               </Button>
             </TableHead>
           </TableRow>
