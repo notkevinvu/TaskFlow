@@ -55,8 +55,14 @@ echo.
 echo [2/3] Starting Frontend (Next.js)...
 start "TaskFlow Frontend" cmd /k "cd /d %CD%\frontend && npm run dev"
 
-echo Waiting for frontend to start...
-timeout /t 3 /nobreak >nul
+echo Waiting for frontend to be ready...
+:wait_for_frontend
+timeout /t 2 /nobreak >nul
+curl -s -o nul -w "" http://localhost:3000 >nul 2>&1
+if %errorlevel% neq 0 (
+    echo   Still waiting for frontend...
+    goto wait_for_frontend
+)
 
 echo.
 echo [3/3] All services started!
@@ -71,3 +77,7 @@ echo.
 echo   Backend and Frontend are running in separate windows.
 echo   Close those windows to stop the services.
 echo.
+
+REM Open frontend in default browser
+echo Opening http://localhost:3000 in your browser...
+start http://localhost:3000

@@ -68,8 +68,11 @@ npm run dev &
 FRONTEND_PID=$!
 cd ..
 
-echo "Waiting for frontend to start..."
-sleep 3
+echo "Waiting for frontend to be ready..."
+while ! curl -s -o /dev/null -w "" http://localhost:3000 2>/dev/null; do
+    echo "  Still waiting for frontend..."
+    sleep 2
+done
 
 echo ""
 echo "[3/3] All services started!"
@@ -83,6 +86,16 @@ echo "   Backend:   http://localhost:8080"
 echo ""
 echo "   Press Ctrl+C to stop all services"
 echo ""
+
+# Open frontend in default browser
+echo "Opening http://localhost:3000 in your browser..."
+if command -v open &> /dev/null; then
+    # macOS
+    open http://localhost:3000
+elif command -v xdg-open &> /dev/null; then
+    # Linux
+    xdg-open http://localhost:3000
+fi
 
 # Wait for background processes
 wait
