@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -129,22 +129,26 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [pendingDateRange, setPendingDateRange] = useState<DateRange | undefined>(undefined);
 
-  // Get fresh presets on each render (for date-based presets)
+  // Memoize preset definitions - dates are computed fresh when getFilters() is called
   const presets = useMemo(() => getFilterPresets(), []);
 
   // Handle panel expand/collapse - sync pending filters when opening
-  const handleExpandToggle = () => {
-    if (!isExpanded) {
-      // Opening the panel - sync pending filters from applied filters
-      setPendingFilters(filters);
-    }
-    setIsExpanded(!isExpanded);
-  };
+  const handleExpandToggle = useCallback(() => {
+    setIsExpanded(prev => {
+      if (!prev) {
+        // Opening the panel - sync pending filters from applied filters
+        setPendingFilters(filters);
+      }
+      return !prev;
+    });
+  }, [filters]);
 
   // Handle date picker open/close - initialize pending date range when opening
-  const handleDatePickerOpenChange = (open: boolean) => {
+  const handleDatePickerOpenChange = useCallback((open: boolean) => {
     if (open) {
       // Initialize pending date range from current pending filters
+      // Note: We read pendingFilters here, which may be stale in the callback,
+      // but this is acceptable since we're syncing from the current pending state
       const range: DateRange | undefined =
         pendingFilters.dueDateStart || pendingFilters.dueDateEnd
           ? {
@@ -155,98 +159,112 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
       setPendingDateRange(range);
     }
     setDatePickerOpen(open);
-  };
+  }, [pendingFilters.dueDateStart, pendingFilters.dueDateEnd]);
 
-  const updatePendingFilter = (key: keyof TaskFilterState, value: string | number | undefined) => {
-    if (value === undefined) {
-      const newFilters = { ...pendingFilters };
+  const updatePendingFilter = useCallback((key: keyof TaskFilterState, value: string | number | undefined) => {
+    setPendingFilters(prev => {
+      if (value === undefined) {
+        const newFilters = { ...prev };
+        delete newFilters[key];
+        return newFilters;
+      }
+      return { ...prev, [key]: value };
+    });
+  }, []);
+
+  const removePendingFilter = useCallback((key: keyof TaskFilterState) => {
+    setPendingFilters(prev => {
+      const newFilters = { ...prev };
       delete newFilters[key];
-      setPendingFilters(newFilters);
-    } else {
-      setPendingFilters({ ...pendingFilters, [key]: value });
-    }
-  };
+      return newFilters;
+    });
+  }, []);
 
-  const removePendingFilter = (key: keyof TaskFilterState) => {
-    const newFilters = { ...pendingFilters };
-    delete newFilters[key];
-    setPendingFilters(newFilters);
-  };
-
-  const applyPreset = (preset: FilterPreset) => {
+  const applyPreset = useCallback((preset: FilterPreset) => {
     // Replace all pending filters with preset
     setPendingFilters(preset.getFilters());
-  };
+  }, []);
 
   // Handle date selection in calendar - supports deselection
-  const handleDateSelect = (range: DateRange | undefined) => {
+  const handleDateSelect = useCallback((range: DateRange | undefined) => {
     if (!range) {
       setPendingDateRange(undefined);
       return;
     }
 
-    // Handle deselection: if clicking on already selected start or end date
-    if (pendingDateRange) {
-      const clickedDate = range.from;
-      if (clickedDate) {
-        const clickedTime = clickedDate.getTime();
+    setPendingDateRange(prev => {
+      // Handle deselection: if clicking on already selected start or end date
+      if (prev) {
+        const clickedDate = range.from;
+        if (clickedDate) {
+          const clickedTime = clickedDate.getTime();
 
-        // If clicking on the start date, clear it
-        if (pendingDateRange.from && clickedTime === pendingDateRange.from.getTime() && !range.to) {
-          setPendingDateRange({ from: undefined, to: pendingDateRange.to });
-          return;
-        }
+          // If clicking on the start date, clear it
+          if (prev.from && clickedTime === prev.from.getTime() && !range.to) {
+            return { from: undefined, to: prev.to };
+          }
 
-        // If clicking on the end date, clear it
-        if (pendingDateRange.to && clickedTime === pendingDateRange.to.getTime()) {
-          setPendingDateRange({ from: pendingDateRange.from, to: undefined });
-          return;
+          // If clicking on the end date, clear it
+          if (prev.to && clickedTime === prev.to.getTime()) {
+            return { from: prev.from, to: undefined };
+          }
         }
       }
-    }
 
-    setPendingDateRange(range);
-  };
+      return range;
+    });
+  }, []);
 
   // Confirm date range selection
-  const confirmDateRange = () => {
-    const newFilters = { ...pendingFilters };
-    if (pendingDateRange?.from) {
-      newFilters.dueDateStart = format(pendingDateRange.from, 'yyyy-MM-dd');
-    } else {
-      delete newFilters.dueDateStart;
-    }
-    if (pendingDateRange?.to) {
-      newFilters.dueDateEnd = format(pendingDateRange.to, 'yyyy-MM-dd');
-    } else {
-      delete newFilters.dueDateEnd;
-    }
-    setPendingFilters(newFilters);
+  const confirmDateRange = useCallback(() => {
+    setPendingFilters(prev => {
+      const newFilters = { ...prev };
+      if (pendingDateRange?.from) {
+        newFilters.dueDateStart = format(pendingDateRange.from, 'yyyy-MM-dd');
+      } else {
+        delete newFilters.dueDateStart;
+      }
+      if (pendingDateRange?.to) {
+        newFilters.dueDateEnd = format(pendingDateRange.to, 'yyyy-MM-dd');
+      } else {
+        delete newFilters.dueDateEnd;
+      }
+      return newFilters;
+    });
     setDatePickerOpen(false);
-  };
+  }, [pendingDateRange]);
 
   // Reset date range in picker
-  const resetDateRange = () => {
+  const resetDateRange = useCallback(() => {
     setPendingDateRange(undefined);
-  };
+  }, []);
 
   // Clear date range from pending filters
-  const clearPendingDateRange = () => {
-    const newFilters = { ...pendingFilters };
-    delete newFilters.dueDateStart;
-    delete newFilters.dueDateEnd;
-    setPendingFilters(newFilters);
-  };
+  const clearPendingDateRange = useCallback(() => {
+    setPendingFilters(prev => {
+      const newFilters = { ...prev };
+      delete newFilters.dueDateStart;
+      delete newFilters.dueDateEnd;
+      return newFilters;
+    });
+  }, []);
 
   // Apply all pending filters
-  const applyFilters = () => {
+  const applyFilters = useCallback(() => {
     onChange(pendingFilters);
-  };
+  }, [onChange, pendingFilters]);
 
   // Reset pending filters to empty
-  const resetFilters = () => {
+  const resetFilters = useCallback(() => {
     setPendingFilters({});
-  };
+  }, []);
+
+  // Helper to remove applied filters (used by filter chips)
+  const removeAppliedFilter = useCallback((...keys: (keyof TaskFilterState)[]) => {
+    const newFilters = { ...filters };
+    keys.forEach(key => delete newFilters[key]);
+    onChange(newFilters);
+  }, [filters, onChange]);
 
   // Check if there are pending changes
   const hasPendingChanges = !filtersEqual(pendingFilters, filters);
@@ -279,7 +297,7 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
   ];
 
   // Check if date range is complete (both dates selected)
-  const isDateRangeComplete = pendingDateRange?.from && pendingDateRange?.to;
+  const isDateRangeComplete = Boolean(pendingDateRange?.from && pendingDateRange?.to);
 
   return (
     <div className="space-y-3">
@@ -318,11 +336,7 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
             <Badge variant="secondary" className="flex items-center gap-1">
               Status: {filters.status}
               <button
-                onClick={() => {
-                  const newFilters = { ...filters };
-                  delete newFilters.status;
-                  onChange(newFilters);
-                }}
+                onClick={() => removeAppliedFilter('status')}
                 className="ml-1 hover:text-destructive"
               >
                 <X className="h-3 w-3" />
@@ -333,11 +347,7 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
             <Badge variant="secondary" className="flex items-center gap-1">
               Category: {filters.category}
               <button
-                onClick={() => {
-                  const newFilters = { ...filters };
-                  delete newFilters.category;
-                  onChange(newFilters);
-                }}
+                onClick={() => removeAppliedFilter('category')}
                 className="ml-1 hover:text-destructive"
               >
                 <X className="h-3 w-3" />
@@ -348,12 +358,7 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
             <Badge variant="secondary" className="flex items-center gap-1">
               Priority: {filters.minPriority}-{filters.maxPriority}
               <button
-                onClick={() => {
-                  const newFilters = { ...filters };
-                  delete newFilters.minPriority;
-                  delete newFilters.maxPriority;
-                  onChange(newFilters);
-                }}
+                onClick={() => removeAppliedFilter('minPriority', 'maxPriority')}
                 className="ml-1 hover:text-destructive"
               >
                 <X className="h-3 w-3" />
@@ -366,12 +371,7 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
               {' - '}
               {safeFormatDate(filters.dueDateEnd, 'MMM d')}
               <button
-                onClick={() => {
-                  const newFilters = { ...filters };
-                  delete newFilters.dueDateStart;
-                  delete newFilters.dueDateEnd;
-                  onChange(newFilters);
-                }}
+                onClick={() => removeAppliedFilter('dueDateStart', 'dueDateEnd')}
                 className="ml-1 hover:text-destructive"
               >
                 <X className="h-3 w-3" />
