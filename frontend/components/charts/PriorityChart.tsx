@@ -3,17 +3,18 @@
 import { PriorityDistribution } from '@/lib/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { colors } from '@/lib/tokens';
 
 interface PriorityChartProps {
   data: PriorityDistribution[];
 }
 
-// Colors matching priority levels
+// Colors matching priority levels - using design tokens
 const PRIORITY_COLORS: Record<string, string> = {
-  'Critical (90-100)': 'hsl(var(--destructive))',
-  'High (75-89)': 'hsl(var(--chart-5))',
-  'Medium (50-74)': 'hsl(var(--primary))',
-  'Low (0-49)': 'hsl(var(--muted))',
+  'Critical (90-100)': colors.chart.critical,
+  'High (75-89)': colors.chart.high,
+  'Medium (50-74)': colors.chart.medium,
+  'Low (0-49)': colors.chart.low,
 };
 
 export function PriorityChart({ data }: PriorityChartProps) {
@@ -22,7 +23,7 @@ export function PriorityChart({ data }: PriorityChartProps) {
     range: d.priority_range.replace(/\s*\(\d+-\d+\)/, ''), // Shorten labels
     fullRange: d.priority_range,
     count: d.task_count,
-    fill: PRIORITY_COLORS[d.priority_range] || 'hsl(var(--primary))',
+    fill: PRIORITY_COLORS[d.priority_range] || colors.chart.medium,
   }));
 
   if (chartData.length === 0) {

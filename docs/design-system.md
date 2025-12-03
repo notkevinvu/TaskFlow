@@ -1,7 +1,7 @@
 # TaskFlow Design System
 
-**Version:** 1.2
-**Last Updated:** 2025-12-02
+**Version:** 1.3
+**Last Updated:** 2025-12-03
 **Status:** Living Document
 
 This document tracks UI/UX patterns, component guidelines, and interaction standards for TaskFlow.
@@ -10,6 +10,7 @@ This document tracks UI/UX patterns, component guidelines, and interaction stand
 
 ## Table of Contents
 
+- [Design Tokens](#design-tokens)
 - [Colors](#colors)
 - [Typography](#typography)
 - [Spacing](#spacing)
@@ -17,6 +18,90 @@ This document tracks UI/UX patterns, component guidelines, and interaction stand
 - [Interactions](#interactions)
 - [Animations](#animations)
 - [Responsive Design](#responsive-design)
+
+---
+
+## Design Tokens
+
+Design tokens provide a centralized, consistent way to use colors, spacing, and typography values across the application.
+
+### Token Files
+
+| File | Purpose | Usage |
+|------|---------|-------|
+| `frontend/app/tokens.css` | CSS custom properties | Use in CSS/Tailwind: `var(--token-success)` |
+| `frontend/lib/tokens/colors.ts` | Color constants | Use in JS/TS: `colors.chart.critical` |
+| `frontend/lib/tokens/spacing.ts` | Spacing scale | Use in JS/TS: `spacing.space4` |
+| `frontend/lib/tokens/typography.ts` | Typography values | Use in JS/TS: `fontSize.lg` |
+
+### CSS Token Usage
+
+Use CSS tokens in stylesheets or Tailwind's arbitrary value syntax:
+
+```css
+/* In custom CSS */
+.status-success {
+  background-color: var(--token-success);
+  color: var(--token-success-foreground);
+}
+```
+
+```tsx
+/* In Tailwind arbitrary values */
+<div className="bg-[var(--token-success)] text-[var(--token-success-foreground)]">
+  Success message
+</div>
+```
+
+### TypeScript Token Usage
+
+Import tokens for programmatic use (charts, conditional styling):
+
+```tsx
+import { colors, spacing } from '@/lib/tokens';
+
+// For Recharts or libraries that need actual color values
+const CHART_COLORS = {
+  critical: colors.chart.critical,
+  high: colors.chart.high,
+  medium: colors.chart.medium,
+  low: colors.chart.low,
+};
+
+// For programmatic styling
+const style = { padding: spacing.space4 };
+```
+
+### When to Use Tokens vs. Tailwind
+
+| Scenario | Use | Example |
+|----------|-----|---------|
+| Standard component styling | Tailwind classes | `className="bg-green-600"` |
+| shadcn/ui variants | Component props | `<Badge variant="destructive">` |
+| Recharts/canvas colors | TypeScript tokens | `fill={colors.chart.critical}` |
+| Programmatic color selection | TypeScript tokens | `getStatusColor(status)` |
+| Custom CSS with semantic colors | CSS tokens | `var(--token-success)` |
+
+### Available Tokens
+
+**Color Tokens:**
+- `--token-success` / `colors.success` - Success states (green)
+- `--token-warning` / `colors.warning` - Warning states (yellow)
+- `--token-error` / `colors.error` - Error states (red)
+- `--token-info` / `colors.info` - Info states (blue)
+- `colors.chart.*` - Chart-specific colors (critical, high, medium, low)
+
+**Spacing Tokens:**
+- `--token-space-0-5` through `--token-space-16` - Matches Tailwind spacing scale
+
+**Typography Tokens:**
+- `--token-font-size-*` - xs through 4xl
+- `--token-line-height-*` - tight, normal, relaxed
+- `--token-font-weight-*` - normal, medium, semibold, bold
+
+### Dark Mode
+
+CSS tokens automatically switch values in dark mode. TypeScript tokens export light mode values - use CSS variables where dark mode support is needed.
 
 ---
 
@@ -1469,6 +1554,23 @@ focus-visible:ring-offset-2
 ---
 
 ## Changelog
+
+### 2025-12-03 (Design Tokens - v1.3)
+- ✅ **New Section:** Design Tokens system for semantic values
+- ✅ Created `frontend/app/tokens.css` with CSS custom properties
+  - Color tokens: success, warning, error, info (with foreground variants)
+  - Spacing tokens: matching Tailwind scale (space-0.5 through space-16)
+  - Typography tokens: font-size, line-height, font-weight
+  - Dark mode support via `.dark` selector
+- ✅ Created TypeScript token modules in `frontend/lib/tokens/`
+  - `colors.ts` - Semantic colors + chart-specific colors
+  - `spacing.ts` - Spacing scale
+  - `typography.ts` - Font size, line height, font weight
+  - `index.ts` - Re-exports for easy imports
+- ✅ Migrated PriorityChart to use design tokens (proof-of-concept)
+- ✅ Added comprehensive token documentation with usage examples
+- ✅ Documented when to use tokens vs. Tailwind classes
+- ✅ Version bumped to 1.3
 
 ### 2025-12-02 (Filter Enhancements - v1.2)
 - ✅ Added Date Range Picker pattern (shadcn Calendar with `mode="range"`)
