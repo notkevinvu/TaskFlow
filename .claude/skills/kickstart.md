@@ -17,7 +17,24 @@ You **MUST** have a task description in $ARGUMENTS to proceed. If empty, ask the
 
 This command automates informal development tasks (outside the formal speckit flow) with built-in quality gates.
 
+### Phase Quick Reference
+
+| Phase | Name | Key Actions | Gate |
+|-------|------|-------------|------|
+| 1 | Branch Setup | Sync main, create branch | Branch created |
+| 2 | Plan Discovery | Find/create plan | Plan confirmed |
+| 3 | Implementation | Execute plan, commit code | Code pushed |
+| 4 | PR Creation | Create PR, initial review | PR created + reviewed |
+| 5 | Review Fixes | Fix CRITICAL/MAJOR issues | All major issues fixed |
+| 6 | CI/CD | Wait for checks, fix failures | CI passing |
+| 7 | Final Review | Re-run review, verify clean | No new major issues |
+| 8 | Summary | Document completion | Summary provided |
+
+**INSTRUCTION:** Complete each phase in order. Do NOT skip phases. Mark each gate as complete before proceeding.
+
 ### Phase 1: Branch Setup
+
+**INSTRUCTION:** Execute these steps in order, then display the status box.
 
 1. **Sync main branch**:
    ```bash
@@ -32,7 +49,7 @@ This command automates informal development tasks (outside the formal speckit fl
    git checkout -b feature/<derived-name>
    ```
 
-3. **Display branch status**:
+3. **Display branch status** (GATE CHECK):
    ```
    ┌─────────────────────────────────────────────────────┐
    │              KICKSTART: BRANCH READY                │
@@ -40,12 +57,15 @@ This command automates informal development tasks (outside the formal speckit fl
    │  Task:   [Description from $ARGUMENTS]              │
    │  Branch: [Created branch name]                      │
    │  Base:   main (synced)                              │
+   │  Gate:   ✅ PHASE 1 COMPLETE                        │
    └─────────────────────────────────────────────────────┘
    ```
 
 ---
 
 ### Phase 2: Plan Discovery
+
+**INSTRUCTION:** Search for existing plans first. If none found, create one. Get user confirmation before proceeding.
 
 4. **Search for existing plan artifacts**:
 
@@ -65,12 +85,13 @@ This command automates informal development tasks (outside the formal speckit fl
    # Use Glob/Grep tools
    ```
 
-5. **Plan status decision**:
+5. **Plan status decision** (GATE CHECK):
 
    #### If plan/doc EXISTS:
    - Read and analyze the plan document
    - Display: "Found existing plan: `[path]`"
    - Summarize key points from the plan
+   - Display: "✅ PHASE 2 COMPLETE - Plan confirmed"
    - Proceed to Phase 3
 
    #### If NO plan exists:
@@ -85,10 +106,13 @@ This command automates informal development tasks (outside the formal speckit fl
    - **Ask clarifying questions** if needed (max 3-4 questions)
    - Create an inline implementation plan (not saved to file unless requested)
    - Display the plan for user confirmation before proceeding
+   - Display: "✅ PHASE 2 COMPLETE - Plan created and confirmed"
 
 ---
 
 ### Phase 3: Implementation
+
+**INSTRUCTION:** Use TodoWrite to track tasks. Complete implementation before pushing. Verify build/tests pass.
 
 6. **Execute the plan**:
    - Use TodoWrite tool to track implementation tasks
@@ -96,14 +120,17 @@ This command automates informal development tasks (outside the formal speckit fl
    - Make atomic, focused changes
    - Run tests if applicable after each significant change
 
-7. **Push initial changes**:
+7. **Push initial changes** (GATE CHECK):
    ```bash
    git add -A && git commit -m "[descriptive message]" && git push -u origin [branch]
    ```
+   - Display: "✅ PHASE 3 COMPLETE - Code pushed to origin/[branch]"
 
 ---
 
 ### Phase 4: PR Creation & Initial Review
+
+**INSTRUCTION:** Create PR, then run review. Post review as PR comment. Parse and categorize all findings.
 
 8. **Create Pull Request**:
    ```bash
@@ -120,14 +147,17 @@ This command automates informal development tasks (outside the formal speckit fl
    )"
    ```
 
-9. **Execute PR review**:
+9. **Execute PR review** (GATE CHECK):
    - Run: `/pr-review-toolkit:review-pr`
    - Wait for review to complete
    - **Post the review as a PR comment** for tracking purposes
+   - Display: "✅ PHASE 4 COMPLETE - PR #[number] created and reviewed"
 
 ---
 
 ### Phase 5: Review Implementation (CRITICAL GATE)
+
+**INSTRUCTION:** ALL Critical/Major issues MUST be fixed. Use TodoWrite to track each fix. Do NOT proceed until all major issues resolved.
 
 10. **Analyze PR review results**:
 
@@ -151,14 +181,17 @@ This command automates informal development tasks (outside the formal speckit fl
 
     Track fixes using TodoWrite tool.
 
-12. **Push review fixes**:
+12. **Push review fixes** (GATE CHECK):
     ```bash
     git add -A && git commit -m "fix: Address PR review feedback" && git push
     ```
+    - Display: "✅ PHASE 5 COMPLETE - All CRITICAL/MAJOR issues resolved"
 
 ---
 
 ### Phase 6: CI/CD Verification
+
+**INSTRUCTION:** Wait for CI to complete. If failures occur, fix them immediately. Do NOT proceed until CI passes.
 
 13. **Wait for CI/CD checks**:
     ```bash
@@ -170,7 +203,7 @@ This command automates informal development tasks (outside the formal speckit fl
     gh pr checks [PR_NUMBER]
     ```
 
-14. **Handle CI/CD failures**:
+14. **Handle CI/CD failures** (GATE CHECK):
 
     If checks fail:
     - Retrieve failure logs: `gh run view [RUN_ID] --log-failed`
@@ -178,28 +211,32 @@ This command automates informal development tasks (outside the formal speckit fl
     - Push fixes and repeat until CI passes
 
     If checks pass:
+    - Display: "✅ PHASE 6 COMPLETE - CI/CD passing"
     - Proceed to Phase 7
 
 ---
 
 ### Phase 7: Final Verification
 
+**INSTRUCTION:** Run a fresh PR review. Verify no new issues. Post final review as PR comment. Display merge checklist.
+
 15. **Execute final PR review**:
     - Run: `/pr-review-toolkit:review-pr` again
     - Verify no new Critical/Major issues introduced
     - **Post the final review as a PR comment**
 
-16. **Confirm merge readiness**:
+16. **Confirm merge readiness** (GATE CHECK):
 
     ```
     ┌─────────────────────────────────────────────────────┐
     │              KICKSTART: MERGE CHECKLIST             │
     ├─────────────────────────────────────────────────────┤
-    │  [ ] All Critical issues resolved                   │
-    │  [ ] All Major issues resolved                      │
-    │  [ ] CI/CD checks passing                           │
-    │  [ ] Final review completed                         │
-    │  [ ] Summary provided below                         │
+    │  [✓] All Critical issues resolved                   │
+    │  [✓] All Major issues resolved                      │
+    │  [✓] CI/CD checks passing                           │
+    │  [✓] Final review completed                         │
+    │  [✓] Summary provided below                         │
+    │  Gate: ✅ PHASE 7 COMPLETE - Ready for merge        │
     └─────────────────────────────────────────────────────┘
     ```
 
@@ -207,7 +244,9 @@ This command automates informal development tasks (outside the formal speckit fl
 
 ### Phase 8: Session Summary
 
-17. **Provide completion summary**:
+**INSTRUCTION:** Provide a comprehensive summary. Include all sections below. This marks the end of the kickstart workflow.
+
+17. **Provide completion summary** (GATE CHECK):
 
     ```markdown
     ## Kickstart Summary
@@ -237,6 +276,8 @@ This command automates informal development tasks (outside the formal speckit fl
     - **Branch:** [branch-name]
     - **Status:** Ready for human review and merge
     ```
+
+    Display: "✅ PHASE 8 COMPLETE - Kickstart workflow finished"
 
 ---
 
