@@ -39,23 +39,26 @@ export default function ArchivePage() {
   const bulkDelete = useBulkDelete();
   const bulkRestore = useBulkRestore();
 
+  // Extract tasks for memoization - consistent reference for React Compiler
+  const completedTasks = useMemo(
+    () => completedTasksData?.tasks ?? [],
+    [completedTasksData?.tasks]
+  );
+
   // Extract unique categories from completed tasks
   const categories = useMemo(() => {
-    if (!completedTasksData?.tasks) return [];
     return Array.from(
       new Set(
-        completedTasksData.tasks
+        completedTasks
           .map((t) => t.category)
           .filter((c): c is string => !!c)
       )
     ).sort();
-  }, [completedTasksData?.tasks]);
+  }, [completedTasks]);
 
   // Apply filters to tasks
   const filteredTasks = useMemo(() => {
-    if (!completedTasksData?.tasks) return [];
-
-    let tasks = completedTasksData.tasks;
+    let tasks = completedTasks;
 
     // Search filter
     if (filters.search) {
@@ -96,7 +99,7 @@ export default function ArchivePage() {
     }
 
     return tasks;
-  }, [completedTasksData?.tasks, filters]);
+  }, [completedTasks, filters]);
 
   // Pagination
   const totalPages = Math.ceil(filteredTasks.length / ITEMS_PER_PAGE);
@@ -207,7 +210,7 @@ export default function ArchivePage() {
         {filteredTasks.length === 0 ? (
           <Card>
             <CardContent className="pt-6 text-center py-12">
-              {completedTasksData?.tasks.length === 0 ? (
+              {completedTasks.length === 0 ? (
                 <div className="space-y-2">
                   <Archive className="h-12 w-12 mx-auto text-muted-foreground/50" />
                   <p className="text-muted-foreground">
