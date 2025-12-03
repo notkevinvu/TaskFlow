@@ -1,0 +1,190 @@
+# OpenAPI 3.0 Contract: Bulk Task Operations
+# Feature: 001-archive-completed-tasks
+
+openapi: 3.0.3
+info:
+  title: TaskFlow Bulk Operations API
+  description: API endpoints for bulk task operations (delete, restore)
+  version: 1.0.0
+
+paths:
+  /api/v1/tasks/bulk-delete:
+    post:
+      summary: Bulk delete tasks
+      description: |
+        Permanently deletes multiple tasks by their IDs.
+        User can only delete their own tasks.
+        Maximum 100 tasks per request.
+      operationId: bulkDeleteTasks
+      tags:
+        - Tasks
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkOperationRequest'
+            example:
+              task_ids:
+                - "550e8400-e29b-41d4-a716-446655440001"
+                - "550e8400-e29b-41d4-a716-446655440002"
+                - "550e8400-e29b-41d4-a716-446655440003"
+      responses:
+        '200':
+          description: Bulk delete completed (may include partial failures)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkOperationResponse'
+              examples:
+                success:
+                  summary: All tasks deleted
+                  value:
+                    success_count: 3
+                    message: "Successfully deleted 3 tasks"
+                partial:
+                  summary: Partial success
+                  value:
+                    success_count: 2
+                    failed_ids:
+                      - "550e8400-e29b-41d4-a716-446655440003"
+                    message: "Deleted 2 tasks. 1 task not found or not owned."
+        '400':
+          description: Invalid request (empty array, invalid UUIDs, too many IDs)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - missing or invalid JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/tasks/bulk-restore:
+    post:
+      summary: Bulk restore tasks to active status
+      description: |
+        Restores multiple completed tasks to "todo" status.
+        User can only restore their own tasks.
+        Only tasks with status "done" can be restored.
+        Maximum 100 tasks per request.
+      operationId: bulkRestoreTasks
+      tags:
+        - Tasks
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkOperationRequest'
+            example:
+              task_ids:
+                - "550e8400-e29b-41d4-a716-446655440001"
+                - "550e8400-e29b-41d4-a716-446655440002"
+      responses:
+        '200':
+          description: Bulk restore completed (may include partial failures)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkOperationResponse'
+              examples:
+                success:
+                  summary: All tasks restored
+                  value:
+                    success_count: 2
+                    message: "Successfully restored 2 tasks to active status"
+                partial:
+                  summary: Partial success (some not in done status)
+                  value:
+                    success_count: 1
+                    failed_ids:
+                      - "550e8400-e29b-41d4-a716-446655440002"
+                    message: "Restored 1 task. 1 task not found, not owned, or not completed."
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /api/v1/auth/login
+
+  schemas:
+    BulkOperationRequest:
+      type: object
+      required:
+        - task_ids
+      properties:
+        task_ids:
+          type: array
+          description: Array of task UUIDs to operate on
+          minItems: 1
+          maxItems: 100
+          items:
+            type: string
+            format: uuid
+          example:
+            - "550e8400-e29b-41d4-a716-446655440001"
+            - "550e8400-e29b-41d4-a716-446655440002"
+
+    BulkOperationResponse:
+      type: object
+      required:
+        - success_count
+        - message
+      properties:
+        success_count:
+          type: integer
+          description: Number of tasks successfully processed
+          minimum: 0
+          example: 2
+        failed_ids:
+          type: array
+          description: IDs of tasks that failed to process (optional, only if failures)
+          items:
+            type: string
+            format: uuid
+          example:
+            - "550e8400-e29b-41d4-a716-446655440003"
+        message:
+          type: string
+          description: Human-readable summary of the operation result
+          example: "Successfully deleted 2 tasks"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+          example: "validation_error"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "task_ids must contain at least 1 item"
+        field:
+          type: string
+          description: Field that caused the error (for validation errors)
+          example: "task_ids"

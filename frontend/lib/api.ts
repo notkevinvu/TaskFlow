@@ -177,8 +177,18 @@ export const taskAPI = {
   create: (data: CreateTaskDTO) =>
     api.post<Task>('/api/v1/tasks', data),
 
-  // Get all tasks (priority-sorted)
-  list: (params?: { limit?: number; offset?: number }) =>
+  // Get all tasks (priority-sorted) with optional filters
+  list: (params?: {
+    limit?: number;
+    offset?: number;
+    status?: string;
+    category?: string;
+    search?: string;
+    min_priority?: number;
+    max_priority?: number;
+    due_date_start?: string;
+    due_date_end?: string;
+  }) =>
     api.get<{ tasks: Task[]; total_count: number }>('/api/v1/tasks', { params }),
 
   // Get single task by ID
@@ -212,7 +222,22 @@ export const taskAPI = {
     status?: string;    // Optional: comma-separated statuses (e.g., "todo,in_progress")
   }) =>
     api.get<CalendarResponse>('/api/v1/tasks/calendar', { params }),
+
+  // Bulk delete tasks
+  bulkDelete: (taskIds: string[]) =>
+    api.post<BulkOperationResponse>('/api/v1/tasks/bulk-delete', { task_ids: taskIds }),
+
+  // Bulk restore tasks (completed -> todo)
+  bulkRestore: (taskIds: string[]) =>
+    api.post<BulkOperationResponse>('/api/v1/tasks/bulk-restore', { task_ids: taskIds }),
 };
+
+// Bulk operation response type
+export interface BulkOperationResponse {
+  success_count: number;
+  failed_ids?: string[];
+  message: string;
+}
 
 // Category API
 export const categoryAPI = {

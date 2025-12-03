@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -483,4 +484,62 @@ func (s *TaskService) DeleteCategory(ctx context.Context, userID, categoryName s
 		return 0, domain.NewInternalError("failed to delete category", err)
 	}
 	return count, nil
+}
+
+// BulkDelete permanently deletes multiple tasks by their IDs
+// Returns a response with success count, failed IDs, and a message
+func (s *TaskService) BulkDelete(ctx context.Context, userID string, taskIDs []string) (*domain.BulkOperationResponse, error) {
+	if len(taskIDs) == 0 {
+		return nil, domain.NewValidationError("task_ids", "must contain at least 1 item")
+	}
+	if len(taskIDs) > 100 {
+		return nil, domain.NewValidationError("task_ids", "cannot contain more than 100 items")
+	}
+
+	successCount, failedIDs, err := s.taskRepo.BulkDelete(ctx, userID, taskIDs)
+	if err != nil {
+		return nil, domain.NewInternalError("failed to bulk delete tasks", err)
+	}
+
+	var message string
+	if len(failedIDs) == 0 {
+		message = "Successfully deleted " + strconv.Itoa(successCount) + " tasks"
+	} else {
+		message = "Deleted " + strconv.Itoa(successCount) + " tasks. " + strconv.Itoa(len(failedIDs)) + " task(s) not found or not owned."
+	}
+
+	return &domain.BulkOperationResponse{
+		SuccessCount: successCount,
+		FailedIDs:    failedIDs,
+		Message:      message,
+	}, nil
+}
+
+// BulkRestore restores multiple completed tasks to "todo" status
+// Returns a response with success count, failed IDs, and a message
+func (s *TaskService) BulkRestore(ctx context.Context, userID string, taskIDs []string) (*domain.BulkOperationResponse, error) {
+	if len(taskIDs) == 0 {
+		return nil, domain.NewValidationError("task_ids", "must contain at least 1 item")
+	}
+	if len(taskIDs) > 100 {
+		return nil, domain.NewValidationError("task_ids", "cannot contain more than 100 items")
+	}
+
+	successCount, failedIDs, err := s.taskRepo.BulkUpdateStatus(ctx, userID, taskIDs, domain.TaskStatusTodo)
+	if err != nil {
+		return nil, domain.NewInternalError("failed to bulk restore tasks", err)
+	}
+
+	var message string
+	if len(failedIDs) == 0 {
+		message = "Successfully restored " + strconv.Itoa(successCount) + " tasks to active status"
+	} else {
+		message = "Restored " + strconv.Itoa(successCount) + " tasks. " + strconv.Itoa(len(failedIDs)) + " task(s) not found, not owned, or not completed."
+	}
+
+	return &domain.BulkOperationResponse{
+		SuccessCount: successCount,
+		FailedIDs:    failedIDs,
+		Message:      message,
+	}, nil
 }

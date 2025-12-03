@@ -100,6 +100,22 @@ func (m *MockTaskService) DeleteCategory(ctx context.Context, userID, categoryNa
 	return args.Int(0), args.Error(1)
 }
 
+func (m *MockTaskService) BulkDelete(ctx context.Context, userID string, taskIDs []string) (*domain.BulkOperationResponse, error) {
+	args := m.Called(ctx, userID, taskIDs)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.BulkOperationResponse), args.Error(1)
+}
+
+func (m *MockTaskService) BulkRestore(ctx context.Context, userID string, taskIDs []string) (*domain.BulkOperationResponse, error) {
+	args := m.Called(ctx, userID, taskIDs)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.BulkOperationResponse), args.Error(1)
+}
+
 // setupTaskTest creates a test router and mock service
 func setupTaskTest() (*gin.Engine, *MockTaskService) {
 	router := testutil.SetupTestRouter()

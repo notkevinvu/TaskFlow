@@ -145,3 +145,57 @@ export function useCalendarTasks(params: {
     staleTime: 5 * 60 * 1000, // 5 minutes - calendar data doesn't need to refetch as often
   });
 }
+
+// Hook for fetching completed tasks (for archive/completed views)
+export function useCompletedTasks(filters?: Omit<TaskFilters, 'status'>) {
+  return useQuery({
+    queryKey: ['tasks', 'completed', filters],
+    queryFn: async () => {
+      const response = await taskAPI.list({
+        limit: 100,
+        offset: 0,
+        ...filters,
+        status: 'done',
+      });
+      // Sort by updated_at descending (most recently completed first)
+      const sortedTasks = response.data.tasks.sort((a, b) => {
+        const dateA = new Date(a.updated_at).getTime();
+        const dateB = new Date(b.updated_at).getTime();
+        return dateB - dateA;
+      });
+      return { ...response.data, tasks: sortedTasks };
+    },
+  });
+}
+
+// Hook for bulk deleting tasks
+export function useBulkDelete() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (taskIds: string[]) => taskAPI.bulkDelete(taskIds),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast.success(response.data.message);
+    },
+    onError: (err: unknown) => {
+      toast.error(getApiErrorMessage(err, 'Failed to delete tasks', 'Bulk Delete'));
+    },
+  });
+}
+
+// Hook for bulk restoring tasks (completed -> todo)
+export function useBulkRestore() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (taskIds: string[]) => taskAPI.bulkRestore(taskIds),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast.success(response.data.message);
+    },
+    onError: (err: unknown) => {
+      toast.error(getApiErrorMessage(err, 'Failed to restore tasks', 'Bulk Restore'));
+    },
+  });
+}

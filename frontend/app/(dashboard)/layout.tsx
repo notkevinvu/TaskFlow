@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 const navigation = [
   { name: 'Dashboard', href: '/dashboard' },
   { name: 'Analytics', href: '/analytics' },
+  { name: 'Archive', href: '/archive' },
 ];
 
 export default function DashboardLayout({
