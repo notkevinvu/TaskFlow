@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -502,9 +503,9 @@ func (s *TaskService) BulkDelete(ctx context.Context, userID string, taskIDs []s
 
 	var message string
 	if len(failedIDs) == 0 {
-		message = "Successfully deleted " + itoa(successCount) + " tasks"
+		message = "Successfully deleted " + strconv.Itoa(successCount) + " tasks"
 	} else {
-		message = "Deleted " + itoa(successCount) + " tasks. " + itoa(len(failedIDs)) + " task(s) not found or not owned."
+		message = "Deleted " + strconv.Itoa(successCount) + " tasks. " + strconv.Itoa(len(failedIDs)) + " task(s) not found or not owned."
 	}
 
 	return &domain.BulkOperationResponse{
@@ -531,9 +532,9 @@ func (s *TaskService) BulkRestore(ctx context.Context, userID string, taskIDs []
 
 	var message string
 	if len(failedIDs) == 0 {
-		message = "Successfully restored " + itoa(successCount) + " tasks to active status"
+		message = "Successfully restored " + strconv.Itoa(successCount) + " tasks to active status"
 	} else {
-		message = "Restored " + itoa(successCount) + " tasks. " + itoa(len(failedIDs)) + " task(s) not found, not owned, or not completed."
+		message = "Restored " + strconv.Itoa(successCount) + " tasks. " + strconv.Itoa(len(failedIDs)) + " task(s) not found, not owned, or not completed."
 	}
 
 	return &domain.BulkOperationResponse{
@@ -541,20 +542,4 @@ func (s *TaskService) BulkRestore(ctx context.Context, userID string, taskIDs []
 		FailedIDs:    failedIDs,
 		Message:      message,
 	}, nil
-}
-
-// itoa converts int to string (simple helper to avoid strconv import for messages)
-func itoa(i int) string {
-	if i == 0 {
-		return "0"
-	}
-	if i < 0 {
-		return "-" + itoa(-i)
-	}
-	result := ""
-	for i > 0 {
-		result = string(rune('0'+i%10)) + result
-		i /= 10
-	}
-	return result
 }

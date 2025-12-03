@@ -89,6 +89,8 @@ export default function ArchivePage() {
         case 'year':
           cutoffDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
           break;
+        default:
+          cutoffDate = new Date(0); // Safe fallback to epoch
       }
       tasks = tasks.filter((t) => new Date(t.updated_at) >= cutoffDate);
     }
@@ -128,15 +130,24 @@ export default function ArchivePage() {
 
   const confirmBulkDelete = async () => {
     const taskIds = Array.from(selectedIds);
-    await bulkDelete.mutateAsync(taskIds);
-    setSelectedIds(new Set());
-    setShowDeleteConfirm(false);
+    try {
+      await bulkDelete.mutateAsync(taskIds);
+      setSelectedIds(new Set());
+      setShowDeleteConfirm(false);
+    } catch {
+      // Selection preserved on error, toast already shown by onError
+      setShowDeleteConfirm(false);
+    }
   };
 
   const handleBulkRestore = async () => {
     const taskIds = Array.from(selectedIds);
-    await bulkRestore.mutateAsync(taskIds);
-    setSelectedIds(new Set());
+    try {
+      await bulkRestore.mutateAsync(taskIds);
+      setSelectedIds(new Set());
+    } catch {
+      // Selection preserved on error, toast already shown by onError
+    }
   };
 
   if (isLoading) {
