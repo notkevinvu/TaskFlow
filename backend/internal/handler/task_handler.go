@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -224,6 +225,14 @@ func (h *TaskHandler) Delete(c *gin.Context) {
 
 	// Get task before deletion to record metrics
 	task, getErr := h.taskService.Get(c.Request.Context(), userID, taskID)
+	if getErr != nil {
+		// Log but don't fail - metrics are secondary to deletion
+		slog.Warn("Failed to get task for deletion metrics",
+			"taskID", taskID,
+			"userID", userID,
+			"error", getErr,
+		)
+	}
 
 	err := h.taskService.Delete(c.Request.Context(), userID, taskID)
 	if err != nil {

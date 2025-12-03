@@ -18,10 +18,11 @@ func Middleware() gin.HandlerFunc {
 		start := time.Now()
 
 		// Get path template for consistent labeling
-		// Use the route pattern if available, otherwise fall back to path
+		// Use the route pattern if available, otherwise use a constant
+		// to prevent cardinality explosion from unmatched/404 paths
 		path := c.FullPath()
 		if path == "" {
-			path = c.Request.URL.Path
+			path = "/unmatched"
 		}
 
 		// Process request
