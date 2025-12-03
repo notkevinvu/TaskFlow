@@ -148,3 +148,15 @@ func (e TaskEffort) GetEffortMultiplier() float64 {
 func ParseDate(dateStr string) (time.Time, error) {
 	return time.Parse("2006-01-02", dateStr)
 }
+
+// BulkOperationRequest is used for bulk task operations
+type BulkOperationRequest struct {
+	TaskIDs []string `json:"task_ids" binding:"required,min=1,max=100"`
+}
+
+// BulkOperationResponse is the response for bulk operations
+type BulkOperationResponse struct {
+	SuccessCount int      `json:"success_count"`
+	FailedIDs    []string `json:"failed_ids,omitempty"`
+	Message      string   `json:"message"`
+}

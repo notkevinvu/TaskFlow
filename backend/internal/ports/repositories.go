@@ -44,6 +44,9 @@ type TaskRepository interface {
 	// Enhanced analytics methods
 	GetProductivityHeatmap(ctx context.Context, userID string, daysBack int) (*domain.ProductivityHeatmap, error)
 	GetCategoryTrends(ctx context.Context, userID string, daysBack int) (*domain.CategoryTrends, error)
+	// Bulk operations
+	BulkDelete(ctx context.Context, userID string, taskIDs []string) (int, []string, error)
+	BulkUpdateStatus(ctx context.Context, userID string, taskIDs []string, newStatus domain.TaskStatus) (int, []string, error)
 }
 
 // TaskHistoryRepository defines the interface for task history data access

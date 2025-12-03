@@ -427,3 +427,51 @@ func trimSpace(s string) string {
 	}
 	return s[start:end]
 }
+
+// BulkDelete handles bulk task deletion
+// POST /api/v1/tasks/bulk-delete
+func (h *TaskHandler) BulkDelete(c *gin.Context) {
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
+		return
+	}
+
+	var req domain.BulkOperationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.AbortWithError(c, domain.NewValidationError("request_body", "invalid JSON format"))
+		return
+	}
+
+	response, err := h.taskService.BulkDelete(c.Request.Context(), userID, req.TaskIDs)
+	if err != nil {
+		middleware.AbortWithError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// BulkRestore handles bulk task restoration (done -> todo)
+// POST /api/v1/tasks/bulk-restore
+func (h *TaskHandler) BulkRestore(c *gin.Context) {
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
+		return
+	}
+
+	var req domain.BulkOperationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.AbortWithError(c, domain.NewValidationError("request_body", "invalid JSON format"))
+		return
+	}
+
+	response, err := h.taskService.BulkRestore(c.Request.Context(), userID, req.TaskIDs)
+	if err != nil {
+		middleware.AbortWithError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}

@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { useTasks, useBumpTask, useCompleteTask, useDeleteTask, useAtRiskTasks, type TaskFilters as TaskFiltersType } from '@/hooks/useTasks';
+import { useTasks, useBumpTask, useCompleteTask, useDeleteTask, useAtRiskTasks, useCompletedTasks, type TaskFilters as TaskFiltersType } from '@/hooks/useTasks';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -106,6 +107,7 @@ export default function DashboardPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [filters, setFilters] = useState<TaskFilterState>(initialFilters);
+  const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
 
   // Update URL when filters change (debounced via useEffect)
   useEffect(() => {
@@ -130,6 +132,7 @@ export default function DashboardPage() {
   };
 
   const { data: tasksData, isLoading, isFetching } = useTasks(filterParams);
+  const { data: completedTasksData, isLoading: isLoadingCompleted, isFetching: isFetchingCompleted } = useCompletedTasks();
   const { data: atRiskData } = useAtRiskTasks();
   const bumpTask = useBumpTask();
   const completeTask = useCompleteTask();
@@ -141,7 +144,22 @@ export default function DashboardPage() {
   const effectiveTaskId = urlTaskId !== null ? urlTaskId : selectedTaskId;
 
   // Memoize tasks to prevent useMemo dependency issues
-  const tasks = useMemo(() => tasksData?.tasks || [], [tasksData?.tasks]);
+  const allTasks = useMemo(() => tasksData?.tasks || [], [tasksData?.tasks]);
+
+  // Filter to show only active tasks (not completed) by default
+  // Only show completed tasks if user explicitly filters by status=done
+  const tasks = useMemo(() => {
+    // If user explicitly selected a status filter, respect it
+    if (filters.status) {
+      return allTasks;
+    }
+    // Otherwise, filter out completed tasks
+    return allTasks.filter((t) => t.status !== 'done');
+  }, [allTasks, filters.status]);
+
+  // Completed tasks for the Completed tab
+  const completedTasks = useMemo(() => completedTasksData?.tasks || [], [completedTasksData?.tasks]);
+
   const atRiskCount = atRiskData?.count || 0;
   const quickWins = tasks.filter(
     (t) => t.estimated_effort === 'small' && t.bump_count === 0
@@ -286,24 +304,35 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Task List */}
-      <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Your Tasks</h3>
-            <div className="flex items-center gap-2">
-              {isFetching && (
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Updating...</span>
-                </div>
-              )}
+      {/* Task List with Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'active' | 'completed')} className="space-y-4">
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="active" className="gap-2">
+              Active
               {tasks.length > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Showing {tasks.length} task{tasks.length !== 1 ? 's' : ''}
-                </p>
+                <Badge variant="secondary" className="ml-1">{tasks.length}</Badge>
               )}
-            </div>
+            </TabsTrigger>
+            <TabsTrigger value="completed" className="gap-2">
+              Completed
+              {completedTasks.length > 0 && (
+                <Badge variant="secondary" className="ml-1">{completedTasks.length}</Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+          <div className="flex items-center gap-2">
+            {(activeTab === 'active' ? isFetching : isFetchingCompleted) && (
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Updating...</span>
+              </div>
+            )}
           </div>
+        </div>
+
+        {/* Active Tasks Tab */}
+        <TabsContent value="active" className="space-y-4">
           <div className={`space-y-4 transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
           {tasks.length === 0 ? (
             <Card>
@@ -321,9 +350,22 @@ export default function DashboardPage() {
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-muted-foreground">
-                    No tasks yet. Create your first task to get started!
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-muted-foreground">
+                      {allTasks.length > 0 && allTasks.every(t => t.status === 'done')
+                        ? "All tasks completed! You're all caught up. 🎉"
+                        : "No active tasks yet. Create your first task to get started!"}
+                    </p>
+                    {completedTasks.length > 0 && (
+                      <Button
+                        variant="link"
+                        onClick={() => setActiveTab('completed')}
+                        className="text-primary"
+                      >
+                        View {completedTasks.length} completed task{completedTasks.length !== 1 ? 's' : ''}
+                      </Button>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -444,7 +486,85 @@ export default function DashboardPage() {
           ))
           )}
           </div>
-        </div>
+        </TabsContent>
+
+        {/* Completed Tasks Tab */}
+        <TabsContent value="completed" className="space-y-4">
+          <div className={`space-y-4 transition-opacity duration-200 ${isFetchingCompleted ? 'opacity-50' : 'opacity-100'}`}>
+          {isLoadingCompleted ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-32" />
+              ))}
+            </div>
+          ) : completedTasks.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <p className="text-muted-foreground">
+                  No completed tasks yet. Complete a task to see it here!
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            completedTasks.map((task) => (
+              <Card
+                key={task.id}
+                className="hover:shadow-md transition-shadow cursor-pointer py-0 opacity-80"
+                onClick={() => setSelectedTaskId(task.id)}
+              >
+                <CardContent className="pt-4 px-6 pb-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h4 className="font-semibold line-through text-muted-foreground">{task.title}</h4>
+                        <Badge variant="secondary" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300">
+                          ✓ Completed
+                        </Badge>
+                        {task.category && (
+                          <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                            {task.category}
+                          </Badge>
+                        )}
+                      </div>
+                      {task.description && (
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {task.description}
+                        </p>
+                      )}
+                      <div className="flex gap-4 text-sm text-muted-foreground">
+                        <span>Completed: {new Date(task.updated_at).toLocaleDateString()}</span>
+                        {task.bump_count > 0 && (
+                          <span>Bumped {task.bump_count}x before completion</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 ml-4">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm('Are you sure you want to delete this completed task?')) {
+                            deleteTask.mutate(task.id);
+                            if (effectiveTaskId === task.id) {
+                              setSelectedTaskId(null);
+                            }
+                          }
+                        }}
+                        disabled={deleteTask.isPending}
+                        className="transition-all hover:scale-105 hover:shadow-lg cursor-pointer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
 
     {/* Task Details Sidebar */}

@@ -189,6 +189,24 @@ func (m *MockTaskRepository) GetCategoryTrends(ctx context.Context, userID strin
 	return args.Get(0).(*domain.CategoryTrends), args.Error(1)
 }
 
+func (m *MockTaskRepository) BulkDelete(ctx context.Context, userID string, taskIDs []string) (int, []string, error) {
+	args := m.Called(ctx, userID, taskIDs)
+	var failedIDs []string
+	if args.Get(1) != nil {
+		failedIDs = args.Get(1).([]string)
+	}
+	return args.Int(0), failedIDs, args.Error(2)
+}
+
+func (m *MockTaskRepository) BulkUpdateStatus(ctx context.Context, userID string, taskIDs []string, newStatus domain.TaskStatus) (int, []string, error) {
+	args := m.Called(ctx, userID, taskIDs, newStatus)
+	var failedIDs []string
+	if args.Get(1) != nil {
+		failedIDs = args.Get(1).([]string)
+	}
+	return args.Int(0), failedIDs, args.Error(2)
+}
+
 // MockTaskHistoryRepository is a mock implementation of ports.TaskHistoryRepository
 type MockTaskHistoryRepository struct {
 	mock.Mock

@@ -484,3 +484,77 @@ func (s *TaskService) DeleteCategory(ctx context.Context, userID, categoryName s
 	}
 	return count, nil
 }
+
+// BulkDelete permanently deletes multiple tasks by their IDs
+// Returns a response with success count, failed IDs, and a message
+func (s *TaskService) BulkDelete(ctx context.Context, userID string, taskIDs []string) (*domain.BulkOperationResponse, error) {
+	if len(taskIDs) == 0 {
+		return nil, domain.NewValidationError("task_ids", "must contain at least 1 item")
+	}
+	if len(taskIDs) > 100 {
+		return nil, domain.NewValidationError("task_ids", "cannot contain more than 100 items")
+	}
+
+	successCount, failedIDs, err := s.taskRepo.BulkDelete(ctx, userID, taskIDs)
+	if err != nil {
+		return nil, domain.NewInternalError("failed to bulk delete tasks", err)
+	}
+
+	var message string
+	if len(failedIDs) == 0 {
+		message = "Successfully deleted " + itoa(successCount) + " tasks"
+	} else {
+		message = "Deleted " + itoa(successCount) + " tasks. " + itoa(len(failedIDs)) + " task(s) not found or not owned."
+	}
+
+	return &domain.BulkOperationResponse{
+		SuccessCount: successCount,
+		FailedIDs:    failedIDs,
+		Message:      message,
+	}, nil
+}
+
+// BulkRestore restores multiple completed tasks to "todo" status
+// Returns a response with success count, failed IDs, and a message
+func (s *TaskService) BulkRestore(ctx context.Context, userID string, taskIDs []string) (*domain.BulkOperationResponse, error) {
+	if len(taskIDs) == 0 {
+		return nil, domain.NewValidationError("task_ids", "must contain at least 1 item")
+	}
+	if len(taskIDs) > 100 {
+		return nil, domain.NewValidationError("task_ids", "cannot contain more than 100 items")
+	}
+
+	successCount, failedIDs, err := s.taskRepo.BulkUpdateStatus(ctx, userID, taskIDs, domain.TaskStatusTodo)
+	if err != nil {
+		return nil, domain.NewInternalError("failed to bulk restore tasks", err)
+	}
+
+	var message string
+	if len(failedIDs) == 0 {
+		message = "Successfully restored " + itoa(successCount) + " tasks to active status"
+	} else {
+		message = "Restored " + itoa(successCount) + " tasks. " + itoa(len(failedIDs)) + " task(s) not found, not owned, or not completed."
+	}
+
+	return &domain.BulkOperationResponse{
+		SuccessCount: successCount,
+		FailedIDs:    failedIDs,
+		Message:      message,
+	}, nil
+}
+
+// itoa converts int to string (simple helper to avoid strconv import for messages)
+func itoa(i int) string {
+	if i == 0 {
+		return "0"
+	}
+	if i < 0 {
+		return "-" + itoa(-i)
+	}
+	result := ""
+	for i > 0 {
+		result = string(rune('0'+i%10)) + result
+		i /= 10
+	}
+	return result
+}

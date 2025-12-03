@@ -26,6 +26,9 @@ type TaskService interface {
 	GetCalendar(ctx context.Context, userID string, filter *domain.CalendarFilter) (*domain.CalendarResponse, error)
 	RenameCategory(ctx context.Context, userID, oldName, newName string) (int, error)
 	DeleteCategory(ctx context.Context, userID, categoryName string) (int, error)
+	// Bulk operations
+	BulkDelete(ctx context.Context, userID string, taskIDs []string) (*domain.BulkOperationResponse, error)
+	BulkRestore(ctx context.Context, userID string, taskIDs []string) (*domain.BulkOperationResponse, error)
 }
 
 // InsightsService defines the interface for smart insights and suggestions

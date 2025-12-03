@@ -151,6 +151,8 @@ func main() {
 			tasks.GET("", taskHandler.List)
 			tasks.GET("/calendar", taskHandler.GetCalendar)
 			tasks.POST("/suggest-category", insightsHandler.SuggestCategory)
+			tasks.POST("/bulk-delete", taskHandler.BulkDelete)
+			tasks.POST("/bulk-restore", taskHandler.BulkRestore)
 			tasks.GET("/:id", taskHandler.Get)
 			tasks.PUT("/:id", taskHandler.Update)
 			tasks.DELETE("/:id", taskHandler.Delete)

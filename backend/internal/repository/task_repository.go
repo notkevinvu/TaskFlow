@@ -1028,3 +1028,146 @@ func (r *TaskRepository) GetCategoryTrends(ctx context.Context, userID string, d
 		Categories: categories,
 	}, nil
 }
+
+// BulkDelete deletes multiple tasks by their IDs for a user
+// Returns the count of successfully deleted tasks and IDs that failed to delete
+func (r *TaskRepository) BulkDelete(ctx context.Context, userID string, taskIDs []string) (int, []string, error) {
+	if len(taskIDs) == 0 {
+		return 0, nil, nil
+	}
+
+	userUUID, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	// Convert string IDs to UUIDs
+	uuids := make([]interface{}, len(taskIDs))
+	for i, id := range taskIDs {
+		uuid, err := stringToPgtypeUUID(id)
+		if err != nil {
+			return 0, taskIDs, fmt.Errorf("invalid task ID %s: %w", id, err)
+		}
+		uuids[i] = uuid
+	}
+
+	// Build dynamic IN clause
+	placeholders := ""
+	args := []interface{}{userUUID}
+	for i := range taskIDs {
+		if i > 0 {
+			placeholders += ", "
+		}
+		placeholders += fmt.Sprintf("$%d", i+2)
+		args = append(args, uuids[i])
+	}
+
+	// Delete tasks and return the IDs that were actually deleted
+	query := fmt.Sprintf(`
+		DELETE FROM tasks
+		WHERE user_id = $1 AND id IN (%s)
+		RETURNING id
+	`, placeholders)
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return 0, taskIDs, err
+	}
+	defer rows.Close()
+
+	deletedIDs := make(map[string]bool)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return 0, taskIDs, err
+		}
+		deletedIDs[id] = true
+	}
+
+	if err := rows.Err(); err != nil {
+		return 0, taskIDs, err
+	}
+
+	// Find IDs that were not deleted
+	failedIDs := make([]string, 0)
+	for _, id := range taskIDs {
+		if !deletedIDs[id] {
+			failedIDs = append(failedIDs, id)
+		}
+	}
+
+	return len(deletedIDs), failedIDs, nil
+}
+
+// BulkUpdateStatus updates the status of multiple tasks for a user
+// Returns the count of successfully updated tasks and IDs that failed to update
+func (r *TaskRepository) BulkUpdateStatus(ctx context.Context, userID string, taskIDs []string, newStatus domain.TaskStatus) (int, []string, error) {
+	if len(taskIDs) == 0 {
+		return 0, nil, nil
+	}
+
+	userUUID, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	// Convert string IDs to UUIDs
+	uuids := make([]interface{}, len(taskIDs))
+	for i, id := range taskIDs {
+		uuid, err := stringToPgtypeUUID(id)
+		if err != nil {
+			return 0, taskIDs, fmt.Errorf("invalid task ID %s: %w", id, err)
+		}
+		uuids[i] = uuid
+	}
+
+	// Build dynamic IN clause
+	placeholders := ""
+	args := []interface{}{userUUID, string(newStatus), time.Now()}
+	argNum := 4
+	for i := range taskIDs {
+		if i > 0 {
+			placeholders += ", "
+		}
+		placeholders += fmt.Sprintf("$%d", argNum)
+		args = append(args, uuids[i])
+		argNum++
+	}
+
+	// Update tasks and return the IDs that were actually updated
+	query := fmt.Sprintf(`
+		UPDATE tasks
+		SET status = $2, updated_at = $3
+		WHERE user_id = $1 AND id IN (%s)
+		RETURNING id
+	`, placeholders)
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return 0, taskIDs, err
+	}
+	defer rows.Close()
+
+	updatedIDs := make(map[string]bool)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return 0, taskIDs, err
+		}
+		updatedIDs[id] = true
+	}
+
+	if err := rows.Err(); err != nil {
+		return 0, taskIDs, err
+	}
+
+	// Find IDs that were not updated
+	failedIDs := make([]string, 0)
+	for _, id := range taskIDs {
+		if !updatedIDs[id] {
+			failedIDs = append(failedIDs, id)
+		}
+	}
+
+	return len(updatedIDs), failedIDs, nil
+}
