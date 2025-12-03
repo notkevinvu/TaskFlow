@@ -186,6 +186,7 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
   }, []);
 
   // Handle date selection in calendar - supports deselection
+  // react-day-picker behavior: first click sets from=to (same date), second click sets proper to
   const handleDateSelect = useCallback((range: DateRange | undefined) => {
     if (!range) {
       setPendingDateRange(undefined);
@@ -209,6 +210,12 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
             return { from: prev.from, to: undefined };
           }
         }
+      }
+
+      // Fix: When first clicking, react-day-picker sets from=to (same date)
+      // We want: first click = start only, second click = end
+      if (range.from && range.to && range.from.getTime() === range.to.getTime()) {
+        return { from: range.from, to: undefined };
       }
 
       return range;
@@ -254,10 +261,11 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
     onChange(pendingFilters);
   }, [onChange, pendingFilters]);
 
-  // Reset pending filters to empty
+  // Reset all filters immediately (clears applied filters, not just pending)
   const resetFilters = useCallback(() => {
     setPendingFilters({});
-  }, []);
+    onClear();
+  }, [onClear]);
 
   // Helper to remove applied filters (used by filter chips)
   const removeAppliedFilter = useCallback((...keys: (keyof TaskFilterState)[]) => {
