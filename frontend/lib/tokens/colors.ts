@@ -2,11 +2,15 @@
  * Color Tokens
  *
  * Semantic color values for programmatic use in TypeScript/JavaScript.
- * Use these when CSS variables aren't supported (e.g., Recharts, canvas).
+ * These are LIGHT MODE only. For dark mode support, use CSS tokens:
+ * - SVG/Recharts: `fill="var(--token-chart-critical)"`
+ * - CSS: `var(--token-success)`
  *
- * For CSS usage, prefer var(--token-success) etc. from tokens.css
+ * Use these TypeScript exports for contexts where CSS variables don't work,
+ * such as canvas drawing or dynamic color calculations.
  *
  * @see specs/002-design-tokens/data-model.md for token definitions
+ * @see docs/design-system.md for usage guidelines
  */
 
 /**

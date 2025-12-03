@@ -24,6 +24,12 @@
   --token-error-foreground: oklch(0.985 0 0);
   --token-info: oklch(0.62 0.21 250.1);
   --token-info-foreground: oklch(0.985 0 0);
+
+  /* Chart Colors - Light Mode */
+  --token-chart-critical: oklch(0.63 0.24 25.3);
+  --token-chart-high: oklch(0.77 0.19 70.1);
+  --token-chart-medium: oklch(0.62 0.21 250.1);
+  --token-chart-low: oklch(0.70 0 0);
 }
 
 .dark {
@@ -36,6 +42,12 @@
   --token-error-foreground: oklch(0.985 0 0);
   --token-info: oklch(0.70 0.18 250.1);
   --token-info-foreground: oklch(0.985 0 0);
+
+  /* Chart Colors - Dark Mode (increased lightness for visibility) */
+  --token-chart-critical: oklch(0.70 0.20 25.3);
+  --token-chart-high: oklch(0.82 0.16 70.1);
+  --token-chart-medium: oklch(0.70 0.18 250.1);
+  --token-chart-low: oklch(0.75 0 0);
 }
 
 /* ==========================================================================

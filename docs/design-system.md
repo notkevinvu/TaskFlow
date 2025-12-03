@@ -55,21 +55,29 @@ Use CSS tokens in stylesheets or Tailwind's arbitrary value syntax:
 
 ### TypeScript Token Usage
 
-Import tokens for programmatic use (charts, conditional styling):
+Import tokens for programmatic use (canvas rendering, conditional styling):
 
 ```tsx
 import { colors, spacing } from '@/lib/tokens';
 
-// For Recharts or libraries that need actual color values
-const CHART_COLORS = {
-  critical: colors.chart.critical,
-  high: colors.chart.high,
-  medium: colors.chart.medium,
-  low: colors.chart.low,
-};
+// For canvas or contexts where CSS variables don't work
+const ctx = canvasRef.current.getContext('2d');
+ctx.fillStyle = colors.chart.critical;
 
 // For programmatic styling
 const style = { padding: spacing.space4 };
+```
+
+**For Recharts/SVG**, prefer CSS tokens for dark mode support:
+
+```tsx
+// Recharts with dark mode support - use CSS tokens
+const PRIORITY_COLORS = {
+  'Critical': 'var(--token-chart-critical)',
+  'High': 'var(--token-chart-high)',
+};
+
+<Bar fill="var(--token-chart-critical)" />
 ```
 
 ### When to Use Tokens vs. Tailwind
@@ -78,7 +86,8 @@ const style = { padding: spacing.space4 };
 |----------|-----|---------|
 | Standard component styling | Tailwind classes | `className="bg-green-600"` |
 | shadcn/ui variants | Component props | `<Badge variant="destructive">` |
-| Recharts/canvas colors | TypeScript tokens | `fill={colors.chart.critical}` |
+| Recharts/SVG fills (dark mode) | CSS tokens | `fill="var(--token-chart-critical)"` |
+| Canvas colors (no dark mode) | TypeScript tokens | `ctx.fillStyle = colors.chart.critical` |
 | Programmatic color selection | TypeScript tokens | `getStatusColor(status)` |
 | Custom CSS with semantic colors | CSS tokens | `var(--token-success)` |
 
@@ -89,7 +98,10 @@ const style = { padding: spacing.space4 };
 - `--token-warning` / `colors.warning` - Warning states (yellow)
 - `--token-error` / `colors.error` - Error states (red)
 - `--token-info` / `colors.info` - Info states (blue)
-- `colors.chart.*` - Chart-specific colors (critical, high, medium, low)
+- `--token-chart-critical` / `colors.chart.critical` - Critical priority (red)
+- `--token-chart-high` / `colors.chart.high` - High priority (orange)
+- `--token-chart-medium` / `colors.chart.medium` - Medium priority (blue)
+- `--token-chart-low` / `colors.chart.low` - Low priority (gray)
 
 **Spacing Tokens:**
 - `--token-space-0-5` through `--token-space-16` - Matches Tailwind spacing scale
