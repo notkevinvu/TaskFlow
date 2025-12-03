@@ -8,12 +8,12 @@ interface PriorityChartProps {
   data: PriorityDistribution[];
 }
 
-// Colors matching priority levels
+// Colors matching priority levels - using CSS token variables for dark mode support
 const PRIORITY_COLORS: Record<string, string> = {
-  'Critical (90-100)': 'hsl(var(--destructive))',
-  'High (75-89)': 'hsl(var(--chart-5))',
-  'Medium (50-74)': 'hsl(var(--primary))',
-  'Low (0-49)': 'hsl(var(--muted))',
+  'Critical (90-100)': 'var(--token-chart-critical)',
+  'High (75-89)': 'var(--token-chart-high)',
+  'Medium (50-74)': 'var(--token-chart-medium)',
+  'Low (0-49)': 'var(--token-chart-low)',
 };
 
 export function PriorityChart({ data }: PriorityChartProps) {
@@ -22,7 +22,7 @@ export function PriorityChart({ data }: PriorityChartProps) {
     range: d.priority_range.replace(/\s*\(\d+-\d+\)/, ''), // Shorten labels
     fullRange: d.priority_range,
     count: d.task_count,
-    fill: PRIORITY_COLORS[d.priority_range] || 'hsl(var(--primary))',
+    fill: PRIORITY_COLORS[d.priority_range] || 'var(--token-chart-medium)',
   }));
 
   if (chartData.length === 0) {
