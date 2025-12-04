@@ -7,6 +7,61 @@ import (
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
 )
 
+func TestCalculateWithBreakdown(t *testing.T) {
+	calc := NewCalculator()
+
+	// Test with a task that has all factors active
+	task := &domain.Task{
+		UserPriority:    8, // Scale 1-10 -> 80 when scaled
+		CreatedAt:       time.Now().AddDate(0, 0, -15), // 15 days old -> ~50 time decay
+		DueDate:         timePtr(time.Now().AddDate(0, 0, 3)), // Due in 3 days -> ~82 urgency
+		BumpCount:       2, // 20 penalty
+		EstimatedEffort: effortPtr(domain.TaskEffortSmall), // 1.3x boost
+	}
+
+	score, breakdown := calc.CalculateWithBreakdown(task)
+
+	// Verify breakdown is not nil
+	if breakdown == nil {
+		t.Fatal("expected breakdown to be non-nil")
+	}
+
+	// Verify raw values
+	if breakdown.UserPriority != 80 {
+		t.Errorf("expected user_priority=80, got %.1f", breakdown.UserPriority)
+	}
+	if abs(int(breakdown.TimeDecay)-50) > 2 {
+		t.Errorf("expected time_decay≈50, got %.1f", breakdown.TimeDecay)
+	}
+	if abs(int(breakdown.DeadlineUrgency)-82) > 5 {
+		t.Errorf("expected deadline_urgency≈82, got %.1f", breakdown.DeadlineUrgency)
+	}
+	if breakdown.BumpPenalty != 20 {
+		t.Errorf("expected bump_penalty=20, got %.1f", breakdown.BumpPenalty)
+	}
+	if breakdown.EffortBoost != 1.3 {
+		t.Errorf("expected effort_boost=1.3, got %.2f", breakdown.EffortBoost)
+	}
+
+	// Verify weighted values are scaled by effort boost
+	// UserPriority: 80 * 0.4 * 1.3 = 41.6
+	expectedUserWeighted := 80 * 0.4 * 1.3
+	if abs(int(breakdown.UserPriorityWeighted)-int(expectedUserWeighted)) > 2 {
+		t.Errorf("expected user_priority_weighted≈%.1f, got %.1f", expectedUserWeighted, breakdown.UserPriorityWeighted)
+	}
+
+	// Verify score is returned correctly
+	if score <= 0 || score > 100 {
+		t.Errorf("expected score in range 0-100, got %d", score)
+	}
+
+	// Verify Calculate returns same score
+	calcScore := calc.Calculate(task)
+	if calcScore != score {
+		t.Errorf("Calculate() returned %d but CalculateWithBreakdown() returned %d", calcScore, score)
+	}
+}
+
 func TestCalculate(t *testing.T) {
 	calc := NewCalculator()
 

@@ -154,6 +154,14 @@ After opening a PR, execute the PR review workflow:
 8. **Re-review if Fixes Made**
    Run lighter review on fixed areas to confirm resolution
 
+9. **Final Summary with PR Link**
+   **IMPORTANT:** The final message/summary for ANY PR-related action must always end with the PR link at the very bottom for easy access:
+   ```
+   ---
+   **PR:** https://github.com/notkevinvu/TaskFlow/pull/XX
+   ```
+   This applies to: opening PRs, PR reviews, leaving comments, completing PR workflows.
+
 #### Manual Review Request
 
 Use `/pr-review [PR_NUMBER]` to trigger manual review on any PR.

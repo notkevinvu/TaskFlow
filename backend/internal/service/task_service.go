@@ -122,6 +122,12 @@ func (s *TaskService) Get(ctx context.Context, userID, taskID string) (*domain.T
 		return nil, domain.NewForbiddenError("task", "access")
 	}
 
+	// Populate priority breakdown for detailed view.
+	// NOTE: We intentionally calculate breakdown for ALL tasks, including completed ones.
+	// This provides historical context in the analytics dashboard and helps users understand
+	// why a task was prioritized the way it was at completion time.
+	_, task.PriorityBreakdown = s.priorityCalc.CalculateWithBreakdown(task)
+
 	return task, nil
 }
 

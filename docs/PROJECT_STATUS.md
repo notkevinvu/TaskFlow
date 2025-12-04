@@ -138,7 +138,7 @@ Phase 5: Product Enhancements          [░░░░░░░░░░░░░�
 | # | Feature | Description | Status |
 |---|---------|-------------|--------|
 | 1 | **Recurring Tasks** | Daily/weekly/monthly task recurrence | [ ] Planned |
-| 2 | **Priority Explanation Panel** | Show breakdown of priority factors (unique differentiator) | [ ] Planned |
+| 2 | **Priority Explanation Panel** | Show breakdown of priority factors (unique differentiator) | [x] Complete |
 | 3 | **Quick Add (Cmd+K)** | Global keyboard shortcut for rapid task entry | [ ] Planned |
 | 4 | **Keyboard Navigation** | j/k navigation, shortcuts for power users | [ ] Planned |
 
@@ -177,12 +177,12 @@ Phase 5: Product Enhancements          [░░░░░░░░░░░░░�
 - [x] Category management fix for completed tasks
 - [x] Enhanced analytics with trends and heatmap charts
 - [x] Product research and roadmap planning
+- [x] **Priority Explanation Panel** - Donut chart + detailed breakdown of priority factors
 
 ### Next Up: Phase 5A Quick Wins
 1. [ ] **Recurring Tasks** - Table stakes feature, unlocks daily/weekly workflows
-2. [ ] **Priority Explanation Panel** - Unique differentiator, quick frontend win
-3. [ ] **Quick Add (Cmd+K)** - UX improvement for power users
-4. [ ] **Keyboard Navigation** - Power user delight
+2. [ ] **Quick Add (Cmd+K)** - UX improvement for power users
+3. [ ] **Keyboard Navigation** - Power user delight
 
 ---
 

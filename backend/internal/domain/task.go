@@ -49,6 +49,9 @@ type Task struct {
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
 	CompletedAt     *time.Time `json:"completed_at,omitempty"`
+	// PriorityBreakdown shows the individual components of the priority calculation
+	// Optional: populated when detailed breakdown is requested
+	PriorityBreakdown *PriorityBreakdown `json:"priority_breakdown,omitempty"`
 }
 
 // CreateTaskDTO is used for creating tasks
@@ -159,4 +162,20 @@ type BulkOperationResponse struct {
 	SuccessCount int      `json:"success_count"`
 	FailedIDs    []string `json:"failed_ids,omitempty"`
 	Message      string   `json:"message"`
+}
+
+// PriorityBreakdown shows the individual components of the priority calculation
+type PriorityBreakdown struct {
+	// Raw component values (0-100 scale, except effort_boost which is 1.0-1.3)
+	UserPriority    float64 `json:"user_priority"`     // User's set priority scaled to 0-100
+	TimeDecay       float64 `json:"time_decay"`        // Age-based urgency (0-100)
+	DeadlineUrgency float64 `json:"deadline_urgency"`  // Due date proximity (0-100)
+	BumpPenalty     float64 `json:"bump_penalty"`      // Penalty for delays (0-50)
+	EffortBoost     float64 `json:"effort_boost"`      // Effort multiplier (1.0-1.3)
+
+	// Weighted contributions (after applying weights)
+	UserPriorityWeighted    float64 `json:"user_priority_weighted"`    // × 0.4
+	TimeDecayWeighted       float64 `json:"time_decay_weighted"`       // × 0.3
+	DeadlineUrgencyWeighted float64 `json:"deadline_urgency_weighted"` // × 0.2
+	BumpPenaltyWeighted     float64 `json:"bump_penalty_weighted"`     // × 0.1
 }
