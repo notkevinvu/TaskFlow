@@ -49,6 +49,9 @@ type Task struct {
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
 	CompletedAt     *time.Time `json:"completed_at,omitempty"`
+	// Recurrence fields
+	SeriesID     *string `json:"series_id,omitempty"`      // Links to task_series if recurring
+	ParentTaskID *string `json:"parent_task_id,omitempty"` // Previous task in the series
 	// PriorityBreakdown shows the individual components of the priority calculation
 	// Optional: populated when detailed breakdown is requested
 	PriorityBreakdown *PriorityBreakdown `json:"priority_breakdown,omitempty"`
@@ -56,14 +59,15 @@ type Task struct {
 
 // CreateTaskDTO is used for creating tasks
 type CreateTaskDTO struct {
-	Title           string      `json:"title" binding:"required,max=200"`
-	Description     *string     `json:"description,omitempty" binding:"omitempty,max=2000"`
-	UserPriority    *int        `json:"user_priority,omitempty" binding:"omitempty,min=1,max=10"`
-	DueDate         *time.Time  `json:"due_date,omitempty"`
-	EstimatedEffort *TaskEffort `json:"estimated_effort,omitempty"`
-	Category        *string     `json:"category,omitempty" binding:"omitempty,max=50"`
-	Context         *string     `json:"context,omitempty" binding:"omitempty,max=500"`
-	RelatedPeople   []string    `json:"related_people,omitempty"`
+	Title           string          `json:"title" binding:"required,max=200"`
+	Description     *string         `json:"description,omitempty" binding:"omitempty,max=2000"`
+	UserPriority    *int            `json:"user_priority,omitempty" binding:"omitempty,min=1,max=10"`
+	DueDate         *time.Time      `json:"due_date,omitempty"`
+	EstimatedEffort *TaskEffort     `json:"estimated_effort,omitempty"`
+	Category        *string         `json:"category,omitempty" binding:"omitempty,max=50"`
+	Context         *string         `json:"context,omitempty" binding:"omitempty,max=500"`
+	RelatedPeople   []string        `json:"related_people,omitempty"`
+	Recurrence      *RecurrenceRule `json:"recurrence,omitempty"` // Optional: make this a recurring task
 }
 
 // UpdateTaskDTO is used for updating tasks
@@ -150,6 +154,11 @@ func (e TaskEffort) GetEffortMultiplier() float64 {
 // ParseDate parses a date string in YYYY-MM-DD format
 func ParseDate(dateStr string) (time.Time, error) {
 	return time.Parse("2006-01-02", dateStr)
+}
+
+// IsRecurring returns true if the task is part of a recurring series
+func (t *Task) IsRecurring() bool {
+	return t.SeriesID != nil
 }
 
 // BulkOperationRequest is used for bulk task operations
