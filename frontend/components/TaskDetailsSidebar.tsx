@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { X, Pencil, Trash2 } from 'lucide-react';
 import { EditTaskDialog } from '@/components/EditTaskDialog';
+import { tokens } from '@/lib/tokens';
 
 interface TaskDetailsSidebarProps {
   taskId: string;
@@ -39,11 +40,17 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
       />
 
       {/* Sidebar */}
-      <div className={`fixed top-0 right-0 h-screen w-full sm:w-96 lg:w-96 bg-white dark:bg-gray-900 shadow-xl z-50 overflow-y-auto flex-shrink-0 transform transition-transform duration-[180ms] ease-in-out lg:border-l dark:border-gray-800 ${
-        isVisible ? 'translate-x-0' : 'translate-x-full'
-      }`}>
+      <div
+        className={`fixed top-0 right-0 h-screen w-full sm:w-96 lg:w-96 shadow-xl z-50 overflow-y-auto flex-shrink-0 transform transition-transform duration-[180ms] ease-in-out lg:border-l border-border ${
+          isVisible ? 'translate-x-0' : 'translate-x-full'
+        }`}
+        style={{ backgroundColor: tokens.surface.elevated }}
+      >
         {/* Header */}
-        <div className="sticky top-0 bg-white dark:bg-gray-900 border-b dark:border-gray-800 p-4 flex items-center justify-between z-10">
+        <div
+          className="sticky top-0 border-b border-border p-4 flex items-center justify-between z-10"
+          style={{ backgroundColor: tokens.surface.elevated }}
+        >
           <h2 className="text-lg font-semibold">Task Details</h2>
           <Button
             variant="ghost"
@@ -84,7 +91,13 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                     Priority: {Math.round(task.priority_score)}
                   </Badge>
                   {task.bump_count > 0 && (
-                    <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+                    <Badge
+                      variant="outline"
+                      style={{
+                        color: tokens.status.warning.default,
+                        borderColor: tokens.status.warning.default,
+                      }}
+                    >
                       ⚠️ Bumped {task.bump_count}x
                     </Badge>
                   )}

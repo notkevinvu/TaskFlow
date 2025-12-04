@@ -14,41 +14,42 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Insight, InsightType, InsightPriority } from '@/lib/api';
+import { tokens } from '@/lib/tokens';
 
-// Map insight types to icons and colors
+// Map insight types to icons and token-based colors
 const insightConfig: Record<
   InsightType,
-  { icon: typeof AlertTriangle; color: string; bgColor: string }
+  { icon: typeof AlertTriangle; colorToken: string; bgToken: string }
 > = {
   avoidance_pattern: {
     icon: AlertTriangle,
-    color: 'text-amber-600',
-    bgColor: 'bg-amber-50 dark:bg-amber-950/30',
+    colorToken: tokens.status.warning.default,
+    bgToken: tokens.status.warning.muted,
   },
   peak_performance: {
     icon: TrendingUp,
-    color: 'text-green-600',
-    bgColor: 'bg-green-50 dark:bg-green-950/30',
+    colorToken: tokens.status.success.default,
+    bgToken: tokens.status.success.muted,
   },
   quick_wins: {
     icon: Zap,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-50 dark:bg-blue-950/30',
+    colorToken: tokens.status.info.default,
+    bgToken: tokens.status.info.muted,
   },
   deadline_clustering: {
     icon: Calendar,
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-50 dark:bg-purple-950/30',
+    colorToken: tokens.accent.purple.default,
+    bgToken: tokens.accent.purple.muted,
   },
   at_risk_alert: {
     icon: Target,
-    color: 'text-red-600',
-    bgColor: 'bg-red-50 dark:bg-red-950/30',
+    colorToken: tokens.status.error.default,
+    bgToken: tokens.status.error.muted,
   },
   category_overload: {
     icon: Layers,
-    color: 'text-orange-600',
-    bgColor: 'bg-orange-50 dark:bg-orange-950/30',
+    colorToken: tokens.accent.orange.default,
+    bgToken: tokens.accent.orange.muted,
   },
 };
 
@@ -81,12 +82,12 @@ export function InsightCard({ insight }: InsightCardProps) {
   };
 
   return (
-    <Card className={`${config.bgColor} border-0 shadow-sm`}>
+    <Card className="border-0 shadow-sm" style={{ backgroundColor: config.bgToken }}>
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           {/* Icon */}
-          <div className={`p-2 rounded-lg bg-white dark:bg-gray-800 shadow-sm`}>
-            <Icon className={`h-5 w-5 ${config.color}`} />
+          <div className="p-2 rounded-lg shadow-sm" style={{ backgroundColor: tokens.surface.elevated }}>
+            <Icon className="h-5 w-5" style={{ color: config.colorToken }} />
           </div>
 
           {/* Content */}

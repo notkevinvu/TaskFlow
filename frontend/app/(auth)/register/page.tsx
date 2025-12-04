@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useAuth } from '@/hooks/useAuth';
 import { getApiErrorMessage } from '@/lib/api';
+import { tokens } from '@/lib/tokens';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -42,7 +43,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="flex min-h-screen items-center justify-center p-4" style={{ background: tokens.gradient.surface }}>
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
@@ -53,7 +54,14 @@ export default function RegisterPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded">
+              <div
+                className="p-3 text-sm rounded border"
+                style={{
+                  color: tokens.status.error.default,
+                  backgroundColor: tokens.status.error.muted,
+                  borderColor: tokens.status.error.default,
+                }}
+              >
                 {error}
               </div>
             )}

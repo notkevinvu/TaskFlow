@@ -12,22 +12,16 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
+import { tokens, ACCENT_COLORS } from '@/lib/tokens';
 
 interface CategoryTrendsChartProps {
   data: CategoryTrendsResponse;
 }
 
-// Color palette for categories
-const CATEGORY_COLORS = [
-  'hsl(var(--primary))',
-  'hsl(210, 80%, 55%)',
-  'hsl(150, 60%, 45%)',
-  'hsl(45, 90%, 55%)',
-  'hsl(350, 70%, 55%)',
-  'hsl(280, 60%, 55%)',
-  'hsl(30, 80%, 55%)',
-  'hsl(180, 50%, 45%)',
-];
+// Color palette for categories using design tokens
+const CATEGORY_COLORS = ACCENT_COLORS.map(
+  (color) => tokens.accent[color].default
+);
 
 export function CategoryTrendsChart({ data }: CategoryTrendsChartProps) {
   const { trends } = data;

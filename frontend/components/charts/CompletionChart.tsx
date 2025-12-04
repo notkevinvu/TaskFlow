@@ -3,6 +3,7 @@
 import { VelocityMetric } from '@/lib/api';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { tokens } from '@/lib/tokens';
 
 interface CompletionChartProps {
   data: VelocityMetric[];
@@ -60,9 +61,9 @@ export function CompletionChart({ data }: CompletionChartProps) {
             <Line
               type="monotone"
               dataKey="completed"
-              stroke="hsl(var(--primary))"
+              stroke={tokens.accent.green.default}
               strokeWidth={2}
-              dot={{ fill: 'hsl(var(--primary))', r: 4 }}
+              dot={{ fill: tokens.accent.green.default, r: 4 }}
               activeDot={{ r: 6 }}
               name="Tasks Completed"
             />
