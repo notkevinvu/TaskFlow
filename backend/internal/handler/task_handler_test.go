@@ -74,6 +74,14 @@ func (m *MockTaskService) Complete(ctx context.Context, userID, taskID string) (
 	return args.Get(0).(*domain.Task), args.Error(1)
 }
 
+func (m *MockTaskService) CompleteWithOptions(ctx context.Context, userID, taskID string, req *domain.TaskCompletionRequest) (*domain.TaskCompletionResponse, error) {
+	args := m.Called(ctx, userID, taskID, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.TaskCompletionResponse), args.Error(1)
+}
+
 func (m *MockTaskService) GetAtRiskTasks(ctx context.Context, userID string) ([]*domain.Task, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
