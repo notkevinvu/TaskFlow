@@ -22,6 +22,7 @@ type TaskService interface {
 	Delete(ctx context.Context, userID, taskID string) error
 	Bump(ctx context.Context, userID, taskID string) (*domain.Task, error)
 	Complete(ctx context.Context, userID, taskID string) (*domain.Task, error)
+	CompleteWithOptions(ctx context.Context, userID, taskID string, req *domain.TaskCompletionRequest) (*domain.TaskCompletionResponse, error)
 	GetAtRiskTasks(ctx context.Context, userID string) ([]*domain.Task, error)
 	GetCalendar(ctx context.Context, userID string, filter *domain.CalendarFilter) (*domain.CalendarResponse, error)
 	RenameCategory(ctx context.Context, userID, oldName, newName string) (int, error)

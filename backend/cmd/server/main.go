@@ -86,6 +86,9 @@ func main() {
 	insightsService := service.NewInsightsService(taskRepo)
 	recurrenceService := service.NewRecurrenceService(taskRepo, taskSeriesRepo, userPrefsRepo, taskHistoryRepo)
 
+	// Wire recurrence service into task service for recurring task completion support
+	taskService.SetRecurrenceService(recurrenceService)
+
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(authService)
 	taskHandler := handler.NewTaskHandler(taskService)
