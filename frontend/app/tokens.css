@@ -2,57 +2,254 @@
  * Design System Tokens
  *
  * CSS custom properties for semantic design values.
- * Use these tokens for consistent styling across the application.
+ * These tokens form an interface layer over shadcn/ui variables.
  *
- * Usage: var(--token-success), var(--token-space-4), etc.
+ * Architecture:
+ *   Components → Token Interface (this file) → shadcn Implementation (globals.css)
+ *
+ * Usage: var(--token-text-default), var(--token-accent-blue-default), etc.
  *
  * @see docs/design-system.md for usage guidelines
- * @see specs/002-design-tokens/data-model.md for token definitions
+ * @see specs/003-design-tokens-migration/data-model.md for token definitions
  */
 
 /* ==========================================================================
-   Color Tokens
+   Text Tokens - Interface over shadcn foreground vars
    ========================================================================== */
 
 :root {
-  /* Semantic Status Colors - Light Mode */
-  --token-success: oklch(0.72 0.19 142.5);
+  --token-text-default: var(--foreground);
+  --token-text-secondary: var(--muted-foreground);
+  --token-text-tertiary: color-mix(in oklch, var(--muted-foreground) 70%, transparent);
+  --token-text-disabled: color-mix(in oklch, var(--foreground) 40%, transparent);
+  --token-text-inverse: var(--background);
+}
+
+/* Dark mode: shadcn handles --foreground/--muted-foreground automatically */
+
+/* ==========================================================================
+   Surface Tokens - Interface over shadcn background vars
+   ========================================================================== */
+
+:root {
+  --token-surface-default: var(--background);
+  --token-surface-muted: var(--muted);
+  --token-surface-elevated: var(--card);
+  --token-surface-overlay: var(--popover);
+}
+
+/* Dark mode: shadcn handles automatically */
+
+/* ==========================================================================
+   Highlight Tokens - For selection, focus, emphasis
+   ========================================================================== */
+
+:root {
+  --token-highlight-default: var(--ring);
+  --token-highlight-muted: color-mix(in oklch, var(--ring) 30%, transparent);
+  --token-highlight-strong: var(--primary);
+}
+
+/* ==========================================================================
+   Shadow Tokens - Elevation and depth
+   ========================================================================== */
+
+:root {
+  --token-shadow-light: oklch(0 0 0 / 0.05);
+  --token-shadow-default: oklch(0 0 0 / 0.10);
+  --token-shadow-heavy: oklch(0 0 0 / 0.25);
+}
+
+.dark {
+  --token-shadow-light: oklch(0 0 0 / 0.20);
+  --token-shadow-default: oklch(0 0 0 / 0.40);
+  --token-shadow-heavy: oklch(0 0 0 / 0.60);
+}
+
+/* ==========================================================================
+   Gradient Tokens - Background effects
+   ========================================================================== */
+
+:root {
+  --token-gradient-primary: linear-gradient(135deg,
+    oklch(0.65 0.20 250) 0%,
+    oklch(0.55 0.25 280) 100%);
+  --token-gradient-surface: linear-gradient(180deg,
+    var(--token-surface-default) 0%,
+    var(--token-surface-muted) 100%);
+  --token-gradient-accent: linear-gradient(135deg,
+    var(--token-accent-blue-default) 0%,
+    var(--token-accent-purple-default) 100%);
+}
+
+.dark {
+  --token-gradient-primary: linear-gradient(135deg,
+    oklch(0.55 0.18 250) 0%,
+    oklch(0.45 0.22 280) 100%);
+}
+
+/* ==========================================================================
+   Semantic Status Tokens - Feedback colors with -default pattern
+   ========================================================================== */
+
+:root {
+  /* Success */
+  --token-success-default: oklch(0.72 0.19 142.5);
+  --token-success-muted: color-mix(in oklch, var(--token-success-default) 15%, transparent);
   --token-success-foreground: oklch(0.985 0 0);
-  --token-warning: oklch(0.80 0.18 84.4);
+
+  /* Warning */
+  --token-warning-default: oklch(0.80 0.18 84.4);
+  --token-warning-muted: color-mix(in oklch, var(--token-warning-default) 15%, transparent);
   --token-warning-foreground: oklch(0.145 0 0);
-  --token-error: oklch(0.63 0.24 25.3);
+
+  /* Error */
+  --token-error-default: oklch(0.63 0.24 25.3);
+  --token-error-muted: color-mix(in oklch, var(--token-error-default) 15%, transparent);
   --token-error-foreground: oklch(0.985 0 0);
-  --token-info: oklch(0.62 0.21 250.1);
+
+  /* Info */
+  --token-info-default: oklch(0.62 0.21 250.1);
+  --token-info-muted: color-mix(in oklch, var(--token-info-default) 15%, transparent);
   --token-info-foreground: oklch(0.985 0 0);
 
-  /* Chart Colors - Light Mode */
-  --token-chart-critical: oklch(0.63 0.24 25.3);
+  /* Legacy aliases for backwards compatibility with Feature 002 */
+  --token-success: var(--token-success-default);
+  --token-warning: var(--token-warning-default);
+  --token-error: var(--token-error-default);
+  --token-info: var(--token-info-default);
+
+  /* Chart Colors - mapped to status tokens */
+  --token-chart-critical: var(--token-error-default);
   --token-chart-high: oklch(0.77 0.19 70.1);
-  --token-chart-medium: oklch(0.62 0.21 250.1);
+  --token-chart-medium: var(--token-info-default);
   --token-chart-low: oklch(0.70 0 0);
 }
 
 .dark {
-  /* Semantic Status Colors - Dark Mode */
-  --token-success: oklch(0.80 0.16 142.5);
-  --token-success-foreground: oklch(0.145 0 0);
-  --token-warning: oklch(0.85 0.15 84.4);
-  --token-warning-foreground: oklch(0.145 0 0);
-  --token-error: oklch(0.70 0.20 25.3);
-  --token-error-foreground: oklch(0.985 0 0);
-  --token-info: oklch(0.70 0.18 250.1);
-  --token-info-foreground: oklch(0.985 0 0);
+  --token-success-default: oklch(0.80 0.16 142.5);
+  --token-warning-default: oklch(0.85 0.15 84.4);
+  --token-error-default: oklch(0.70 0.20 25.3);
+  --token-info-default: oklch(0.70 0.18 250.1);
 
-  /* Chart Colors - Dark Mode (increased lightness for visibility) */
-  --token-chart-critical: oklch(0.70 0.20 25.3);
+  /* Chart Colors - Dark Mode */
   --token-chart-high: oklch(0.82 0.16 70.1);
-  --token-chart-medium: oklch(0.70 0.18 250.1);
   --token-chart-low: oklch(0.75 0 0);
 }
 
 /* ==========================================================================
-   Spacing Tokens
-   Following Tailwind's spacing scale for consistency
+   Accent Color Tokens - Named colors with default/muted/strong variants
+   ========================================================================== */
+
+:root {
+  /* Blue */
+  --token-accent-blue-default: oklch(0.65 0.20 230);
+  --token-accent-blue-muted: oklch(0.85 0.08 230);
+  --token-accent-blue-strong: oklch(0.50 0.24 230);
+
+  /* Purple */
+  --token-accent-purple-default: oklch(0.65 0.20 275);
+  --token-accent-purple-muted: oklch(0.85 0.08 275);
+  --token-accent-purple-strong: oklch(0.50 0.24 275);
+
+  /* Pink */
+  --token-accent-pink-default: oklch(0.65 0.20 320);
+  --token-accent-pink-muted: oklch(0.85 0.08 320);
+  --token-accent-pink-strong: oklch(0.50 0.24 320);
+
+  /* Orange */
+  --token-accent-orange-default: oklch(0.70 0.20 55);
+  --token-accent-orange-muted: oklch(0.88 0.08 55);
+  --token-accent-orange-strong: oklch(0.55 0.24 55);
+
+  /* Yellow */
+  --token-accent-yellow-default: oklch(0.80 0.18 90);
+  --token-accent-yellow-muted: oklch(0.92 0.06 90);
+  --token-accent-yellow-strong: oklch(0.65 0.22 90);
+
+  /* Green */
+  --token-accent-green-default: oklch(0.65 0.20 145);
+  --token-accent-green-muted: oklch(0.85 0.08 145);
+  --token-accent-green-strong: oklch(0.50 0.24 145);
+
+  /* Cyan */
+  --token-accent-cyan-default: oklch(0.70 0.15 195);
+  --token-accent-cyan-muted: oklch(0.88 0.06 195);
+  --token-accent-cyan-strong: oklch(0.55 0.20 195);
+
+  /* Teal */
+  --token-accent-teal-default: oklch(0.65 0.15 175);
+  --token-accent-teal-muted: oklch(0.85 0.06 175);
+  --token-accent-teal-strong: oklch(0.50 0.20 175);
+}
+
+.dark {
+  /* Blue */
+  --token-accent-blue-default: oklch(0.75 0.18 230);
+  --token-accent-blue-muted: oklch(0.30 0.08 230);
+  --token-accent-blue-strong: oklch(0.85 0.20 230);
+
+  /* Purple */
+  --token-accent-purple-default: oklch(0.75 0.18 275);
+  --token-accent-purple-muted: oklch(0.30 0.08 275);
+  --token-accent-purple-strong: oklch(0.85 0.20 275);
+
+  /* Pink */
+  --token-accent-pink-default: oklch(0.75 0.18 320);
+  --token-accent-pink-muted: oklch(0.30 0.08 320);
+  --token-accent-pink-strong: oklch(0.85 0.20 320);
+
+  /* Orange */
+  --token-accent-orange-default: oklch(0.78 0.18 55);
+  --token-accent-orange-muted: oklch(0.32 0.08 55);
+  --token-accent-orange-strong: oklch(0.88 0.20 55);
+
+  /* Yellow */
+  --token-accent-yellow-default: oklch(0.85 0.16 90);
+  --token-accent-yellow-muted: oklch(0.35 0.06 90);
+  --token-accent-yellow-strong: oklch(0.92 0.18 90);
+
+  /* Green */
+  --token-accent-green-default: oklch(0.75 0.18 145);
+  --token-accent-green-muted: oklch(0.30 0.08 145);
+  --token-accent-green-strong: oklch(0.85 0.20 145);
+
+  /* Cyan */
+  --token-accent-cyan-default: oklch(0.78 0.14 195);
+  --token-accent-cyan-muted: oklch(0.32 0.06 195);
+  --token-accent-cyan-strong: oklch(0.88 0.16 195);
+
+  /* Teal */
+  --token-accent-teal-default: oklch(0.75 0.14 175);
+  --token-accent-teal-muted: oklch(0.30 0.06 175);
+  --token-accent-teal-strong: oklch(0.85 0.16 175);
+}
+
+/* ==========================================================================
+   Intensity Scale Tokens - For heatmaps and density visualization
+   ========================================================================== */
+
+:root {
+  --token-intensity-0: oklch(0.95 0.02 250);
+  --token-intensity-1: oklch(0.85 0.08 250);
+  --token-intensity-2: oklch(0.75 0.12 250);
+  --token-intensity-3: oklch(0.65 0.16 250);
+  --token-intensity-4: oklch(0.55 0.20 250);
+  --token-intensity-5: oklch(0.45 0.22 250);
+}
+
+.dark {
+  /* Inverted scale for dark mode - 0 is darkest, 5 is lightest */
+  --token-intensity-0: oklch(0.20 0.02 250);
+  --token-intensity-1: oklch(0.35 0.08 250);
+  --token-intensity-2: oklch(0.45 0.12 250);
+  --token-intensity-3: oklch(0.55 0.16 250);
+  --token-intensity-4: oklch(0.65 0.18 250);
+  --token-intensity-5: oklch(0.75 0.20 250);
+}
+
+/* ==========================================================================
+   Spacing Tokens - Following Tailwind's spacing scale
    ========================================================================== */
 
 :root {
