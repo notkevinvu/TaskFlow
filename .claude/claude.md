@@ -99,7 +99,58 @@ TaskFlow is an intelligent task prioritization system built with:
 
 ### PR Reviews
 
-**IMPORTANT:** Upon a requested PR /review prompt/skill, you must also send a comment to the PR with the review itself so we can keep it for tracking and learning purposes.
+**IMPORTANT:** Run `/pr-review` after any PR is opened (excluding spec/plan PRs).
+
+#### Automatic PR Review Workflow
+
+After opening a PR, execute the PR review workflow:
+
+1. **Check Eligibility**
+   - Skip if PR title contains "spec", "plan", or "specification"
+   - Skip if PR is draft, merged, or closed
+
+2. **Gather Context**
+   - Get PR details via `gh pr view`
+   - Read CLAUDE.md files for project conventions
+   - Review changed files
+
+3. **Launch Review Agents (Sonnet minimum)**
+   Launch 5 parallel agents focusing on:
+   - CLAUDE.md compliance and conventions
+   - Bug scan and security vulnerabilities
+   - Git history context
+   - Similar PRs analysis
+   - Code comments and documentation
+
+4. **Score and Filter Issues**
+   Score each issue 0-100 based on confidence (40%), severity (35%), actionability (25%):
+   - **Critical (90-100):** Must fix
+   - **Major (80-89):** Should fix
+   - **Below 80:** Likely false positive, exclude
+
+5. **Post Review Comment**
+   Post review to GitHub with `gh pr review --comment` including:
+   - Files reviewed
+   - Critical/Major issues (if any)
+   - Strengths observed
+   - Summary and recommendation
+
+6. **Fix Critical/Major Issues Immediately**
+   If issues scored 80+ were found:
+   - Fix them right away
+   - Commit with message: `fix: Address PR review feedback`
+   - Push to branch
+
+7. **Wait for CI**
+   - Check `gh pr checks` until CI passes
+   - Fix any CI failures
+
+8. **Re-review if Fixes Made**
+   Run lighter review on fixed areas to confirm resolution
+
+#### Manual Review Request
+
+Use `/pr-review [PR_NUMBER]` to trigger manual review on any PR.
 
 ---
 
