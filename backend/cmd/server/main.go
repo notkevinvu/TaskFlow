@@ -77,11 +77,14 @@ func main() {
 	userRepo := repository.NewUserRepository(dbPool)
 	taskRepo := repository.NewTaskRepository(dbPool)
 	taskHistoryRepo := repository.NewTaskHistoryRepository(dbPool)
+	taskSeriesRepo := repository.NewTaskSeriesRepository(dbPool)
+	userPrefsRepo := repository.NewUserPreferencesRepository(dbPool)
 
 	// Initialize services
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryHours)
 	taskService := service.NewTaskService(taskRepo, taskHistoryRepo)
 	insightsService := service.NewInsightsService(taskRepo)
+	recurrenceService := service.NewRecurrenceService(taskRepo, taskSeriesRepo, userPrefsRepo, taskHistoryRepo)
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -89,6 +92,7 @@ func main() {
 	categoryHandler := handler.NewCategoryHandler(taskService)
 	analyticsHandler := handler.NewAnalyticsHandler(taskRepo)
 	insightsHandler := handler.NewInsightsHandler(insightsService, taskService)
+	recurrenceHandler := handler.NewRecurrenceHandler(recurrenceService)
 
 	// Set Gin mode
 	gin.SetMode(cfg.GinMode)
@@ -184,6 +188,27 @@ func main() {
 		insights.Use(middleware.AuthRequired(cfg.JWTSecret))
 		{
 			insights.GET("", insightsHandler.GetInsights)
+		}
+
+		// Series routes (protected) - recurring task series management
+		series := v1.Group("/series")
+		series.Use(middleware.AuthRequired(cfg.JWTSecret))
+		{
+			series.GET("", recurrenceHandler.ListSeries)
+			series.GET("/:id/history", recurrenceHandler.GetSeriesHistory)
+			series.PUT("/:id", recurrenceHandler.UpdateSeries)
+			series.POST("/:id/deactivate", recurrenceHandler.DeactivateSeries)
+		}
+
+		// Recurrence preferences routes (protected)
+		preferences := v1.Group("/preferences/recurrence")
+		preferences.Use(middleware.AuthRequired(cfg.JWTSecret))
+		{
+			preferences.GET("", recurrenceHandler.GetPreferences)
+			preferences.GET("/effective", recurrenceHandler.GetEffectiveCalculation)
+			preferences.PUT("/default", recurrenceHandler.SetDefaultPreference)
+			preferences.PUT("/category/:category", recurrenceHandler.SetCategoryPreference)
+			preferences.DELETE("/category/:category", recurrenceHandler.DeleteCategoryPreference)
 		}
 	}
 

@@ -37,3 +37,21 @@ type InsightsService interface {
 	EstimateCompletionTime(ctx context.Context, userID string, task *domain.Task) (*domain.TimeEstimate, error)
 	SuggestCategory(ctx context.Context, userID string, req *domain.CategorySuggestionRequest) (*domain.CategorySuggestionResponse, error)
 }
+
+// RecurrenceService defines the interface for recurring task business logic
+type RecurrenceService interface {
+	// Task series management
+	CreateTaskWithRecurrence(ctx context.Context, userID string, task *domain.Task, rule *domain.RecurrenceRule) (*domain.Task, *domain.TaskSeries, error)
+	GenerateNextTask(ctx context.Context, completedTask *domain.Task, req *domain.TaskCompletionRequest) (*domain.Task, error)
+	GetUserSeries(ctx context.Context, userID string, activeOnly bool) ([]*domain.TaskSeries, error)
+	GetSeriesHistory(ctx context.Context, userID, seriesID string) (*domain.SeriesHistory, error)
+	UpdateSeries(ctx context.Context, userID, seriesID string, dto *domain.UpdateTaskSeriesDTO) (*domain.TaskSeries, error)
+	DeactivateSeries(ctx context.Context, userID, seriesID string) error
+
+	// User preferences
+	GetUserPreferences(ctx context.Context, userID string) (*domain.AllPreferences, error)
+	GetEffectiveDueDateCalculation(ctx context.Context, userID string, category *string) domain.DueDateCalculation
+	SetDefaultPreference(ctx context.Context, userID string, calc domain.DueDateCalculation) error
+	SetCategoryPreference(ctx context.Context, userID, category string, calc domain.DueDateCalculation) error
+	DeleteCategoryPreference(ctx context.Context, userID, category string) error
+}
