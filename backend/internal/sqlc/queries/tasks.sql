@@ -4,14 +4,15 @@
 INSERT INTO tasks (
     id, user_id, title, description, status, user_priority,
     due_date, estimated_effort, category, context, related_people,
-    priority_score, bump_count, created_at, updated_at
+    priority_score, bump_count, created_at, updated_at, series_id, parent_task_id
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15);
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);
 
 -- name: GetTaskByID :one
 SELECT id, user_id, title, description, status, user_priority,
        due_date, estimated_effort, category, context, related_people,
-       priority_score, bump_count, created_at, updated_at, completed_at
+       priority_score, bump_count, created_at, updated_at, completed_at,
+       series_id, parent_task_id
 FROM tasks
 WHERE id = $1;
 
@@ -34,7 +35,8 @@ WHERE id = $1 AND user_id = $2;
 -- name: GetAtRiskTasks :many
 SELECT id, user_id, title, description, status, user_priority,
        due_date, estimated_effort, category, context, related_people,
-       priority_score, bump_count, created_at, updated_at, completed_at
+       priority_score, bump_count, created_at, updated_at, completed_at,
+       series_id, parent_task_id
 FROM tasks
 WHERE user_id = $1
   AND (
@@ -165,7 +167,8 @@ ORDER BY completed_count DESC;
 -- Gets small effort tasks that are aging (quick wins)
 SELECT id, user_id, title, description, status, user_priority,
        due_date, estimated_effort, category, context, related_people,
-       priority_score, bump_count, created_at, updated_at, completed_at
+       priority_score, bump_count, created_at, updated_at, completed_at,
+       series_id, parent_task_id
 FROM tasks
 WHERE user_id = $1
   AND estimated_effort = 'small'

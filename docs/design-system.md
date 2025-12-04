@@ -464,6 +464,124 @@ Using Tailwind CSS default palette + shadcn/ui theme system.
 
 ---
 
+### Recurrence Components
+
+**Pattern:** Task recurrence management with pattern selection, completion options, and visual indicators.
+
+#### RecurrenceSelector Component
+
+**Usage:** Task creation forms for setting up recurring tasks
+
+```tsx
+<RecurrenceSelector
+  recurrence={recurrenceState}
+  onChange={handleRecurrenceChange}
+/>
+```
+
+**Data Format:**
+```tsx
+interface RecurrenceState {
+  pattern: 'none' | 'daily' | 'weekly' | 'monthly';
+  intervalValue: number; // e.g., 2 for "every 2 weeks"
+  endDate: string | null; // ISO date string or null
+  dueDateCalculation: 'from_original' | 'from_completion';
+}
+```
+
+**Features:**
+- Pattern dropdown with icons (`Repeat` from lucide-react)
+- Interval input with inline label ("every X days/weeks/months")
+- Optional end date with shadcn Calendar picker
+- Due date calculation mode selector
+- Collapses to single select when pattern is "none"
+
+**Applied to:**
+- ✅ CreateTaskDialog
+
+**Design Notes:**
+- Uses `grid grid-cols-2` layout for pattern and interval
+- End date uses `Popover` with `Calendar` component
+- Shows due date calculation only when recurrence is active
+- Default values: pattern="none", intervalValue=1, dueDateCalculation="from_original"
+
+#### RecurrenceCompletionDialog Component
+
+**Usage:** Modal shown when completing a recurring task
+
+```tsx
+<RecurrenceCompletionDialog
+  open={isOpen}
+  onOpenChange={setIsOpen}
+  taskId={taskId}
+  category={task.category}
+/>
+```
+
+**Features:**
+- RadioGroup with custom-styled options (bordered with hover states)
+- Icon-enhanced labels (`CalendarClock`, `CalendarCheck2` from lucide-react)
+- Hierarchical checkbox interactions:
+  - "Save as my default" checkbox
+  - "Save for this category" checkbox (mutually exclusive behaviors)
+  - "Skip next occurrence" checkbox
+  - "Stop recurring" checkbox (disables other options)
+- Automatic preference saving to backend
+
+**Applied to:**
+- ✅ Task completion flow (when task.series_id is set)
+
+**Implementation Details:**
+```tsx
+// Custom RadioGroup styling with bordered options
+<div className="flex items-center space-x-2 rounded-lg border p-3 hover:bg-accent/50 transition-colors">
+  <RadioGroupItem value="from_original" id="from_original" />
+  <Label htmlFor="from_original" className="flex items-center gap-2 cursor-pointer flex-1">
+    <CalendarClock className="h-4 w-4 text-muted-foreground" />
+    <span>From original due date</span>
+  </Label>
+</div>
+```
+
+**Design Notes:**
+- Purple accent color (`text-purple-600`, `border-purple-300`) for recurring task branding
+- Uses `Dialog` with `DialogContent` for modal presentation
+- Checkbox states are mutually exclusive in some cases (handled in onChange logic)
+- On confirm, calls `completeWithOptions` mutation with selected preferences
+
+#### Recurring Task Badge
+
+**Usage:** Visual indicator for tasks that belong to a recurring series
+
+```tsx
+{task.series_id && (
+  <Badge
+    variant="outline"
+    className="text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-600 bg-purple-50 dark:bg-purple-950"
+  >
+    <Repeat className="h-3 w-3 mr-1" />
+    Recurring
+  </Badge>
+)}
+```
+
+**Features:**
+- Purple color scheme (distinct from other badge types)
+- `Repeat` icon from lucide-react
+- Outline variant with custom purple colors
+- Dark mode support with appropriate color adjustments
+
+**Applied to:**
+- ✅ Dashboard task cards
+- ✅ TaskDetailsSidebar
+
+**Design Notes:**
+- Consistent purple branding across all recurrence-related UI
+- Icon size `h-3 w-3` to fit within badge
+- Uses custom class overrides on `variant="outline"` for purple theme
+
+---
+
 ### Search & Filtering
 
 **Pattern:** Instant search with debouncing + collapsible filter panel with active filter chips.

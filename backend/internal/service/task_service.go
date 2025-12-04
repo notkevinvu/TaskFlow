@@ -15,9 +15,10 @@ import (
 
 // TaskService handles task business logic
 type TaskService struct {
-	taskRepo        ports.TaskRepository
-	taskHistoryRepo ports.TaskHistoryRepository
-	priorityCalc    *priority.Calculator
+	taskRepo          ports.TaskRepository
+	taskHistoryRepo   ports.TaskHistoryRepository
+	priorityCalc      *priority.Calculator
+	recurrenceService ports.RecurrenceService // Optional: for recurring task support
 }
 
 // NewTaskService creates a new task service
@@ -27,6 +28,11 @@ func NewTaskService(taskRepo ports.TaskRepository, taskHistoryRepo ports.TaskHis
 		taskHistoryRepo: taskHistoryRepo,
 		priorityCalc:    priority.NewCalculator(),
 	}
+}
+
+// SetRecurrenceService sets the optional recurrence service for recurring task support
+func (s *TaskService) SetRecurrenceService(recurrenceService ports.RecurrenceService) {
+	s.recurrenceService = recurrenceService
 }
 
 // Create creates a new task
@@ -304,6 +310,15 @@ func (s *TaskService) Bump(ctx context.Context, userID, taskID string) (*domain.
 
 // Complete marks a task as complete
 func (s *TaskService) Complete(ctx context.Context, userID, taskID string) (*domain.Task, error) {
+	response, err := s.CompleteWithOptions(ctx, userID, taskID, nil)
+	if err != nil {
+		return nil, err
+	}
+	return response.CompletedTask, nil
+}
+
+// CompleteWithOptions marks a task as complete with optional recurrence handling
+func (s *TaskService) CompleteWithOptions(ctx context.Context, userID, taskID string, req *domain.TaskCompletionRequest) (*domain.TaskCompletionResponse, error) {
 	// Get task
 	task, err := s.taskRepo.FindByID(ctx, taskID)
 	if err != nil {
@@ -334,7 +349,23 @@ func (s *TaskService) Complete(ctx context.Context, userID, taskID string) (*dom
 		// Log error but don't fail the request
 	}
 
-	return task, nil
+	// Build response
+	response := &domain.TaskCompletionResponse{
+		CompletedTask: task,
+	}
+
+	// Handle recurring task generation if this is a recurring task and recurrence service is available
+	if task.SeriesID != nil && s.recurrenceService != nil {
+		nextTask, err := s.recurrenceService.GenerateNextTask(ctx, task, req)
+		if err != nil {
+			// Log error but don't fail the completion - the task is already completed
+			// In production, use a proper logger
+		} else if nextTask != nil {
+			response.NextTask = nextTask
+		}
+	}
+
+	return response, nil
 }
 
 // GetAtRiskTasks retrieves tasks that are at risk

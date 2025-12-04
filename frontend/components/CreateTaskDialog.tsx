@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useCreateTask } from '@/hooks/useTasks';
+import { RecurrenceRule } from '@/lib/api';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { CategorySelect } from '@/components/CategorySelect';
+import { RecurrenceSelector } from '@/components/RecurrenceSelector';
 
 interface CreateTaskDialogProps {
   open: boolean;
@@ -41,6 +43,7 @@ export function CreateTaskDialog({ open, onOpenChange, initialDueDate }: CreateT
     user_priority: 5,
     due_date: '',
     context: '',
+    recurrence: null as RecurrenceRule | null,
   });
 
   const [formData, setFormData] = useState(getEmptyFormData);
@@ -67,6 +70,16 @@ export function CreateTaskDialog({ open, onOpenChange, initialDueDate }: CreateT
         ? new Date(formData.due_date).toISOString()
         : undefined;
 
+      // Convert recurrence end date if present
+      const recurrence = formData.recurrence
+        ? {
+            ...formData.recurrence,
+            end_date: formData.recurrence.end_date
+              ? new Date(formData.recurrence.end_date).toISOString()
+              : undefined,
+          }
+        : undefined;
+
       await createTask.mutateAsync({
         title: formData.title,
         description: formData.description || undefined,
@@ -75,18 +88,11 @@ export function CreateTaskDialog({ open, onOpenChange, initialDueDate }: CreateT
         user_priority: formData.user_priority,
         due_date: dueDate,
         context: formData.context || undefined,
+        recurrence,
       });
 
       // Reset form and close dialog
-      setFormData({
-        title: '',
-        description: '',
-        category: '',
-        estimated_effort: 'medium',
-        user_priority: 5,
-        due_date: '',
-        context: '',
-      });
+      setFormData(getEmptyFormData());
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to create task:', error);
@@ -193,6 +199,13 @@ export function CreateTaskDialog({ open, onOpenChange, initialDueDate }: CreateT
                 onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
               />
             </div>
+
+            {/* Recurrence */}
+            <RecurrenceSelector
+              value={formData.recurrence}
+              onChange={(recurrence) => setFormData({ ...formData, recurrence })}
+              showEndDate
+            />
 
             {/* Context */}
             <div className="grid gap-2">

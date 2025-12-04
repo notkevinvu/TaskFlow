@@ -129,7 +129,81 @@ export const authAPI = {
   me: () => api.get('/api/v1/auth/me'),
 };
 
+// =============================================================================
+// Recurrence Types
+// =============================================================================
+
+export type RecurrencePattern = 'none' | 'daily' | 'weekly' | 'monthly';
+export type DueDateCalculation = 'from_original' | 'from_completion';
+
+export interface RecurrenceRule {
+  pattern: RecurrencePattern;
+  interval_value?: number; // e.g., 2 for "every 2 weeks"
+  end_date?: string;
+  due_date_calculation?: DueDateCalculation;
+}
+
+export interface TaskSeries {
+  id: string;
+  user_id: string;
+  original_task_id: string;
+  pattern: RecurrencePattern;
+  interval_value: number;
+  end_date?: string;
+  due_date_calculation: DueDateCalculation;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdateTaskSeriesDTO {
+  pattern?: RecurrencePattern;
+  interval_value?: number;
+  end_date?: string | null;
+  due_date_calculation?: DueDateCalculation;
+  is_active?: boolean;
+}
+
+export interface SeriesHistoryEntry {
+  task_id: string;
+  title: string;
+  status: 'todo' | 'in_progress' | 'done';
+  due_date?: string;
+  completed_at?: string;
+  created_at: string;
+}
+
+export interface SeriesHistory {
+  series: TaskSeries;
+  tasks: SeriesHistoryEntry[];
+  total: number;
+}
+
+// User Preferences Types
+export interface UserPreferences {
+  user_id: string;
+  default_due_date_calculation: DueDateCalculation;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CategoryPreference {
+  user_id: string;
+  category: string;
+  due_date_calculation: DueDateCalculation;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AllPreferences {
+  user_preferences?: UserPreferences;
+  category_preferences: CategoryPreference[];
+}
+
+// =============================================================================
 // Task Types
+// =============================================================================
+
 export interface CreateTaskDTO {
   title: string;
   description?: string;
@@ -139,6 +213,7 @@ export interface CreateTaskDTO {
   category?: string;
   context?: string;
   related_people?: string[];
+  recurrence?: RecurrenceRule;
 }
 
 // PriorityBreakdown shows the individual components of the priority calculation
@@ -174,6 +249,9 @@ export interface Task {
   created_at: string;
   updated_at: string;
   completed_at?: string;
+  // Recurrence fields
+  series_id?: string;
+  parent_task_id?: string;
   // Optional: populated when fetching single task details
   priority_breakdown?: PriorityBreakdown;
 }
@@ -427,4 +505,61 @@ export const insightsAPI = {
   // Get category suggestions based on task content
   suggestCategory: (data: { title: string; description?: string }) =>
     api.post<CategorySuggestionResponse>('/api/v1/tasks/suggest-category', data),
+};
+
+// =============================================================================
+// Series API - Task Series Management
+// =============================================================================
+
+export const seriesAPI = {
+  // List all task series for the user
+  list: (params?: { active_only?: boolean }) =>
+    api.get<{ series: TaskSeries[]; total_count: number }>('/api/v1/series', { params }),
+
+  // Get history of a specific series (all tasks in the series)
+  getHistory: (seriesId: string) =>
+    api.get<SeriesHistory>(`/api/v1/series/${seriesId}/history`),
+
+  // Update series settings
+  update: (seriesId: string, data: UpdateTaskSeriesDTO) =>
+    api.put<TaskSeries>(`/api/v1/series/${seriesId}`, data),
+
+  // Deactivate (stop) a recurring series
+  deactivate: (seriesId: string) =>
+    api.post<{ message: string }>(`/api/v1/series/${seriesId}/deactivate`),
+};
+
+// =============================================================================
+// Recurrence Preferences API
+// =============================================================================
+
+export const recurrencePreferencesAPI = {
+  // Get all user preferences for recurring tasks
+  getAll: () =>
+    api.get<AllPreferences>('/api/v1/preferences/recurrence'),
+
+  // Get effective due date calculation for a category (considers hierarchy)
+  getEffective: (category?: string) =>
+    api.get<{ due_date_calculation: DueDateCalculation; category?: string }>(
+      '/api/v1/preferences/recurrence/effective',
+      { params: { category } }
+    ),
+
+  // Set default due date calculation preference
+  setDefault: (dueDateCalculation: DueDateCalculation) =>
+    api.put<{ message: string; due_date_calculation: DueDateCalculation }>(
+      '/api/v1/preferences/recurrence/default',
+      { due_date_calculation: dueDateCalculation }
+    ),
+
+  // Set category-specific due date calculation preference
+  setCategoryPreference: (category: string, dueDateCalculation: DueDateCalculation) =>
+    api.put<{ message: string; category: string; due_date_calculation: DueDateCalculation }>(
+      `/api/v1/preferences/recurrence/category/${encodeURIComponent(category)}`,
+      { due_date_calculation: dueDateCalculation }
+    ),
+
+  // Delete a category preference
+  deleteCategoryPreference: (category: string) =>
+    api.delete(`/api/v1/preferences/recurrence/category/${encodeURIComponent(category)}`),
 };

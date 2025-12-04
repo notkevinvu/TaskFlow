@@ -11,6 +11,92 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type DueDateCalculation string
+
+const (
+	DueDateCalculationFromOriginal   DueDateCalculation = "from_original"
+	DueDateCalculationFromCompletion DueDateCalculation = "from_completion"
+)
+
+func (e *DueDateCalculation) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = DueDateCalculation(s)
+	case string:
+		*e = DueDateCalculation(s)
+	default:
+		return fmt.Errorf("unsupported scan type for DueDateCalculation: %T", src)
+	}
+	return nil
+}
+
+type NullDueDateCalculation struct {
+	DueDateCalculation DueDateCalculation `json:"due_date_calculation"`
+	Valid              bool               `json:"valid"` // Valid is true if DueDateCalculation is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDueDateCalculation) Scan(value interface{}) error {
+	if value == nil {
+		ns.DueDateCalculation, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.DueDateCalculation.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDueDateCalculation) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.DueDateCalculation), nil
+}
+
+type RecurrencePattern string
+
+const (
+	RecurrencePatternNone    RecurrencePattern = "none"
+	RecurrencePatternDaily   RecurrencePattern = "daily"
+	RecurrencePatternWeekly  RecurrencePattern = "weekly"
+	RecurrencePatternMonthly RecurrencePattern = "monthly"
+)
+
+func (e *RecurrencePattern) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = RecurrencePattern(s)
+	case string:
+		*e = RecurrencePattern(s)
+	default:
+		return fmt.Errorf("unsupported scan type for RecurrencePattern: %T", src)
+	}
+	return nil
+}
+
+type NullRecurrencePattern struct {
+	RecurrencePattern RecurrencePattern `json:"recurrence_pattern"`
+	Valid             bool              `json:"valid"` // Valid is true if RecurrencePattern is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullRecurrencePattern) Scan(value interface{}) error {
+	if value == nil {
+		ns.RecurrencePattern, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.RecurrencePattern.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullRecurrencePattern) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.RecurrencePattern), nil
+}
+
 type TaskEffort string
 
 const (
@@ -144,6 +230,15 @@ func (ns NullTaskStatus) Value() (driver.Value, error) {
 	return string(ns.TaskStatus), nil
 }
 
+type CategoryPreference struct {
+	ID                 pgtype.UUID        `json:"id"`
+	UserID             pgtype.UUID        `json:"user_id"`
+	Category           string             `json:"category"`
+	DueDateCalculation DueDateCalculation `json:"due_date_calculation"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Task struct {
 	ID              pgtype.UUID        `json:"id"`
 	UserID          pgtype.UUID        `json:"user_id"`
@@ -162,6 +257,8 @@ type Task struct {
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 	CompletedAt     pgtype.Timestamptz `json:"completed_at"`
+	SeriesID        pgtype.UUID        `json:"series_id"`
+	ParentTaskID    pgtype.UUID        `json:"parent_task_id"`
 }
 
 type TaskHistory struct {
@@ -174,6 +271,19 @@ type TaskHistory struct {
 	CreatedAt pgtype.Timestamptz   `json:"created_at"`
 }
 
+type TaskSeries struct {
+	ID                 pgtype.UUID        `json:"id"`
+	UserID             pgtype.UUID        `json:"user_id"`
+	OriginalTaskID     pgtype.UUID        `json:"original_task_id"`
+	Pattern            RecurrencePattern  `json:"pattern"`
+	IntervalValue      int32              `json:"interval_value"`
+	EndDate            pgtype.Timestamptz `json:"end_date"`
+	DueDateCalculation DueDateCalculation `json:"due_date_calculation"`
+	IsActive           bool               `json:"is_active"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
 type User struct {
 	ID           pgtype.UUID        `json:"id"`
 	Email        string             `json:"email"`
@@ -181,4 +291,11 @@ type User struct {
 	PasswordHash string             `json:"password_hash"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+type UserPreference struct {
+	UserID                    pgtype.UUID        `json:"user_id"`
+	DefaultDueDateCalculation DueDateCalculation `json:"default_due_date_calculation"`
+	CreatedAt                 pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                 pgtype.Timestamptz `json:"updated_at"`
 }

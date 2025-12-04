@@ -90,6 +90,40 @@ TaskFlow is an intelligent task prioritization system built with:
 4. **Document:** Update design-system.md for UI/UX changes
 5. **Commit:** Only create git commits when explicitly requested by user
 
+### Commit Granularity
+
+**IMPORTANT:** Split work into multiple digestible commits for easier history parsing.
+
+When working on features with multiple phases or steps (e.g., Phase 1-4, then 5.1-5.12, then 6, 7):
+- Create a **separate commit for each logical phase or group** that changes files
+- Each commit should be self-contained and represent a coherent unit of work
+- Use descriptive commit messages that reference the phase/step
+
+**Examples of good commit boundaries:**
+- Database migrations and schema changes
+- Domain entities and DTOs
+- Repository layer (data access)
+- Service layer (business logic)
+- Handler layer (API endpoints)
+- Frontend types and API client
+- Frontend hooks
+- UI components
+- Tests
+
+**Commit message format for phased work:**
+```
+feat(recurring-tasks): Add database migration for task_series
+
+Phase 5.1 - Creates task_series, user_preferences tables and
+adds series_id, parent_task_id columns to tasks table.
+```
+
+This makes it easier to:
+- Review changes incrementally
+- Bisect issues to specific changes
+- Revert individual pieces if needed
+- Understand the evolution of a feature
+
 ### Testing Changes
 
 - **Backend:** Check `BashOutput` for backend logs (port 8080)

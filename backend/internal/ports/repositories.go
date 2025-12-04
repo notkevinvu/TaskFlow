@@ -54,3 +54,29 @@ type TaskHistoryRepository interface {
 	Create(ctx context.Context, history *domain.TaskHistory) error
 	FindByTaskID(ctx context.Context, taskID string) ([]*domain.TaskHistory, error)
 }
+
+// TaskSeriesRepository defines the interface for task series data access
+type TaskSeriesRepository interface {
+	Create(ctx context.Context, series *domain.TaskSeries) error
+	FindByID(ctx context.Context, id string) (*domain.TaskSeries, error)
+	FindByUserID(ctx context.Context, userID string) ([]*domain.TaskSeries, error)
+	FindActiveByUserID(ctx context.Context, userID string) ([]*domain.TaskSeries, error)
+	Update(ctx context.Context, series *domain.TaskSeries) error
+	Deactivate(ctx context.Context, id, userID string) error
+	Delete(ctx context.Context, id, userID string) error
+	CountTasksInSeries(ctx context.Context, seriesID string) (int, error)
+	GetTasksBySeriesID(ctx context.Context, seriesID string) ([]*domain.Task, error)
+}
+
+// UserPreferencesRepository defines the interface for user preferences data access
+type UserPreferencesRepository interface {
+	GetUserPreferences(ctx context.Context, userID string) (*domain.UserPreferences, error)
+	UpsertUserPreferences(ctx context.Context, prefs *domain.UserPreferences) error
+	DeleteUserPreferences(ctx context.Context, userID string) error
+	GetCategoryPreference(ctx context.Context, userID, category string) (*domain.CategoryPreference, error)
+	GetCategoryPreferencesByUserID(ctx context.Context, userID string) ([]domain.CategoryPreference, error)
+	UpsertCategoryPreference(ctx context.Context, pref *domain.CategoryPreference) error
+	DeleteCategoryPreference(ctx context.Context, userID, category string) error
+	DeleteAllCategoryPreferences(ctx context.Context, userID string) error
+	GetAllPreferences(ctx context.Context, userID string) (*domain.AllPreferences, error)
+}
