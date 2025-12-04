@@ -3,6 +3,8 @@
 **Feature:** Calendar view with task badges and interactive day selection
 
 **Created:** 2025-11-23
+**Completed:** 2025-12-03
+**Status:** ✅ COMPLETE
 
 ---
 
@@ -175,66 +177,66 @@ When clicking a day with no tasks:
   - [x] Add route: `tasks.GET("/calendar", taskHandler.GetCalendar)`
 - [x] Add domain types (CalendarFilter, CalendarDayData, CalendarResponse, ParseDate)
 - [x] Build backend successfully (no compilation errors)
-- [ ] Test endpoint with curl/Postman (requires running server)
+- [x] Test endpoint with curl/Postman (requires running server)
 
 ### Frontend Tasks
 
-- [ ] Install dependencies
-  - [ ] Run `npm install react-day-picker date-fns`
-- [ ] Create API client method in `frontend/lib/api.ts`
-  - [ ] Add `getCalendarTasks(startDate, endDate, status?)` function
-  - [ ] Add TypeScript types for response
-- [ ] Add React Query hook in `frontend/hooks/useTasks.ts`
-  - [ ] Add `useCalendarTasks(startDate, endDate)` hook
-  - [ ] Configure staleTime and cacheTime
-  - [ ] Integrate with existing invalidation on mutations
-- [ ] Create Calendar component (`frontend/components/Calendar.tsx`)
-  - [ ] Implement month state management
-  - [ ] Integrate react-day-picker
-  - [ ] Add month navigation buttons
-  - [ ] Render day badges with color coding
-  - [ ] Handle loading and error states
-  - [ ] Add click handlers for days
-- [ ] Create CalendarDay component (`frontend/components/CalendarDay.tsx`)
-  - [ ] Render day number
-  - [ ] Render badge with count and color
-  - [ ] Apply today highlight styling
-  - [ ] Add hover effects
-- [ ] Create CalendarTaskPopover component (`frontend/components/CalendarTaskPopover.tsx`)
-  - [ ] Use shadcn/ui Popover component
-  - [ ] Render mini task cards
-  - [ ] Show priority, category, status, effort
-  - [ ] Add click handler to open TaskDetailsSidebar
-- [ ] Create EmptyDayDialog component (`frontend/components/EmptyDayDialog.tsx`)
-  - [ ] Use shadcn/ui Dialog component
-  - [ ] Show "Create task for [date]?" message
-  - [ ] Integrate with existing CreateTaskDialog
-  - [ ] Pre-fill due_date field
-- [ ] Update dashboard layout (`frontend/app/(dashboard)/dashboard/page.tsx`)
-  - [ ] Add responsive grid for calendar placement
-  - [ ] Wide screens: Calendar on left of task list
-  - [ ] Narrow screens: Calendar above task list
-  - [ ] Ensure proper spacing and scrolling
-- [ ] Add loading states, error handling, and empty states
-  - [ ] Loading skeleton for calendar
-  - [ ] Error message if API fails
-  - [ ] Empty state for months with no tasks
-- [ ] Test responsive behavior
-  - [ ] Test on wide screen (≥1280px)
-  - [ ] Test on narrow screen (<1280px)
-  - [ ] Test on mobile view
+- [x] Install dependencies
+  - [x] Run `npm install react-day-picker date-fns`
+- [x] Create API client method in `frontend/lib/api.ts`
+  - [x] Add `getCalendarTasks(startDate, endDate, status?)` function
+  - [x] Add TypeScript types for response
+- [x] Add React Query hook in `frontend/hooks/useTasks.ts`
+  - [x] Add `useCalendarTasks(startDate, endDate)` hook
+  - [x] Configure staleTime and cacheTime
+  - [x] Integrate with existing invalidation on mutations
+- [x] Create Calendar component (`frontend/components/Calendar.tsx`)
+  - [x] Implement month state management
+  - [x] ~~Integrate react-day-picker~~ Used custom implementation with date-fns
+  - [x] Add month navigation buttons
+  - [x] Render day badges with color coding
+  - [x] Handle loading and error states
+  - [x] Add click handlers for days
+- [x] ~~Create CalendarDay component (`frontend/components/CalendarDay.tsx`)~~ Inlined in Calendar.tsx
+  - [x] Render day number
+  - [x] Render badge with count and color
+  - [x] Apply today highlight styling
+  - [x] Add hover effects
+- [x] Create CalendarTaskPopover component (`frontend/components/CalendarTaskPopover.tsx`)
+  - [x] Use shadcn/ui Popover component
+  - [x] Render mini task cards
+  - [x] Show priority, category, status, effort
+  - [x] Add click handler to open TaskDetailsSidebar
+- [x] ~~Create EmptyDayDialog component (`frontend/components/EmptyDayDialog.tsx`)~~ Uses CreateTaskDialog directly
+  - [x] ~~Use shadcn/ui Dialog component~~
+  - [x] ~~Show "Create task for [date]?" message~~
+  - [x] Integrate with existing CreateTaskDialog
+  - [x] Pre-fill due_date field
+- [x] Update dashboard layout (`frontend/app/(dashboard)/layout.tsx`) - **Note: Calendar placed in sidebar instead of main content**
+  - [x] ~~Add responsive grid for calendar placement~~
+  - [x] Calendar in left sidebar (always visible)
+  - [x] Click-to-create opens CreateTaskDialog with pre-filled date
+  - [x] Ensure proper spacing and scrolling
+- [x] Add loading states, error handling, and empty states
+  - [x] Loading overlay for calendar
+  - [x] Error message if API fails
+  - [x] Empty days trigger create dialog
+- [x] Test responsive behavior
+  - [x] Test on wide screen (≥1280px)
+  - [x] Test on narrow screen (<1280px)
+  - [x] Test on mobile view
 
 ### Documentation & Polish
 
-- [ ] Update design system docs (`docs/design-system.md`)
-  - [ ] Document calendar badge patterns
-  - [ ] Document mini card design
-  - [ ] Document color coding system
-  - [ ] Document responsive layout pattern
-- [ ] Add calendar feature documentation
-  - [ ] Usage guide for users
-  - [ ] Technical architecture notes
-- [ ] Update main README.md with calendar feature
+- [x] Update design system docs (`docs/design-system.md`) - Badge patterns documented
+  - [x] Document calendar badge patterns
+  - [x] Document mini card design
+  - [x] Document color coding system
+  - [x] ~~Document responsive layout pattern~~ N/A - sidebar placement
+- [x] Add calendar feature documentation - This document serves as technical docs
+  - [x] ~~Usage guide for users~~ Self-explanatory UI
+  - [x] Technical architecture notes
+- [ ] ~~Update main README.md with calendar feature~~ Deferred - README is minimal
 
 ---
 
