@@ -68,7 +68,7 @@ export function InsightsList({ className }: InsightsListProps) {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Lightbulb className="h-5 w-5" style={{ color: tokens.status.warning.default }} />
+            <Lightbulb className="h-5 w-5" style={{ color: tokens.accent.yellow.default }} />
             Smart Insights
           </CardTitle>
           <Button
