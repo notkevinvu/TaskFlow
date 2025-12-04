@@ -671,7 +671,8 @@ func TestTaskRepository_RenameCategoryForUser(t *testing.T) {
 		assert.NotContains(t, categories, "OldCategory")
 	})
 
-	t.Run("does not rename completed tasks", func(t *testing.T) {
+	t.Run("renames completed tasks", func(t *testing.T) {
+		// Category management should apply to ALL tasks including completed ones
 		cat := "DoneCategory"
 		task := &domain.Task{
 			ID:            uuid.New().String(),
@@ -688,7 +689,12 @@ func TestTaskRepository_RenameCategoryForUser(t *testing.T) {
 
 		count, err := repo.RenameCategoryForUser(ctx, userID, cat, "RenamedDone")
 		require.NoError(t, err)
-		assert.Equal(t, 0, count)
+		assert.Equal(t, 1, count)
+
+		// Verify category was actually renamed
+		found, err := repo.FindByID(ctx, task.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "RenamedDone", *found.Category)
 	})
 }
 
@@ -722,6 +728,32 @@ func TestTaskRepository_DeleteCategoryForUser(t *testing.T) {
 		assert.Equal(t, 1, count)
 
 		// Verify category is removed
+		found, err := repo.FindByID(ctx, task.ID)
+		require.NoError(t, err)
+		assert.Nil(t, found.Category)
+	})
+
+	t.Run("removes category from completed tasks", func(t *testing.T) {
+		// Category management should apply to ALL tasks including completed ones
+		cat := "CompletedCategory"
+		task := &domain.Task{
+			ID:            uuid.New().String(),
+			UserID:        userID,
+			Title:         "Completed Task",
+			Category:      &cat,
+			Status:        domain.TaskStatusDone,
+			UserPriority:  5,
+			PriorityScore: 50,
+			CreatedAt:     time.Now().UTC(),
+			UpdatedAt:     time.Now().UTC(),
+		}
+		require.NoError(t, repo.Create(ctx, task))
+
+		count, err := repo.DeleteCategoryForUser(ctx, userID, cat)
+		require.NoError(t, err)
+		assert.Equal(t, 1, count)
+
+		// Verify category is removed from completed task
 		found, err := repo.FindByID(ctx, task.ID)
 		require.NoError(t, err)
 		assert.Nil(t, found.Category)
