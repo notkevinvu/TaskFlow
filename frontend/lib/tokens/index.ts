@@ -5,17 +5,48 @@
  * Import from '@/lib/tokens' for easy access to all tokens.
  *
  * @example
- * import { colors, spacing, typography } from '@/lib/tokens';
+ * // New unified API (recommended)
+ * import { tokens, getAccentColor, ACCENT_COLORS } from '@/lib/tokens';
+ * <Bar fill={tokens.accent.blue.default} />
+ * <div style={{ color: tokens.text.secondary }} />
  *
- * // Use in Recharts
+ * // Legacy API (still supported for backwards compatibility)
+ * import { colors, spacing, typography } from '@/lib/tokens';
  * <Bar fill={colors.chart.critical} />
  *
- * // Use for programmatic styling
- * const style = { padding: spacing.space4 };
- *
  * @see docs/design-system.md for usage guidelines
- * @see specs/002-design-tokens/quickstart.md for examples
+ * @see specs/003-design-tokens-migration/data-model.md for token definitions
  */
+
+// ============================================================================
+// New Unified Token API (Feature 003)
+// ============================================================================
+
+export {
+  tokens,
+  getAccentColor,
+  getStatusColor,
+  getIntensityColor,
+  ACCENT_COLORS,
+} from './tokens';
+
+export type {
+  TextToken,
+  SurfaceToken,
+  HighlightToken,
+  ShadowToken,
+  AccentColor,
+  AccentVariant,
+  StatusType,
+  StatusVariant,
+  IntensityLevel,
+  GradientToken,
+  ChartToken,
+} from './tokens';
+
+// ============================================================================
+// Legacy API (Feature 002 - maintained for backwards compatibility)
+// ============================================================================
 
 // Color tokens
 export { colors } from './colors';
