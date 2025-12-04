@@ -520,8 +520,9 @@ func (r *TaskRepository) RenameCategoryForUser(ctx context.Context, userID, oldN
 	}
 
 	// Use manual query to get rows affected
+	// Note: Apply to ALL tasks including completed ones - category management should be universal
 	result, err := r.db.Exec(ctx,
-		"UPDATE tasks SET category = $1, updated_at = NOW() WHERE user_id = $2 AND category = $3 AND status != 'done'",
+		"UPDATE tasks SET category = $1, updated_at = NOW() WHERE user_id = $2 AND category = $3",
 		newName, userUUID, oldName)
 	if err != nil {
 		return 0, err
@@ -538,8 +539,9 @@ func (r *TaskRepository) DeleteCategoryForUser(ctx context.Context, userID, cate
 	}
 
 	// Use manual query to get rows affected
+	// Note: Apply to ALL tasks including completed ones - category management should be universal
 	result, err := r.db.Exec(ctx,
-		"UPDATE tasks SET category = NULL, updated_at = NOW() WHERE user_id = $1 AND category = $2 AND status != 'done'",
+		"UPDATE tasks SET category = NULL, updated_at = NOW() WHERE user_id = $1 AND category = $2",
 		userUUID, categoryName)
 	if err != nil {
 		return 0, err

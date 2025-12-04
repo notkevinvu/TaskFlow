@@ -51,14 +51,16 @@ WHERE user_id = $1 AND category IS NOT NULL
 ORDER BY category;
 
 -- name: RenameCategoryForUser :exec
+-- Apply to ALL tasks including completed ones - category management should be universal
 UPDATE tasks
 SET category = $1, updated_at = NOW()
-WHERE user_id = $2 AND category = $3 AND status != 'done';
+WHERE user_id = $2 AND category = $3;
 
 -- name: DeleteCategoryForUser :exec
+-- Apply to ALL tasks including completed ones - category management should be universal
 UPDATE tasks
 SET category = NULL, updated_at = NOW()
-WHERE user_id = $1 AND category = $2 AND status != 'done';
+WHERE user_id = $1 AND category = $2;
 
 -- Analytics queries
 
