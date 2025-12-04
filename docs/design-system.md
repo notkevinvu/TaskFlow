@@ -1,6 +1,6 @@
 # TaskFlow Design System
 
-**Version:** 1.3
+**Version:** 2.0
 **Last Updated:** 2025-12-03
 **Status:** Living Document
 
@@ -23,97 +23,205 @@ This document tracks UI/UX patterns, component guidelines, and interaction stand
 
 ## Design Tokens
 
-Design tokens provide a centralized, consistent way to use colors, spacing, and typography values across the application.
+Design tokens provide a centralized, consistent way to use colors, spacing, and typography values across the application. The system includes **60 semantic tokens** organized into 8 categories.
 
 ### Token Files
 
 | File | Purpose | Usage |
 |------|---------|-------|
-| `frontend/app/tokens.css` | CSS custom properties | Use in CSS/Tailwind: `var(--token-success)` |
-| `frontend/lib/tokens/colors.ts` | Color constants | Use in JS/TS: `colors.chart.critical` |
-| `frontend/lib/tokens/spacing.ts` | Spacing scale | Use in JS/TS: `spacing.space4` |
-| `frontend/lib/tokens/typography.ts` | Typography values | Use in JS/TS: `fontSize.lg` |
+| `frontend/app/tokens.css` | CSS custom properties (60 tokens) | Use in CSS: `var(--token-status-success-default)` |
+| `frontend/lib/tokens/tokens.ts` | Unified TypeScript API | Use in JS/TS: `tokens.status.success.default` |
+| `frontend/lib/tokens/index.ts` | Re-exports + legacy compatibility | Import from: `@/lib/tokens` |
 
-### CSS Token Usage
-
-Use CSS tokens in stylesheets or Tailwind's arbitrary value syntax:
-
-```css
-/* In custom CSS */
-.status-success {
-  background-color: var(--token-success);
-  color: var(--token-success-foreground);
-}
-```
+### Quick Start
 
 ```tsx
-/* In Tailwind arbitrary values */
-<div className="bg-[var(--token-success)] text-[var(--token-success-foreground)]">
-  Success message
+import { tokens, ACCENT_COLORS } from '@/lib/tokens';
+
+// Status colors for alerts/feedback
+<div style={{ color: tokens.status.error.default }}>Error!</div>
+
+// Accent colors for charts/visualization
+<Bar fill={tokens.accent.blue.default} />
+
+// Surface colors for backgrounds
+<div style={{ backgroundColor: tokens.surface.elevated }}>Card</div>
+
+// Intensity scale for heatmaps
+<div style={{ backgroundColor: tokens.intensity[3] }} />
+```
+
+### Token Categories (60 Total)
+
+#### 1. Text Tokens (5 tokens)
+Interface over shadcn's `--foreground` variables for typography hierarchy.
+
+| Token | CSS Variable | Usage |
+|-------|--------------|-------|
+| `tokens.text.default` | `--token-text-default` | Primary text - headings, body |
+| `tokens.text.secondary` | `--token-text-secondary` | Supporting text, descriptions |
+| `tokens.text.tertiary` | `--token-text-tertiary` | Subtle labels, hints |
+| `tokens.text.disabled` | `--token-text-disabled` | Disabled/inactive states |
+| `tokens.text.inverse` | `--token-text-inverse` | Text on dark backgrounds |
+
+#### 2. Surface Tokens (4 tokens)
+Interface over shadcn's `--background` variables for backgrounds.
+
+| Token | CSS Variable | Usage |
+|-------|--------------|-------|
+| `tokens.surface.default` | `--token-surface-default` | Page background |
+| `tokens.surface.muted` | `--token-surface-muted` | Subtle sections |
+| `tokens.surface.elevated` | `--token-surface-elevated` | Cards, raised elements |
+| `tokens.surface.overlay` | `--token-surface-overlay` | Modals, popovers |
+
+#### 3. Highlight Tokens (3 tokens)
+Interface over shadcn's `--ring` and `--primary` for emphasis.
+
+| Token | CSS Variable | Usage |
+|-------|--------------|-------|
+| `tokens.highlight.default` | `--token-highlight-default` | Focus rings, selection |
+| `tokens.highlight.muted` | `--token-highlight-muted` | Subtle emphasis |
+| `tokens.highlight.strong` | `--token-highlight-strong` | Primary actions, CTAs |
+
+#### 4. Shadow Tokens (3 tokens)
+Custom shadow values for elevation and depth.
+
+| Token | CSS Variable | Usage |
+|-------|--------------|-------|
+| `tokens.shadow.light` | `--token-shadow-light` | Subtle elevation |
+| `tokens.shadow.default` | `--token-shadow-default` | Standard elevation |
+| `tokens.shadow.heavy` | `--token-shadow-heavy` | Pronounced elevation |
+
+#### 5. Status Tokens (12 tokens)
+Semantic colors for feedback states (success, warning, error, info).
+
+| Status | Default | Muted | Foreground |
+|--------|---------|-------|------------|
+| Success | `tokens.status.success.default` | `tokens.status.success.muted` | `tokens.status.success.foreground` |
+| Warning | `tokens.status.warning.default` | `tokens.status.warning.muted` | `tokens.status.warning.foreground` |
+| Error | `tokens.status.error.default` | `tokens.status.error.muted` | `tokens.status.error.foreground` |
+| Info | `tokens.status.info.default` | `tokens.status.info.muted` | `tokens.status.info.foreground` |
+
+**Example - Error Alert:**
+```tsx
+<div
+  style={{
+    color: tokens.status.error.default,
+    backgroundColor: tokens.status.error.muted,
+    borderColor: tokens.status.error.default,
+  }}
+>
+  Error message
 </div>
 ```
 
-### TypeScript Token Usage
+#### 6. Accent Tokens (24 tokens)
+Named colors for data visualization and categorization (8 colors × 3 variants).
 
-Import tokens for programmatic use (canvas rendering, conditional styling):
+| Color | Default | Muted | Strong |
+|-------|---------|-------|--------|
+| Blue | `tokens.accent.blue.default` | `.muted` | `.strong` |
+| Purple | `tokens.accent.purple.default` | `.muted` | `.strong` |
+| Pink | `tokens.accent.pink.default` | `.muted` | `.strong` |
+| Orange | `tokens.accent.orange.default` | `.muted` | `.strong` |
+| Yellow | `tokens.accent.yellow.default` | `.muted` | `.strong` |
+| Green | `tokens.accent.green.default` | `.muted` | `.strong` |
+| Cyan | `tokens.accent.cyan.default` | `.muted` | `.strong` |
+| Teal | `tokens.accent.teal.default` | `.muted` | `.strong` |
 
+**Example - Chart Colors:**
 ```tsx
-import { colors, spacing } from '@/lib/tokens';
+import { tokens, ACCENT_COLORS } from '@/lib/tokens';
 
-// For canvas or contexts where CSS variables don't work
-const ctx = canvasRef.current.getContext('2d');
-ctx.fillStyle = colors.chart.critical;
+// Use ACCENT_COLORS array for iterating
+const CHART_COLORS = ACCENT_COLORS.map(
+  (color) => tokens.accent[color].default
+);
 
-// For programmatic styling
-const style = { padding: spacing.space4 };
+<Bar fill={CHART_COLORS[index % CHART_COLORS.length]} />
 ```
 
-**For Recharts/SVG**, prefer CSS tokens for dark mode support:
+#### 7. Intensity Tokens (6 tokens)
+Scale from 0-5 for heatmaps and data density visualization.
+
+| Level | Token | Usage |
+|-------|-------|-------|
+| 0 | `tokens.intensity[0]` | No activity (lightest) |
+| 1 | `tokens.intensity[1]` | Low activity |
+| 2 | `tokens.intensity[2]` | Moderate-low |
+| 3 | `tokens.intensity[3]` | Moderate-high |
+| 4 | `tokens.intensity[4]` | High activity |
+| 5 | `tokens.intensity[5]` | Peak activity (darkest) |
+
+**Example - Productivity Heatmap:**
+```tsx
+function getIntensityLevel(count: number, maxCount: number): IntensityLevel {
+  if (count === 0 || maxCount === 0) return 0;
+  const ratio = count / maxCount;
+  if (ratio <= 0.2) return 1;
+  if (ratio <= 0.4) return 2;
+  if (ratio <= 0.6) return 3;
+  if (ratio <= 0.8) return 4;
+  return 5;
+}
+
+const level = getIntensityLevel(taskCount, maxTasks);
+<div style={{ backgroundColor: tokens.intensity[level] }} />
+```
+
+#### 8. Gradient Tokens (3 tokens)
+Pre-defined gradients for backgrounds and decorative elements.
+
+| Token | CSS Variable | Usage |
+|-------|--------------|-------|
+| `tokens.gradient.primary` | `--token-gradient-primary` | Primary accent gradient |
+| `tokens.gradient.surface` | `--token-gradient-surface` | Page/section backgrounds |
+| `tokens.gradient.accent` | `--token-gradient-accent` | Decorative accents |
+
+**Example - Login Page Background:**
+```tsx
+<div style={{ background: tokens.gradient.surface }}>
+  <LoginCard />
+</div>
+```
+
+### Helper Functions
+
+Type-safe accessor functions for programmatic color selection:
 
 ```tsx
-// Recharts with dark mode support - use CSS tokens
-const PRIORITY_COLORS = {
-  'Critical': 'var(--token-chart-critical)',
-  'High': 'var(--token-chart-high)',
-};
+import { getStatusColor, getAccentColor, getIntensityColor } from '@/lib/tokens';
 
-<Bar fill="var(--token-chart-critical)" />
+// Get status color by type and variant
+getStatusColor('error', 'default')   // 'var(--token-status-error-default)'
+getStatusColor('warning', 'muted')   // 'var(--token-status-warning-muted)'
+
+// Get accent color by name and variant
+getAccentColor('blue', 'default')    // 'var(--token-accent-blue-default)'
+getAccentColor('purple', 'strong')   // 'var(--token-accent-purple-strong)'
+
+// Get intensity by level
+getIntensityColor(3)                 // 'var(--token-intensity-3)'
 ```
 
 ### When to Use Tokens vs. Tailwind
 
 | Scenario | Use | Example |
 |----------|-----|---------|
-| Standard component styling | Tailwind classes | `className="bg-green-600"` |
-| shadcn/ui variants | Component props | `<Badge variant="destructive">` |
-| Recharts/SVG fills (dark mode) | CSS tokens | `fill="var(--token-chart-critical)"` |
-| Canvas colors (no dark mode) | TypeScript tokens | `ctx.fillStyle = colors.chart.critical` |
-| Programmatic color selection | TypeScript tokens | `getStatusColor(status)` |
-| Custom CSS with semantic colors | CSS tokens | `var(--token-success)` |
-
-### Available Tokens
-
-**Color Tokens:**
-- `--token-success` / `colors.success` - Success states (green)
-- `--token-warning` / `colors.warning` - Warning states (yellow)
-- `--token-error` / `colors.error` - Error states (red)
-- `--token-info` / `colors.info` - Info states (blue)
-- `--token-chart-critical` / `colors.chart.critical` - Critical priority (red)
-- `--token-chart-high` / `colors.chart.high` - High priority (orange)
-- `--token-chart-medium` / `colors.chart.medium` - Medium priority (blue)
-- `--token-chart-low` / `colors.chart.low` - Low priority (gray)
-
-**Spacing Tokens:**
-- `--token-space-0-5` through `--token-space-16` - Matches Tailwind spacing scale
-
-**Typography Tokens:**
-- `--token-font-size-*` - xs through 4xl
-- `--token-line-height-*` - tight, normal, relaxed
-- `--token-font-weight-*` - normal, medium, semibold, bold
+| Standard layout/spacing | Tailwind classes | `className="p-4 gap-2"` |
+| shadcn/ui component variants | Component props | `<Badge variant="destructive">` |
+| Charts/SVG fills | Design tokens | `fill={tokens.accent.blue.default}` |
+| Status indicators | Design tokens | `color: tokens.status.error.default` |
+| Heatmaps/intensity | Design tokens | `backgroundColor: tokens.intensity[level]` |
+| Error/success messages | Design tokens | `tokens.status.{type}.{variant}` |
+| Page backgrounds | Design tokens | `background: tokens.gradient.surface` |
+| Custom semantic styling | Design tokens | Dynamic token selection |
 
 ### Dark Mode
 
-CSS tokens automatically switch values in dark mode. TypeScript tokens export light mode values - use CSS variables where dark mode support is needed.
+All CSS tokens automatically adapt to dark mode via the `.dark` selector in `tokens.css`. The TypeScript API returns CSS variable references (e.g., `'var(--token-status-success-default)'`), which resolve at runtime to the appropriate light/dark value.
+
+**No special handling needed** - just use the tokens and dark mode works automatically.
 
 ---
 
@@ -1566,6 +1674,30 @@ focus-visible:ring-offset-2
 ---
 
 ## Changelog
+
+### 2025-12-03 (Design Token Migration - v2.0)
+- ✅ **Major Update:** Complete 60-token design system (Feature 003)
+- ✅ Expanded `frontend/app/tokens.css` to include all 60 tokens:
+  - **Text tokens** (5): default, secondary, tertiary, disabled, inverse
+  - **Surface tokens** (4): default, muted, elevated, overlay
+  - **Highlight tokens** (3): default, muted, strong
+  - **Shadow tokens** (3): light, default, heavy
+  - **Status tokens** (12): success/warning/error/info × default/muted/foreground
+  - **Accent tokens** (24): 8 colors × 3 variants (default/muted/strong)
+  - **Intensity tokens** (6): 0-5 scale for heatmaps
+  - **Gradient tokens** (3): primary, surface, accent
+- ✅ Created unified TypeScript API in `frontend/lib/tokens/tokens.ts`
+  - Single `tokens` object with all 60 tokens
+  - Helper functions: `getStatusColor()`, `getAccentColor()`, `getIntensityColor()`
+  - `ACCENT_COLORS` array for chart iteration
+  - Full TypeScript type exports
+- ✅ Migrated 11 components to use design tokens:
+  - **Chart components** (5): CategoryTrendsChart, CategoryChart, ProductivityHeatmap, BumpChart, CompletionChart
+  - **Dashboard components** (3): InsightCard, InsightsList, TaskDetailsSidebar
+  - **Page components** (3): Login, Register, Analytics
+- ✅ All hardcoded HSL/hex colors replaced with semantic tokens
+- ✅ Dark mode works automatically via CSS variable resolution
+- ✅ Version bumped to 2.0
 
 ### 2025-12-03 (Design Tokens - v1.3)
 - ✅ **New Section:** Design Tokens system for semantic values
