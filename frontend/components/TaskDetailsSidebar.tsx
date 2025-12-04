@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { X, Pencil, Trash2 } from 'lucide-react';
+import { X, Pencil, Trash2, Repeat } from 'lucide-react';
 import { EditTaskDialog } from '@/components/EditTaskDialog';
 import { PriorityBreakdownPanel } from '@/components/PriorityBreakdownPanel';
 import { tokens } from '@/lib/tokens';
@@ -105,6 +105,12 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                   {task.bump_count >= 3 && (
                     <Badge variant="destructive">
                       AT RISK
+                    </Badge>
+                  )}
+                  {task.series_id && (
+                    <Badge variant="outline" className="text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-600 bg-purple-50 dark:bg-purple-950">
+                      <Repeat className="h-3 w-3 mr-1" />
+                      Recurring
                     </Badge>
                   )}
                 </div>

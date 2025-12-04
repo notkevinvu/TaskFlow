@@ -14,7 +14,7 @@ import { EditTaskDialog } from "@/components/EditTaskDialog";
 import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
 import { TaskSearch } from "@/components/TaskSearch";
 import { TaskFilters, type TaskFilterState } from "@/components/TaskFilters";
-import { Plus, Trash2, Pencil, FolderKanban, Loader2 } from "lucide-react";
+import { Plus, Trash2, Pencil, FolderKanban, Loader2, Repeat } from "lucide-react";
 import { Task } from "@/lib/api";
 
 // Valid status values for validation
@@ -405,6 +405,12 @@ export default function DashboardPage() {
                       {task.estimated_effort && (
                         <Badge variant="outline" className="capitalize">
                           {task.estimated_effort}
+                        </Badge>
+                      )}
+                      {task.series_id && (
+                        <Badge variant="outline" className="text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-600 bg-purple-50 dark:bg-purple-950">
+                          <Repeat className="h-3 w-3 mr-1" />
+                          Recurring
                         </Badge>
                       )}
                     </div>
