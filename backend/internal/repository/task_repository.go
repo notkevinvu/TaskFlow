@@ -74,6 +74,27 @@ func pgtypeTimestamptzToTimePtr(ts pgtype.Timestamptz) *time.Time {
 	return &ts.Time
 }
 
+// Helper: Convert *string to pgtype.UUID (for optional UUIDs)
+func stringPtrToPgtypeUUID(s *string) pgtype.UUID {
+	if s == nil {
+		return pgtype.UUID{Valid: false}
+	}
+	pguuid, err := stringToPgtypeUUID(*s)
+	if err != nil {
+		return pgtype.UUID{Valid: false}
+	}
+	return pguuid
+}
+
+// Helper: Convert pgtype.UUID to *string (for optional UUIDs)
+func pgtypeUUIDToStringPtr(u pgtype.UUID) *string {
+	if !u.Valid {
+		return nil
+	}
+	s := pgtypeUUIDToString(u)
+	return &s
+}
+
 // Helper: Convert sqlc.Task to domain.Task
 func sqlcTaskToDomain(t sqlc.Task) domain.Task {
 	return domain.Task{
@@ -93,6 +114,8 @@ func sqlcTaskToDomain(t sqlc.Task) domain.Task {
 		CreatedAt:       pgtypeTimestamptzToTime(t.CreatedAt),
 		UpdatedAt:       pgtypeTimestamptzToTime(t.UpdatedAt),
 		CompletedAt:     pgtypeTimestamptzToTimePtr(t.CompletedAt),
+		SeriesID:        pgtypeUUIDToStringPtr(t.SeriesID),
+		ParentTaskID:    pgtypeUUIDToStringPtr(t.ParentTaskID),
 	}
 }
 
@@ -100,7 +123,7 @@ func sqlcTaskToDomain(t sqlc.Task) domain.Task {
 func sqlcRowToDomain(id, userID pgtype.UUID, title string, description *string, status sqlc.TaskStatus,
 	userPriority int32, dueDate pgtype.Timestamptz, estimatedEffort sqlc.NullTaskEffort,
 	category, context *string, relatedPeople []string, priorityScore, bumpCount int32,
-	createdAt, updatedAt, completedAt pgtype.Timestamptz) domain.Task {
+	createdAt, updatedAt, completedAt pgtype.Timestamptz, seriesID, parentTaskID pgtype.UUID) domain.Task {
 	return domain.Task{
 		ID:              pgtypeUUIDToString(id),
 		UserID:          pgtypeUUIDToString(userID),
@@ -118,6 +141,8 @@ func sqlcRowToDomain(id, userID pgtype.UUID, title string, description *string, 
 		CreatedAt:       pgtypeTimestamptzToTime(createdAt),
 		UpdatedAt:       pgtypeTimestamptzToTime(updatedAt),
 		CompletedAt:     pgtypeTimestamptzToTimePtr(completedAt),
+		SeriesID:        pgtypeUUIDToStringPtr(seriesID),
+		ParentTaskID:    pgtypeUUIDToStringPtr(parentTaskID),
 	}
 }
 
@@ -148,6 +173,8 @@ func (r *TaskRepository) Create(ctx context.Context, task *domain.Task) error {
 		BumpCount:       int32(task.BumpCount),
 		CreatedAt:       timeToPgtypeTimestamptz(task.CreatedAt),
 		UpdatedAt:       timeToPgtypeTimestamptz(task.UpdatedAt),
+		SeriesID:        stringPtrToPgtypeUUID(task.SeriesID),
+		ParentTaskID:    stringPtrToPgtypeUUID(task.ParentTaskID),
 	}
 
 	return r.queries.CreateTask(ctx, params)
@@ -170,7 +197,8 @@ func (r *TaskRepository) FindByID(ctx context.Context, id string) (*domain.Task,
 
 	domainTask := sqlcRowToDomain(row.ID, row.UserID, row.Title, row.Description, row.Status,
 		row.UserPriority, row.DueDate, row.EstimatedEffort, row.Category, row.Context,
-		row.RelatedPeople, row.PriorityScore, row.BumpCount, row.CreatedAt, row.UpdatedAt, row.CompletedAt)
+		row.RelatedPeople, row.PriorityScore, row.BumpCount, row.CreatedAt, row.UpdatedAt, row.CompletedAt,
+		row.SeriesID, row.ParentTaskID)
 	return &domainTask, nil
 }
 
@@ -179,7 +207,8 @@ func (r *TaskRepository) List(ctx context.Context, userID string, filter *domain
 	query := `
 		SELECT id, user_id, title, description, status, user_priority,
 			   due_date, estimated_effort, category, context, related_people,
-			   priority_score, bump_count, created_at, updated_at, completed_at
+			   priority_score, bump_count, created_at, updated_at, completed_at,
+			   series_id, parent_task_id
 		FROM tasks
 		WHERE user_id = $1
 	`
@@ -270,6 +299,8 @@ func (r *TaskRepository) List(ctx context.Context, userID string, filter *domain
 			&task.CreatedAt,
 			&task.UpdatedAt,
 			&task.CompletedAt,
+			&task.SeriesID,
+			&task.ParentTaskID,
 		)
 		if err != nil {
 			return nil, err
@@ -412,7 +443,8 @@ func (r *TaskRepository) FindAtRiskTasks(ctx context.Context, userID string) ([]
 	for i, row := range rows {
 		dt := sqlcRowToDomain(row.ID, row.UserID, row.Title, row.Description, row.Status,
 			row.UserPriority, row.DueDate, row.EstimatedEffort, row.Category, row.Context,
-			row.RelatedPeople, row.PriorityScore, row.BumpCount, row.CreatedAt, row.UpdatedAt, row.CompletedAt)
+			row.RelatedPeople, row.PriorityScore, row.BumpCount, row.CreatedAt, row.UpdatedAt, row.CompletedAt,
+			row.SeriesID, row.ParentTaskID)
 		tasks[i] = &dt
 	}
 
@@ -447,7 +479,8 @@ func (r *TaskRepository) FindByDateRange(ctx context.Context, userID string, fil
 	query := `
 		SELECT id, user_id, title, description, status, user_priority,
 			   due_date, estimated_effort, category, context, related_people,
-			   priority_score, bump_count, created_at, updated_at, completed_at
+			   priority_score, bump_count, created_at, updated_at, completed_at,
+			   series_id, parent_task_id
 		FROM tasks
 		WHERE user_id = $1
 		  AND due_date IS NOT NULL
@@ -502,6 +535,8 @@ func (r *TaskRepository) FindByDateRange(ctx context.Context, userID string, fil
 			&task.CreatedAt,
 			&task.UpdatedAt,
 			&task.CompletedAt,
+			&task.SeriesID,
+			&task.ParentTaskID,
 		)
 		if err != nil {
 			return nil, err
@@ -821,7 +856,8 @@ func (r *TaskRepository) GetAgingQuickWins(ctx context.Context, userID string, m
 	for i, row := range results {
 		dt := sqlcRowToDomain(row.ID, row.UserID, row.Title, row.Description, row.Status,
 			row.UserPriority, row.DueDate, row.EstimatedEffort, row.Category, row.Context,
-			row.RelatedPeople, row.PriorityScore, row.BumpCount, row.CreatedAt, row.UpdatedAt, row.CompletedAt)
+			row.RelatedPeople, row.PriorityScore, row.BumpCount, row.CreatedAt, row.UpdatedAt, row.CompletedAt,
+			row.SeriesID, row.ParentTaskID)
 		tasks[i] = &dt
 	}
 
