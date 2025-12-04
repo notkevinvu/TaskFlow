@@ -3,18 +3,16 @@
 import { CategoryStat } from '@/lib/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { tokens, ACCENT_COLORS } from '@/lib/tokens';
 
 interface CategoryChartProps {
   data: CategoryStat[];
 }
 
-const COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-];
+// Use accent tokens for consistent category colors
+const COLORS = ACCENT_COLORS.slice(0, 5).map(
+  (color) => tokens.accent[color].default
+);
 
 export function CategoryChart({ data }: CategoryChartProps) {
   // Format data for chart
@@ -55,7 +53,7 @@ export function CategoryChart({ data }: CategoryChartProps) {
               labelLine={false}
               label={({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(0)}%`}
               outerRadius={100}
-              fill="#8884d8"
+              fill={tokens.accent.purple.default}
               dataKey="value"
             >
               {chartData.map((entry, index) => (

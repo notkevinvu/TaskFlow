@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { InsightCard } from './InsightCard';
 import { useInsights } from '@/hooks/useInsights';
+import { tokens } from '@/lib/tokens';
 
 interface InsightsListProps {
   className?: string;
@@ -67,7 +68,7 @@ export function InsightsList({ className }: InsightsListProps) {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Lightbulb className="h-5 w-5 text-yellow-500" />
+            <Lightbulb className="h-5 w-5" style={{ color: tokens.accent.yellow.default }} />
             Smart Insights
           </CardTitle>
           <Button

@@ -12,6 +12,7 @@ import { BumpChart } from '@/components/charts/BumpChart';
 import { ProductivityHeatmap } from '@/components/charts/ProductivityHeatmap';
 import { CategoryTrendsChart } from '@/components/charts/CategoryTrendsChart';
 import { InsightsList } from '@/components/insights/InsightsList';
+import { tokens } from '@/lib/tokens';
 
 export default function AnalyticsPage() {
   const [timePeriod, setTimePeriod] = useState<number>(30);
@@ -162,7 +163,7 @@ export default function AnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold" style={{ color: tokens.status.success.default }}>
               {completionStats.completed_tasks}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -178,7 +179,7 @@ export default function AnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
+            <div className="text-2xl font-bold" style={{ color: tokens.status.warning.default }}>
               {completionStats.pending_tasks}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -194,7 +195,7 @@ export default function AnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-2xl font-bold" style={{ color: tokens.status.error.default }}>
               {bumpAnalytics.at_risk_count}
             </div>
             <p className="text-xs text-muted-foreground">

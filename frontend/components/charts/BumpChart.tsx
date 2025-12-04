@@ -3,6 +3,7 @@
 import { BumpAnalytics } from '@/lib/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { tokens } from '@/lib/tokens';
 
 interface BumpChartProps {
   data: BumpAnalytics;
@@ -56,7 +57,7 @@ export function BumpChart({ data }: BumpChartProps) {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">At Risk (3+ bumps)</p>
-              <p className="text-2xl font-bold text-red-600">{data.at_risk_count}</p>
+              <p className="text-2xl font-bold" style={{ color: tokens.status.error.default }}>{data.at_risk_count}</p>
             </div>
           </div>
 
@@ -85,7 +86,7 @@ export function BumpChart({ data }: BumpChartProps) {
               <Legend />
               <Bar
                 dataKey="count"
-                fill="hsl(var(--primary))"
+                fill={tokens.accent.blue.default}
                 radius={[8, 8, 0, 0]}
                 name="Task Count"
               />

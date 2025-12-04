@@ -3,6 +3,7 @@
 import { HeatmapResponse } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { tokens, IntensityLevel } from '@/lib/tokens';
 
 interface ProductivityHeatmapProps {
   data: HeatmapResponse;
@@ -20,16 +21,16 @@ function getHourLabel(hour: number): string {
   return `${hour - 12}pm`;
 }
 
-// Get color intensity based on count
-function getColorIntensity(count: number, maxCount: number): string {
-  if (count === 0 || maxCount === 0) return 'bg-muted/30';
+// Get intensity level (0-5) based on count
+function getIntensityLevel(count: number, maxCount: number): IntensityLevel {
+  if (count === 0 || maxCount === 0) return 0;
 
   const intensity = count / maxCount;
-  if (intensity < 0.2) return 'bg-primary/20';
-  if (intensity < 0.4) return 'bg-primary/40';
-  if (intensity < 0.6) return 'bg-primary/60';
-  if (intensity < 0.8) return 'bg-primary/80';
-  return 'bg-primary';
+  if (intensity < 0.2) return 1;
+  if (intensity < 0.4) return 2;
+  if (intensity < 0.6) return 3;
+  if (intensity < 0.8) return 4;
+  return 5;
 }
 
 export function ProductivityHeatmap({ data }: ProductivityHeatmapProps) {
@@ -105,11 +106,13 @@ export function ProductivityHeatmap({ data }: ProductivityHeatmapProps) {
                   <div className="w-10 text-xs text-muted-foreground">{day}</div>
                   {HOURS.map(hour => {
                     const count = cellMap.get(`${dayIndex}-${hour}`) || 0;
+                    const level = getIntensityLevel(count, heatmap.max_count);
                     return (
                       <Tooltip key={hour} delayDuration={100}>
                         <TooltipTrigger asChild>
                           <div
-                            className={`flex-1 h-5 rounded-sm ${getColorIntensity(count, heatmap.max_count)} transition-colors hover:ring-1 hover:ring-primary cursor-default`}
+                            className="flex-1 h-5 rounded-sm transition-colors hover:ring-1 hover:ring-primary cursor-default"
+                            style={{ backgroundColor: tokens.intensity[level] }}
                           />
                         </TooltipTrigger>
                         <TooltipContent>
@@ -128,12 +131,13 @@ export function ProductivityHeatmap({ data }: ProductivityHeatmapProps) {
               <div className="flex items-center justify-end gap-2 mt-4 text-xs text-muted-foreground">
                 <span>Less</span>
                 <div className="flex gap-1">
-                  <div className="w-4 h-4 rounded-sm bg-muted/30" />
-                  <div className="w-4 h-4 rounded-sm bg-primary/20" />
-                  <div className="w-4 h-4 rounded-sm bg-primary/40" />
-                  <div className="w-4 h-4 rounded-sm bg-primary/60" />
-                  <div className="w-4 h-4 rounded-sm bg-primary/80" />
-                  <div className="w-4 h-4 rounded-sm bg-primary" />
+                  {([0, 1, 2, 3, 4, 5] as const).map((level) => (
+                    <div
+                      key={level}
+                      className="w-4 h-4 rounded-sm"
+                      style={{ backgroundColor: tokens.intensity[level] }}
+                    />
+                  ))}
                 </div>
                 <span>More</span>
               </div>
