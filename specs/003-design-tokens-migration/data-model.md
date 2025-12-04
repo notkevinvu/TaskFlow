@@ -14,22 +14,22 @@ This document defines the complete token system architecture, including the inte
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    COMPONENT LAYER                       │
-│   Components use: var(--token-text-default)              │
+│                    COMPONENT LAYER                      │
+│   Components use: var(--token-text-default)             │
 └─────────────────────────────────────────────────────────┘
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────┐
-│                   TOKEN INTERFACE                        │
-│   --token-text-default: var(--foreground);               │
-│   (Our abstraction layer - tokens.css)                   │
+│                   TOKEN INTERFACE                       │
+│   --token-text-default: var(--foreground);              │
+│   (Our abstraction layer - tokens.css)                  │
 └─────────────────────────────────────────────────────────┘
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────┐
-│                 SHADCN IMPLEMENTATION                    │
-│   --foreground: oklch(0.145 0 0);                        │
-│   (shadcn/ui globals.css)                                │
+│                 SHADCN IMPLEMENTATION                   │
+│   --foreground: oklch(0.145 0 0);                       │
+│   (shadcn/ui globals.css)                               │
 └─────────────────────────────────────────────────────────┘
 ```
 
