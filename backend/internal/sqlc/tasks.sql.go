@@ -64,7 +64,7 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) error {
 const deleteCategoryForUser = `-- name: DeleteCategoryForUser :exec
 UPDATE tasks
 SET category = NULL, updated_at = NOW()
-WHERE user_id = $1 AND category = $2 AND status != 'done'
+WHERE user_id = $1 AND category = $2
 `
 
 type DeleteCategoryForUserParams struct {
@@ -72,6 +72,7 @@ type DeleteCategoryForUserParams struct {
 	Category *string     `json:"category"`
 }
 
+// Apply to ALL tasks including completed ones - category management should be universal
 func (q *Queries) DeleteCategoryForUser(ctx context.Context, arg DeleteCategoryForUserParams) error {
 	_, err := q.db.Exec(ctx, deleteCategoryForUser, arg.UserID, arg.Category)
 	return err
@@ -846,7 +847,7 @@ func (q *Queries) IncrementBumpCount(ctx context.Context, arg IncrementBumpCount
 const renameCategoryForUser = `-- name: RenameCategoryForUser :exec
 UPDATE tasks
 SET category = $1, updated_at = NOW()
-WHERE user_id = $2 AND category = $3 AND status != 'done'
+WHERE user_id = $2 AND category = $3
 `
 
 type RenameCategoryForUserParams struct {
@@ -855,6 +856,7 @@ type RenameCategoryForUserParams struct {
 	Category_2 *string     `json:"category_2"`
 }
 
+// Apply to ALL tasks including completed ones - category management should be universal
 func (q *Queries) RenameCategoryForUser(ctx context.Context, arg RenameCategoryForUserParams) error {
 	_, err := q.db.Exec(ctx, renameCategoryForUser, arg.Category, arg.UserID, arg.Category_2)
 	return err
