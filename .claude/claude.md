@@ -99,15 +99,21 @@ TaskFlow is an intelligent task prioritization system built with:
 
 ### PR Reviews
 
-**IMPORTANT:** Run `/pr-review` after any PR is opened (excluding spec/plan PRs).
+**IMPORTANT:** Run `/pr-review` after **every** PR is opened - no exceptions.
+
+This applies to all PR types including:
+- Code changes (features, fixes, refactors)
+- Documentation updates (catches outdated info, broken links, inconsistencies)
+- Configuration changes
+- Spec/plan PRs (validates structure and completeness)
 
 #### Automatic PR Review Workflow
 
 After opening a PR, execute the PR review workflow:
 
 1. **Check Eligibility**
-   - Skip if PR title contains "spec", "plan", or "specification"
-   - Skip if PR is draft, merged, or closed
+   - Skip only if PR is draft, merged, or closed
+   - **Always review** open PRs regardless of content type
 
 2. **Gather Context**
    - Get PR details via `gh pr view`
@@ -117,10 +123,10 @@ After opening a PR, execute the PR review workflow:
 3. **Launch Review Agents (Sonnet minimum)**
    Launch 5 parallel agents focusing on:
    - CLAUDE.md compliance and conventions
-   - Bug scan and security vulnerabilities
+   - Bug scan and security vulnerabilities (for code PRs)
    - Git history context
    - Similar PRs analysis
-   - Code comments and documentation
+   - Documentation accuracy and consistency (for docs PRs)
 
 4. **Score and Filter Issues**
    Score each issue 0-100 based on confidence (40%), severity (35%), actionability (25%):
