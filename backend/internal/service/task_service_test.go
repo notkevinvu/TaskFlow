@@ -226,6 +226,46 @@ func TestTaskService_Get_Forbidden(t *testing.T) {
 	assert.True(t, errors.As(err, &forbiddenErr))
 }
 
+func TestTaskService_Get_PopulatesPriorityBreakdown(t *testing.T) {
+	mockTaskRepo := new(MockTaskRepository)
+	mockHistoryRepo := new(MockTaskHistoryRepository)
+	service := NewTaskService(mockTaskRepo, mockHistoryRepo)
+
+	userID := "user-123"
+	taskID := "task-456"
+	// Create task with specific values to verify breakdown calculation
+	existingTask := &domain.Task{
+		ID:           taskID,
+		UserID:       userID,
+		Title:        "Test Task",
+		Status:       domain.TaskStatusTodo,
+		UserPriority: 8,                           // 80 when scaled (0-100)
+		BumpCount:    2,                           // 20 penalty
+		CreatedAt:    time.Now().AddDate(0, 0, -5), // 5 days old
+	}
+
+	mockTaskRepo.On("FindByID", mock.Anything, taskID).Return(existingTask, nil)
+
+	task, err := service.Get(context.Background(), userID, taskID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, task)
+	// Verify that PriorityBreakdown is populated
+	assert.NotNil(t, task.PriorityBreakdown, "PriorityBreakdown should be populated by Get()")
+
+	// Verify breakdown has expected values based on task properties
+	breakdown := task.PriorityBreakdown
+	assert.Equal(t, float64(80), breakdown.UserPriority, "UserPriority should be 80 (8 * 10)")
+	assert.Equal(t, float64(20), breakdown.BumpPenalty, "BumpPenalty should be 20 (2 bumps * 10)")
+	assert.Equal(t, float64(1.0), breakdown.EffortBoost, "EffortBoost should be 1.0 (no effort set)")
+
+	// Verify weighted values are calculated
+	assert.Greater(t, breakdown.UserPriorityWeighted, float64(0), "UserPriorityWeighted should be > 0")
+	assert.Greater(t, breakdown.TimeDecay, float64(0), "TimeDecay should be > 0 for 5-day old task")
+
+	mockTaskRepo.AssertExpectations(t)
+}
+
 // =============================================================================
 // TaskService.Update Tests
 // =============================================================================
