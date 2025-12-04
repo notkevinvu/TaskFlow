@@ -1,7 +1,7 @@
 # TaskFlow Design System
 
-**Version:** 2.0
-**Last Updated:** 2025-12-03
+**Version:** 2.1
+**Last Updated:** 2025-12-04
 **Status:** Living Document
 
 This document tracks UI/UX patterns, component guidelines, and interaction standards for TaskFlow.
@@ -836,6 +836,59 @@ interface PriorityDistribution {
 
 **Applied to:**
 - ✅ Analytics page
+
+#### PriorityBreakdownPanel (Donut + Table)
+
+**Usage:** Visual breakdown of task priority score calculation
+
+```tsx
+<PriorityBreakdownPanel
+  breakdown={task.priority_breakdown}
+  finalScore={task.priority_score}
+/>
+```
+
+**Data Format:**
+```tsx
+interface PriorityBreakdown {
+  // Raw values (0-100 scale, except effort_boost 1.0-1.3)
+  user_priority: number;
+  time_decay: number;
+  deadline_urgency: number;
+  bump_penalty: number;
+  effort_boost: number;
+  // Weighted contributions (after weights and effort boost)
+  user_priority_weighted: number;    // × 0.4 × effort_boost
+  time_decay_weighted: number;       // × 0.3 × effort_boost
+  deadline_urgency_weighted: number; // × 0.2 × effort_boost
+  bump_penalty_weighted: number;     // × 0.1 × effort_boost
+}
+```
+
+**Features:**
+- **Donut chart** showing contribution proportions (filtered to non-zero factors)
+- **Detailed table** with raw values, weights, and final points
+- **Color-coded** factors using accent tokens:
+  - User Priority: `tokens.accent.blue`
+  - Time Decay: `tokens.accent.purple`
+  - Deadline Urgency: `tokens.accent.orange`
+  - Bump Penalty: `tokens.accent.pink`
+  - Effort Boost: `tokens.accent.green`
+- **Effort boost section** only shown when multiplier ≠ 1.0
+- **Final score** colored by priority level (red/yellow/default)
+- **Formula explanation** at bottom for educational context
+- **Analytics tracking** logs view events for panel usage metrics
+
+**Applied to:**
+- ✅ TaskDetailsSidebar (replaces basic priority text explanation)
+
+**Implementation Notes:**
+- Backend calculates breakdown in `task_service.Get()` method
+- Breakdown only populated for single task fetch (not list views)
+- Uses Recharts PieChart with inner radius for donut style
+- Tooltips match existing chart styling patterns
+
+---
 
 #### BumpChart (Bar Chart with Stats)
 
@@ -1674,6 +1727,23 @@ focus-visible:ring-offset-2
 ---
 
 ## Changelog
+
+### 2025-12-04 (Priority Explanation Panel - v2.1)
+- ✅ **New Feature:** PriorityBreakdownPanel component (Phase 5A)
+- ✅ Added donut chart visualization for priority factor contributions
+- ✅ Added detailed breakdown table with raw values, weights, and points
+- ✅ Color-coded factors using accent tokens (blue, purple, orange, pink, green)
+- ✅ Effort boost section conditionally shown when multiplier ≠ 1.0
+- ✅ Final score colored by priority level (red/yellow/default)
+- ✅ Formula explanation for educational context
+- ✅ Analytics tracking for panel view events
+- ✅ Backend: Added `PriorityBreakdown` struct to domain/task.go
+- ✅ Backend: Added `CalculateWithBreakdown()` to priority/calculator.go
+- ✅ Backend: Task service populates breakdown on single task fetch
+- ✅ Frontend: Added `PriorityBreakdown` interface to api.ts
+- ✅ Frontend: Created PriorityBreakdownPanel.tsx component
+- ✅ Frontend: TaskDetailsSidebar now uses breakdown panel when available
+- ✅ Version bumped to 2.1
 
 ### 2025-12-03 (Design Token Migration - v2.0)
 - ✅ **Major Update:** Complete 60-token design system (Feature 003)

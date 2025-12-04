@@ -122,6 +122,9 @@ func (s *TaskService) Get(ctx context.Context, userID, taskID string) (*domain.T
 		return nil, domain.NewForbiddenError("task", "access")
 	}
 
+	// Populate priority breakdown for detailed view
+	_, task.PriorityBreakdown = s.priorityCalc.CalculateWithBreakdown(task)
+
 	return task, nil
 }
 

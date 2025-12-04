@@ -141,6 +141,22 @@ export interface CreateTaskDTO {
   related_people?: string[];
 }
 
+// PriorityBreakdown shows the individual components of the priority calculation
+export interface PriorityBreakdown {
+  // Raw component values (0-100 scale, except effort_boost which is 1.0-1.3)
+  user_priority: number;     // User's set priority scaled to 0-100
+  time_decay: number;        // Age-based urgency (0-100)
+  deadline_urgency: number;  // Due date proximity (0-100)
+  bump_penalty: number;      // Penalty for delays (0-50)
+  effort_boost: number;      // Effort multiplier (1.0-1.3)
+
+  // Weighted contributions (after applying weights and effort boost)
+  user_priority_weighted: number;    // × 0.4 × effort_boost
+  time_decay_weighted: number;       // × 0.3 × effort_boost
+  deadline_urgency_weighted: number; // × 0.2 × effort_boost
+  bump_penalty_weighted: number;     // × 0.1 × effort_boost
+}
+
 export interface Task {
   id: string;
   user_id: string;
@@ -158,6 +174,8 @@ export interface Task {
   created_at: string;
   updated_at: string;
   completed_at?: string;
+  // Optional: populated when fetching single task details
+  priority_breakdown?: PriorityBreakdown;
 }
 
 // Calendar Types

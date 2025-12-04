@@ -18,6 +18,13 @@ func NewCalculator() *Calculator {
 // Calculate computes the priority score for a task
 // Formula: (UserPriority × 0.4 + TimeDecay × 0.3 + DeadlineUrgency × 0.2 + BumpPenalty × 0.1) × EffortBoost
 func (calc *Calculator) Calculate(task *domain.Task) int {
+	score, _ := calc.CalculateWithBreakdown(task)
+	return score
+}
+
+// CalculateWithBreakdown computes the priority score and returns the breakdown of each factor
+// Formula: (UserPriority × 0.4 + TimeDecay × 0.3 + DeadlineUrgency × 0.2 + BumpPenalty × 0.1) × EffortBoost
+func (calc *Calculator) CalculateWithBreakdown(task *domain.Task) (int, *domain.PriorityBreakdown) {
 	// Scale user priority from 1-10 to 0-100 for calculation
 	// 1 → 10, 5 → 50, 10 → 100
 	userPriority := float64(task.UserPriority * 10)
@@ -26,14 +33,33 @@ func (calc *Calculator) Calculate(task *domain.Task) int {
 	bumpPenalty := calc.calculateBumpPenalty(task.BumpCount)
 	effortBoost := calc.getEffortBoost(task.EstimatedEffort)
 
+	// Calculate weighted contributions
+	userPriorityWeighted := userPriority * 0.4
+	timeDecayWeighted := timeDecay * 0.3
+	deadlineUrgencyWeighted := deadlineUrgency * 0.2
+	bumpPenaltyWeighted := bumpPenalty * 0.1
+
 	// Weighted sum
-	score := (userPriority * 0.4) + (timeDecay * 0.3) + (deadlineUrgency * 0.2) + (bumpPenalty * 0.1)
+	score := userPriorityWeighted + timeDecayWeighted + deadlineUrgencyWeighted + bumpPenaltyWeighted
 
 	// Apply effort multiplier
 	score = score * effortBoost
 
+	// Build breakdown
+	breakdown := &domain.PriorityBreakdown{
+		UserPriority:            userPriority,
+		TimeDecay:               timeDecay,
+		DeadlineUrgency:         deadlineUrgency,
+		BumpPenalty:             bumpPenalty,
+		EffortBoost:             effortBoost,
+		UserPriorityWeighted:    userPriorityWeighted * effortBoost,
+		TimeDecayWeighted:       timeDecayWeighted * effortBoost,
+		DeadlineUrgencyWeighted: deadlineUrgencyWeighted * effortBoost,
+		BumpPenaltyWeighted:     bumpPenaltyWeighted * effortBoost,
+	}
+
 	// Clamp to 0-100 range
-	return int(math.Min(100, math.Max(0, score)))
+	return int(math.Min(100, math.Max(0, score))), breakdown
 }
 
 // calculateTimeDecay returns 0-100 based on task age

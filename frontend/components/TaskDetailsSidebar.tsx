@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { X, Pencil, Trash2 } from 'lucide-react';
 import { EditTaskDialog } from '@/components/EditTaskDialog';
+import { PriorityBreakdownPanel } from '@/components/PriorityBreakdownPanel';
 import { tokens } from '@/lib/tokens';
 
 interface TaskDetailsSidebarProps {
@@ -264,27 +265,34 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                 </Card>
               )}
 
-              {/* Priority Calculation Info */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Priority Calculation</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-xs text-muted-foreground">
-                  <p>
-                    The priority score is calculated using our intelligent algorithm that considers:
-                  </p>
-                  <ul className="list-disc list-inside space-y-1 ml-2">
-                    <li>Your set priority ({task.user_priority}/10)</li>
-                    <li>Time since creation (time decay)</li>
-                    <li>Number of delays ({task.bump_count} bumps)</li>
-                    <li>Due date proximity</li>
-                    <li>Estimated effort</li>
-                  </ul>
-                  <p className="pt-2">
-                    Final Score: <span className="font-bold text-foreground">{Math.round(task.priority_score)}</span>
-                  </p>
-                </CardContent>
-              </Card>
+              {/* Priority Breakdown Panel */}
+              {task.priority_breakdown ? (
+                <PriorityBreakdownPanel
+                  breakdown={task.priority_breakdown}
+                  finalScore={Math.round(task.priority_score)}
+                />
+              ) : (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium">Priority Calculation</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-xs text-muted-foreground">
+                    <p>
+                      The priority score is calculated using our intelligent algorithm that considers:
+                    </p>
+                    <ul className="list-disc list-inside space-y-1 ml-2">
+                      <li>Your set priority ({task.user_priority}/10)</li>
+                      <li>Time since creation (time decay)</li>
+                      <li>Number of delays ({task.bump_count} bumps)</li>
+                      <li>Due date proximity</li>
+                      <li>Estimated effort</li>
+                    </ul>
+                    <p className="pt-2">
+                      Final Score: <span className="font-bold text-foreground">{Math.round(task.priority_score)}</span>
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </>
           ) : (
             <div className="text-center py-8">
