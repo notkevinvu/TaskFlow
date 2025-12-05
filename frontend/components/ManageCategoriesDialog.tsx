@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useTasks } from '@/hooks/useTasks';
+import { useDialogKeyboardShortcuts } from '@/hooks/useDialogKeyboardShortcuts';
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,9 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
   const [deleteCategory, setDeleteCategory] = useState<string | null>(null);
   const [isRenaming, setIsRenaming] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Track dialog state for keyboard shortcuts
+  useDialogKeyboardShortcuts(open);
 
   // Extract categories with task counts
   const categories = useMemo(() => {

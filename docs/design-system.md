@@ -1576,6 +1576,137 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 - **Enter key:** Confirms actions, submits forms
 - **Arrow keys:** Navigate through lists, calendar dates, select options
 
+#### Global Keyboard Shortcuts
+
+**Pattern:** App-wide keyboard shortcuts for quick actions and navigation.
+
+**Architecture:**
+```
+KeyboardShortcutsContext (global state)
+  ├── useGlobalKeyboardShortcuts (global handlers)
+  ├── useTaskNavigation (dashboard-specific navigation)
+  └── KeyboardShortcutsHelp (documentation dialog)
+```
+
+**Global Shortcuts (Work Everywhere):**
+| Shortcut | Action |
+|----------|--------|
+| `Cmd/Ctrl + K` | Quick Add Task |
+| `?` | Show Keyboard Shortcuts Help |
+| `Esc` | Close Dialog |
+
+**Task Navigation Shortcuts (Dashboard Only, When No Input Focused):**
+| Shortcut | Action |
+|----------|--------|
+| `j` | Select Next Task |
+| `k` | Select Previous Task |
+| `Enter` | Open Task Details |
+| `e` | Edit Selected Task |
+| `c` | Complete Selected Task |
+| `x` or `d` | Delete Selected Task |
+
+**Implementation:**
+
+**KeyboardShortcutsContext:**
+```tsx
+// frontend/contexts/KeyboardShortcutsContext.tsx
+export interface KeyboardShortcutsState {
+  enabled: boolean;
+  quickAddOpen: boolean;
+  helpDialogOpen: boolean;
+  dialogCount: number;
+  inputFocused: boolean;
+}
+
+// Track dialog state globally to disable shortcuts
+useEffect(() => {
+  if (open) {
+    actions.incrementDialogCount();
+  } else {
+    actions.decrementDialogCount();
+  }
+}, [open, actions]);
+```
+
+**Global Shortcuts Hook:**
+```tsx
+// frontend/hooks/useGlobalKeyboardShortcuts.ts
+export function useGlobalKeyboardShortcuts() {
+  // Cmd/Ctrl+K works globally (even with input focused)
+  if (modKey && e.key === 'k') {
+    e.preventDefault();
+    actions.setQuickAddOpen(true);
+  }
+
+  // ? shows help dialog globally
+  if (e.key === '?') {
+    e.preventDefault();
+    actions.setHelpDialogOpen(true);
+  }
+}
+```
+
+**Task Navigation Hook:**
+```tsx
+// frontend/hooks/useTaskNavigation.ts
+export function useTaskNavigation({
+  tasks,
+  onTaskSelect,
+  onTaskEdit,
+  onTaskComplete,
+  onTaskDelete,
+}) {
+  // j/k/Enter/e/c/x/d only work when:
+  // - No dialog open
+  // - No input focused
+  // - Shortcuts enabled
+
+  if (!state.enabled || state.dialogCount > 0 || state.inputFocused) {
+    return; // Shortcuts disabled
+  }
+}
+```
+
+**Visual Selection Indicators:**
+```tsx
+// Triple visual feedback for selected task
+<Card className={`${isSelected ?
+  'ring-2 ring-primary ring-offset-2 bg-accent/30 shadow-md' : ''
+}`}>
+  {isSelected && (
+    <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-lg" />
+  )}
+</Card>
+```
+
+**Features:**
+- **Vim-style navigation:** `j`/`k` for up/down (familiar to developers)
+- **List wrapping:** Navigation wraps around at list ends
+- **Smart disabling:** Shortcuts disabled when typing in inputs
+- **Dialog awareness:** All shortcuts (except Esc) disabled when dialogs open
+- **Delete confirmation:** Uses shadcn AlertDialog instead of `window.confirm()`
+- **Help panel:** Accessible via keyboard shortcut button or `?` key
+
+**Applied to:**
+- ✅ Dashboard page (task navigation)
+- ✅ CreateTaskDialog (Quick Add integration)
+- ✅ All dialogs (dialog count tracking)
+- ✅ DeleteTaskDialog (replaces window.confirm)
+- ✅ KeyboardShortcutsHelp (help modal)
+
+**Design Notes:**
+- Selected task shows 3 visual indicators (ring, background, left border) for accessibility
+- Keyboard shortcuts button in header (ghost button with keyboard icon)
+- Help modal shows all shortcuts grouped by category (Global, Navigation, Actions)
+- Platform-aware: Shows `⌘` on Mac, `Ctrl` on Windows/Linux
+- Input focus tracking prevents shortcuts from interfering with typing
+
+**Accessibility:**
+- All shortcuts documented in help modal
+- Visual focus indicators on selected tasks
+- Does not interfere with native browser/screen reader shortcuts
+- Escape key always closes modals (standard pattern)
+
 #### Component-Specific Keyboard Support
 
 **Dialogs (Modals):**

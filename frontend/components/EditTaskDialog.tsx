@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useUpdateTask } from '@/hooks/useTasks';
+import { useDialogKeyboardShortcuts } from '@/hooks/useDialogKeyboardShortcuts';
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,9 @@ interface EditTaskDialogProps {
 export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps) {
   const updateTask = useUpdateTask();
 
+  // Track dialog state for keyboard shortcuts
+  useDialogKeyboardShortcuts(open);
+
   // Initialize form data from task prop
   // Parent uses key={task.id} to remount this component when task changes
   const [formData, setFormData] = useState({
@@ -51,8 +55,9 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
 
     try {
       // Convert date string to RFC3339 format for backend
+      // Use noon local time to avoid timezone day-shift issues
       const dueDate = formData.due_date
-        ? new Date(formData.due_date).toISOString()
+        ? new Date(`${formData.due_date}T12:00:00`).toISOString()
         : undefined;
 
       await updateTask.mutateAsync({
