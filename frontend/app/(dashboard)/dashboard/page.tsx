@@ -3,6 +3,9 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useTasks, useBumpTask, useCompleteTask, useDeleteTask, useAtRiskTasks, useCompletedTasks, type TaskFilters as TaskFiltersType } from '@/hooks/useTasks';
+import { useKeyboardShortcuts } from '@/contexts/KeyboardShortcutsContext';
+import { useGlobalKeyboardShortcuts } from '@/hooks/useGlobalKeyboardShortcuts';
+import { useTaskNavigation } from '@/hooks/useTaskNavigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,9 +15,11 @@ import { TaskDetailsSidebar } from "@/components/TaskDetailsSidebar";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { EditTaskDialog } from "@/components/EditTaskDialog";
 import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
+import { DeleteTaskDialog } from "@/components/DeleteTaskDialog";
+import { KeyboardShortcutsHelp } from "@/components/KeyboardShortcutsHelp";
 import { TaskSearch } from "@/components/TaskSearch";
 import { TaskFilters, type TaskFilterState } from "@/components/TaskFilters";
-import { Plus, Trash2, Pencil, FolderKanban, Loader2, Repeat } from "lucide-react";
+import { Plus, Trash2, Pencil, FolderKanban, Loader2, Repeat, Keyboard } from "lucide-react";
 import { Task } from "@/lib/api";
 
 // Valid status values for validation
@@ -102,12 +107,16 @@ export default function DashboardPage() {
   const initialFilters = parseFiltersFromURL(searchParams);
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialTaskId);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [filters, setFilters] = useState<TaskFilterState>(initialFilters);
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+
+  // Keyboard shortcuts
+  const { state: keyboardState, actions: keyboardActions } = useKeyboardShortcuts();
+  useGlobalKeyboardShortcuts();
 
   // Update URL when filters change (debounced via useEffect)
   useEffect(() => {
@@ -156,6 +165,20 @@ export default function DashboardPage() {
     // Otherwise, filter out completed tasks
     return allTasks.filter((t) => t.status !== 'done');
   }, [allTasks, filters.status]);
+
+  // Task navigation with keyboard shortcuts
+  const { selectedIndex, selectedTaskId: navSelectedTaskId } = useTaskNavigation({
+    tasks,
+    onTaskSelect: (taskId) => setSelectedTaskId(taskId),
+    onTaskEdit: (task) => setEditingTask(task),
+    onTaskComplete: (taskId) => completeTask.mutate(taskId),
+    onTaskDelete: (taskId) => {
+      const task = tasks.find((t) => t.id === taskId);
+      if (task) setTaskToDelete(task);
+    },
+    isDialogOpen: keyboardState.quickAddOpen || manageCategoriesOpen || !!editingTask || !!taskToDelete,
+  });
+
 
   // Completed tasks for the Completed tab
   const completedTasks = useMemo(() => completedTasksData?.tasks || [], [completedTasksData?.tasks]);
@@ -228,6 +251,15 @@ export default function DashboardPage() {
           </div>
           <div className="flex gap-2">
             <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => keyboardActions.setHelpDialogOpen(true)}
+              className="transition-all hover:scale-105 cursor-pointer"
+              title="Keyboard shortcuts"
+            >
+              <Keyboard className="h-4 w-4" />
+            </Button>
+            <Button
               variant="outline"
               onClick={() => setManageCategoriesOpen(true)}
               className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
@@ -236,7 +268,7 @@ export default function DashboardPage() {
               Manage Categories
             </Button>
             <Button
-              onClick={() => setCreateDialogOpen(true)}
+              onClick={() => keyboardActions.setQuickAddOpen(true)}
               className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -370,10 +402,16 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           ) : (
-            tasks.map((task) => (
+            tasks.map((task, index) => {
+              const isSelected = index === selectedIndex;
+              return (
             <Card
               key={task.id}
-              className="hover:shadow-md transition-shadow cursor-pointer py-0"
+              className={`hover:shadow-md transition-all cursor-pointer py-0 relative ${
+                isSelected
+                  ? 'ring-2 ring-primary ring-offset-2 bg-accent/30 shadow-md'
+                  : ''
+              }`}
               onClick={() => setSelectedTaskId(task.id)}
             >
               <CardContent className="pt-4 px-6 pb-4">
@@ -473,12 +511,7 @@ export default function DashboardPage() {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (window.confirm('Are you sure you want to delete this task?')) {
-                          deleteTask.mutate(task.id);
-                          if (effectiveTaskId === task.id) {
-                            setSelectedTaskId(null);
-                          }
-                        }
+                        setTaskToDelete(task);
                       }}
                       disabled={deleteTask.isPending}
                       className="transition-all hover:scale-105 hover:shadow-lg cursor-pointer"
@@ -489,7 +522,8 @@ export default function DashboardPage() {
                 </div>
               </CardContent>
             </Card>
-          ))
+          );
+          })
           )}
           </div>
         </TabsContent>
@@ -550,12 +584,7 @@ export default function DashboardPage() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (window.confirm('Are you sure you want to delete this completed task?')) {
-                            deleteTask.mutate(task.id);
-                            if (effectiveTaskId === task.id) {
-                              setSelectedTaskId(null);
-                            }
-                          }
+                          setTaskToDelete(task);
                         }}
                         disabled={deleteTask.isPending}
                         className="transition-all hover:scale-105 hover:shadow-lg cursor-pointer"
@@ -581,10 +610,10 @@ export default function DashboardPage() {
       />
     )}
 
-    {/* Create Task Dialog */}
+    {/* Create Task Dialog (Quick Add via Ctrl+K) */}
     <CreateTaskDialog
-      open={createDialogOpen}
-      onOpenChange={setCreateDialogOpen}
+      open={keyboardState.quickAddOpen}
+      onOpenChange={keyboardActions.setQuickAddOpen}
     />
 
     {/* Edit Task Dialog */}
@@ -602,6 +631,25 @@ export default function DashboardPage() {
       open={manageCategoriesOpen}
       onOpenChange={setManageCategoriesOpen}
     />
+
+    {/* Delete Task Confirmation Dialog */}
+    <DeleteTaskDialog
+      open={!!taskToDelete}
+      onOpenChange={(open) => !open && setTaskToDelete(null)}
+      task={taskToDelete}
+      onConfirm={() => {
+        if (taskToDelete) {
+          deleteTask.mutate(taskToDelete.id);
+          if (effectiveTaskId === taskToDelete.id) {
+            setSelectedTaskId(null);
+          }
+          setTaskToDelete(null);
+        }
+      }}
+    />
+
+    {/* Keyboard Shortcuts Help Dialog */}
+    <KeyboardShortcutsHelp />
   </div>
 );
 }

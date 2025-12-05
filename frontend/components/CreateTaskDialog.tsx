@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useCreateTask } from '@/hooks/useTasks';
+import { useDialogKeyboardShortcuts } from '@/hooks/useDialogKeyboardShortcuts';
 import { RecurrenceRule } from '@/lib/api';
 import {
   Dialog,
@@ -35,6 +36,9 @@ export function CreateTaskDialog({ open, onOpenChange, initialDueDate }: CreateT
   const createTask = useCreateTask();
   const prevOpenRef = useRef(false);
 
+  // Track dialog state for keyboard shortcuts
+  useDialogKeyboardShortcuts(open);
+
   const getEmptyFormData = () => ({
     title: '',
     description: '',
@@ -66,16 +70,18 @@ export function CreateTaskDialog({ open, onOpenChange, initialDueDate }: CreateT
 
     try {
       // Convert date string to RFC3339 format for backend
+      // Use noon local time to avoid timezone day-shift issues
       const dueDate = formData.due_date
-        ? new Date(formData.due_date).toISOString()
+        ? new Date(`${formData.due_date}T12:00:00`).toISOString()
         : undefined;
 
       // Convert recurrence end date if present
+      // Use noon local time to avoid timezone day-shift issues
       const recurrence = formData.recurrence
         ? {
             ...formData.recurrence,
             end_date: formData.recurrence.end_date
-              ? new Date(formData.recurrence.end_date).toISOString()
+              ? new Date(`${formData.recurrence.end_date}T12:00:00`).toISOString()
               : undefined,
           }
         : undefined;
