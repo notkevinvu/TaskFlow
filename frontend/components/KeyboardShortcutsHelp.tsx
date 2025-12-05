@@ -1,6 +1,7 @@
 'use client';
 
 import { useKeyboardShortcuts } from '@/contexts/KeyboardShortcutsContext';
+import { useDialogKeyboardShortcuts } from '@/hooks/useDialogKeyboardShortcuts';
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,9 @@ const categoryLabels = {
 
 export function KeyboardShortcutsHelp() {
   const { state, actions } = useKeyboardShortcuts();
+
+  // Track dialog state for keyboard shortcuts
+  useDialogKeyboardShortcuts(state.helpDialogOpen);
 
   const isMac = typeof window !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 

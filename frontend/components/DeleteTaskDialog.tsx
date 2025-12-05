@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Task } from '@/lib/api';
+import { useDialogKeyboardShortcuts } from '@/hooks/useDialogKeyboardShortcuts';
 
 interface DeleteTaskDialogProps {
   open: boolean;
@@ -20,6 +21,9 @@ interface DeleteTaskDialogProps {
 }
 
 export function DeleteTaskDialog({ open, onOpenChange, task, onConfirm }: DeleteTaskDialogProps) {
+  // Track dialog state for keyboard shortcuts
+  useDialogKeyboardShortcuts(open);
+
   if (!task) return null;
 
   return (
