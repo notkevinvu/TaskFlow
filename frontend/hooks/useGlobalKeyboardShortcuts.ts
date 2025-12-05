@@ -29,7 +29,8 @@ export function useGlobalKeyboardShortcuts() {
       }
 
       // ?: Show keyboard shortcuts help (works globally, even with input focused)
-      if (e.key === '?' && !e.shiftKey && !modKey) {
+      // Note: '?' requires Shift on most keyboards, so we just check for the key
+      if (e.key === '?' && !modKey) {
         e.preventDefault();
         actions.setHelpDialogOpen(true);
         return;

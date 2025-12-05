@@ -31,7 +31,6 @@ const shortcuts: ShortcutItem[] = [
   // Action shortcuts
   { keys: ['e'], description: 'Edit Selected Task', category: 'actions' },
   { keys: ['c'], description: 'Complete Selected Task', category: 'actions' },
-  { keys: ['x'], description: 'Delete Selected Task', category: 'actions' },
   { keys: ['d'], description: 'Delete Selected Task', category: 'actions' },
 ];
 

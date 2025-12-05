@@ -100,8 +100,8 @@ export function useTaskNavigation({
           return;
         }
 
-        // x or d: Delete task (will trigger confirmation dialog)
-        if (key === 'x' || key === 'd') {
+        // d: Delete task (will trigger confirmation dialog)
+        if (key === 'd') {
           e.preventDefault();
           onTaskDelete(selectedTask.id);
           return;
