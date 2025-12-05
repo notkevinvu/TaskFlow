@@ -167,7 +167,7 @@ export default function DashboardPage() {
   }, [allTasks, filters.status]);
 
   // Task navigation with keyboard shortcuts
-  const { selectedIndex, selectedTaskId: navSelectedTaskId } = useTaskNavigation({
+  const { selectedIndex } = useTaskNavigation({
     tasks,
     onTaskSelect: (taskId) => setSelectedTaskId(taskId),
     onTaskEdit: (task) => setEditingTask(task),

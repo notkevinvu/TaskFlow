@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useKeyboardShortcuts } from '@/contexts/KeyboardShortcutsContext';
 import { Task } from '@/lib/api';
 
@@ -24,12 +24,14 @@ export function useTaskNavigation({
   const { state } = useKeyboardShortcuts();
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
 
-  // Reset selection when tasks change significantly
-  useEffect(() => {
+  // Compute bounded index to handle tasks array shrinking
+  // This avoids calling setState in an effect (which causes cascading renders)
+  const boundedSelectedIndex = useMemo(() => {
     if (selectedIndex >= tasks.length) {
-      setSelectedIndex(tasks.length > 0 ? 0 : -1);
+      return tasks.length > 0 ? 0 : -1;
     }
-  }, [tasks.length, selectedIndex]);
+    return selectedIndex;
+  }, [selectedIndex, tasks.length]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -76,8 +78,8 @@ export function useTaskNavigation({
       }
 
       // Shortcuts that require a task to be selected
-      if (selectedIndex !== -1 && selectedIndex < tasks.length) {
-        const selectedTask = tasks[selectedIndex];
+      if (boundedSelectedIndex !== -1 && boundedSelectedIndex < tasks.length) {
+        const selectedTask = tasks[boundedSelectedIndex];
 
         // Enter: Open task details sidebar
         if (key === 'enter') {
@@ -113,7 +115,7 @@ export function useTaskNavigation({
       state.dialogCount,
       isDialogOpen,
       tasks,
-      selectedIndex,
+      boundedSelectedIndex,
       onTaskSelect,
       onTaskEdit,
       onTaskComplete,
@@ -128,8 +130,8 @@ export function useTaskNavigation({
   }, [handleKeyDown]);
 
   return {
-    selectedIndex,
-    selectedTaskId: selectedIndex >= 0 && selectedIndex < tasks.length ? tasks[selectedIndex].id : null,
+    selectedIndex: boundedSelectedIndex,
+    selectedTaskId: boundedSelectedIndex >= 0 && boundedSelectedIndex < tasks.length ? tasks[boundedSelectedIndex].id : null,
     setSelectedIndex,
   };
 }
