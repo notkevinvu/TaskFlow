@@ -22,3 +22,6 @@ nul
 # Demongrep (codebase search tool)
 .demongrep.db/
 .fastembed_cache/
+
+# Database backups (contain sensitive data)
+backend/backups/*.sql
