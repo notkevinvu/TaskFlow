@@ -15,12 +15,13 @@ import (
 
 // TaskService handles task business logic
 type TaskService struct {
-	taskRepo          ports.TaskRepository
-	taskHistoryRepo   ports.TaskHistoryRepository
-	priorityCalc      *priority.Calculator
-	recurrenceService ports.RecurrenceService  // Optional: for recurring task support
-	subtaskService    ports.SubtaskService     // Optional: for subtask validation
-	dependencyService ports.DependencyService  // Optional: for dependency validation
+	taskRepo            ports.TaskRepository
+	taskHistoryRepo     ports.TaskHistoryRepository
+	priorityCalc        *priority.Calculator
+	recurrenceService   ports.RecurrenceService   // Optional: for recurring task support
+	subtaskService      ports.SubtaskService      // Optional: for subtask validation
+	dependencyService   ports.DependencyService   // Optional: for dependency validation
+	gamificationService ports.GamificationService // Optional: for gamification rewards
 }
 
 // NewTaskService creates a new task service
@@ -45,6 +46,11 @@ func (s *TaskService) SetSubtaskService(subtaskService ports.SubtaskService) {
 // SetDependencyService sets the optional dependency service for blocker validation
 func (s *TaskService) SetDependencyService(dependencyService ports.DependencyService) {
 	s.dependencyService = dependencyService
+}
+
+// SetGamificationService sets the optional gamification service for completion rewards
+func (s *TaskService) SetGamificationService(gamificationService ports.GamificationService) {
+	s.gamificationService = gamificationService
 }
 
 // Create creates a new task
