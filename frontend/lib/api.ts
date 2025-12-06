@@ -232,12 +232,15 @@ export interface PriorityBreakdown {
   bump_penalty_weighted: number;     // × 0.1 × effort_boost
 }
 
+export type TaskType = 'regular' | 'recurring' | 'subtask';
+
 export interface Task {
   id: string;
   user_id: string;
   title: string;
   description?: string;
   status: 'todo' | 'in_progress' | 'done';
+  task_type: TaskType;
   user_priority: number;
   due_date?: string;
   estimated_effort?: 'small' | 'medium' | 'large' | 'xlarge';
@@ -249,11 +252,45 @@ export interface Task {
   created_at: string;
   updated_at: string;
   completed_at?: string;
-  // Recurrence fields
-  series_id?: string;
-  parent_task_id?: string;
+  // Relationship fields
+  series_id?: string;      // Links to task_series if recurring
+  parent_task_id?: string; // For subtasks: parent task; for recurring: previous in series
   // Optional: populated when fetching single task details
   priority_breakdown?: PriorityBreakdown;
+}
+
+// =============================================================================
+// Subtask Types
+// =============================================================================
+
+export interface SubtaskInfo {
+  total_count: number;
+  completed_count: number;
+  in_progress_count: number;
+  todo_count: number;
+  completion_rate: number; // 0.0 - 1.0
+  all_complete: boolean;
+}
+
+export interface TaskWithSubtasks extends Task {
+  subtask_info?: SubtaskInfo;
+  subtasks?: Task[];
+}
+
+export interface CreateSubtaskDTO {
+  title: string;
+  description?: string;
+  user_priority?: number;
+  due_date?: string; // YYYY-MM-DD format
+  estimated_effort?: 'small' | 'medium' | 'large' | 'xlarge';
+  context?: string;
+}
+
+export interface SubtaskCompletionResponse {
+  completed_task: Task;
+  all_subtasks_complete: boolean;
+  parent_task?: Task;
+  message?: string;
 }
 
 // Calendar Types
@@ -562,4 +599,36 @@ export const recurrencePreferencesAPI = {
   // Delete a category preference
   deleteCategoryPreference: (category: string) =>
     api.delete(`/api/v1/preferences/recurrence/category/${encodeURIComponent(category)}`),
+};
+
+// =============================================================================
+// Subtask API
+// =============================================================================
+
+export const subtaskAPI = {
+  // Create a subtask under a parent task
+  create: (parentTaskId: string, data: CreateSubtaskDTO) =>
+    api.post<Task>(`/api/v1/tasks/${parentTaskId}/subtasks`, data),
+
+  // Get all subtasks for a parent task
+  list: (parentTaskId: string) =>
+    api.get<{ subtasks: Task[]; total_count: number }>(`/api/v1/tasks/${parentTaskId}/subtasks`),
+
+  // Get aggregated subtask statistics for a parent task
+  getInfo: (parentTaskId: string) =>
+    api.get<SubtaskInfo>(`/api/v1/tasks/${parentTaskId}/subtask-info`),
+
+  // Get task with subtask info and optionally expanded subtasks
+  getExpanded: (taskId: string, includeSubtasks = false) =>
+    api.get<TaskWithSubtasks>(`/api/v1/tasks/${taskId}/expanded`, {
+      params: { include_subtasks: includeSubtasks },
+    }),
+
+  // Check if a parent task can be completed (all subtasks done)
+  canComplete: (parentTaskId: string) =>
+    api.get<{ can_complete: boolean }>(`/api/v1/tasks/${parentTaskId}/can-complete`),
+
+  // Complete a subtask with parent completion prompt info
+  complete: (subtaskId: string) =>
+    api.post<SubtaskCompletionResponse>(`/api/v1/subtasks/${subtaskId}/complete`),
 };

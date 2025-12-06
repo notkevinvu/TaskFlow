@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useTask, useBumpTask, useCompleteTask, useDeleteTask } from '@/hooks/useTasks';
+import { useCanCompleteParent } from '@/hooks/useSubtasks';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { X, Pencil, Trash2, Repeat } from 'lucide-react';
+import { X, Pencil, Trash2, Repeat, ListChecks } from 'lucide-react';
 import { EditTaskDialog } from '@/components/EditTaskDialog';
 import { PriorityBreakdownPanel } from '@/components/PriorityBreakdownPanel';
+import { SubtaskList } from '@/components/SubtaskList';
 import { tokens } from '@/lib/tokens';
 
 interface TaskDetailsSidebarProps {
@@ -23,6 +25,11 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
   const bumpTask = useBumpTask();
   const completeTask = useCompleteTask();
   const deleteTask = useDeleteTask();
+
+  // Check if this task can be completed (all subtasks done)
+  const { data: canComplete } = useCanCompleteParent(taskId);
+  const isRegularTask = task?.task_type === 'regular';
+  const hasSubtaskBlocker = isRegularTask && canComplete === false;
 
   useEffect(() => {
     // Trigger slide-in animation after component mounts
@@ -147,9 +154,11 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                         completeTask.mutate(taskId);
                         onClose();
                       }}
-                      disabled={completeTask.isPending}
+                      disabled={completeTask.isPending || hasSubtaskBlocker}
+                      title={hasSubtaskBlocker ? 'Complete all subtasks first' : undefined}
                       className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
                     >
+                      {hasSubtaskBlocker && <ListChecks className="mr-1 h-3 w-3" />}
                       Complete
                     </Button>
                     <Button
@@ -170,6 +179,15 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Subtasks - only for regular tasks */}
+              {task.task_type === 'regular' && (
+                <SubtaskList
+                  parentTaskId={taskId}
+                  parentTask={task}
+                  onParentCompleted={onClose}
+                />
+              )}
 
               {/* Description */}
               {task.description && (
