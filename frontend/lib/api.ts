@@ -689,3 +689,84 @@ export const dependencyAPI = {
       incomplete_blockers: number;
     }>(`/api/v1/tasks/${taskId}/can-complete-dependencies`),
 };
+
+// =============================================================================
+// Task Template Types
+// =============================================================================
+
+export type TaskEffort = 'small' | 'medium' | 'large' | 'xlarge';
+
+export interface TaskTemplate {
+  id: string;
+  user_id: string;
+  name: string;
+  title: string;
+  description?: string;
+  category?: string;
+  estimated_effort?: TaskEffort;
+  user_priority: number;
+  context?: string;
+  related_people?: string[];
+  due_date_offset?: number; // Days from creation
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateTaskTemplateDTO {
+  name: string;
+  title: string;
+  description?: string;
+  category?: string;
+  estimated_effort?: TaskEffort;
+  user_priority?: number;
+  context?: string;
+  related_people?: string[];
+  due_date_offset?: number;
+}
+
+export interface UpdateTaskTemplateDTO {
+  name?: string;
+  title?: string;
+  description?: string;
+  category?: string;
+  estimated_effort?: TaskEffort;
+  user_priority?: number;
+  context?: string;
+  related_people?: string[];
+  due_date_offset?: number;
+}
+
+export interface TaskTemplateListResponse {
+  templates: TaskTemplate[];
+  total_count: number;
+}
+
+// =============================================================================
+// Template API
+// =============================================================================
+
+export const templateAPI = {
+  // Create a new template
+  create: (data: CreateTaskTemplateDTO) =>
+    api.post<TaskTemplate>('/api/v1/templates', data),
+
+  // List all templates for the user
+  list: () =>
+    api.get<TaskTemplateListResponse>('/api/v1/templates'),
+
+  // Get a specific template
+  getById: (id: string) =>
+    api.get<TaskTemplate>(`/api/v1/templates/${id}`),
+
+  // Update a template
+  update: (id: string, data: UpdateTaskTemplateDTO) =>
+    api.put<TaskTemplate>(`/api/v1/templates/${id}`, data),
+
+  // Delete a template
+  delete: (id: string) =>
+    api.delete(`/api/v1/templates/${id}`),
+
+  // Get pre-filled CreateTaskDTO from template (for use with CreateTaskDialog)
+  use: (id: string, overrides?: Partial<CreateTaskDTO>) =>
+    api.post<CreateTaskDTO>(`/api/v1/templates/${id}/use`, overrides || {}),
+};

@@ -80,6 +80,7 @@ func main() {
 	taskSeriesRepo := repository.NewTaskSeriesRepository(dbPool)
 	userPrefsRepo := repository.NewUserPreferencesRepository(dbPool)
 	dependencyRepo := repository.NewDependencyRepository(dbPool)
+	templateRepo := repository.NewTaskTemplateRepository(dbPool)
 
 	// Initialize services
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryHours)
@@ -88,6 +89,7 @@ func main() {
 	recurrenceService := service.NewRecurrenceService(taskRepo, taskSeriesRepo, userPrefsRepo, taskHistoryRepo)
 	subtaskService := service.NewSubtaskService(taskRepo, taskHistoryRepo)
 	dependencyService := service.NewDependencyService(dependencyRepo, taskRepo)
+	templateService := service.NewTaskTemplateService(templateRepo)
 
 	// Wire recurrence service into task service for recurring task completion support
 	taskService.SetRecurrenceService(recurrenceService)
@@ -107,6 +109,7 @@ func main() {
 	recurrenceHandler := handler.NewRecurrenceHandler(recurrenceService)
 	subtaskHandler := handler.NewSubtaskHandler(subtaskService)
 	dependencyHandler := handler.NewDependencyHandler(dependencyService)
+	templateHandler := handler.NewTaskTemplateHandler(templateService)
 
 	// Set Gin mode
 	gin.SetMode(cfg.GinMode)
@@ -241,6 +244,18 @@ func main() {
 			preferences.PUT("/default", recurrenceHandler.SetDefaultPreference)
 			preferences.PUT("/category/:category", recurrenceHandler.SetCategoryPreference)
 			preferences.DELETE("/category/:category", recurrenceHandler.DeleteCategoryPreference)
+		}
+
+		// Template routes (protected)
+		templates := v1.Group("/templates")
+		templates.Use(middleware.AuthRequired(cfg.JWTSecret))
+		{
+			templates.POST("", templateHandler.CreateTemplate)
+			templates.GET("", templateHandler.ListTemplates)
+			templates.GET("/:id", templateHandler.GetTemplate)
+			templates.PUT("/:id", templateHandler.UpdateTemplate)
+			templates.DELETE("/:id", templateHandler.DeleteTemplate)
+			templates.POST("/:id/use", templateHandler.UseTemplate)
 		}
 	}
 

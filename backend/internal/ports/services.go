@@ -86,3 +86,19 @@ type DependencyService interface {
 	// GetBlockerCompletionInfo returns info about tasks unblocked when a blocker completes
 	GetBlockerCompletionInfo(ctx context.Context, blockerTaskID string) (*domain.BlockerCompletionInfo, error)
 }
+
+// TaskTemplateService defines the interface for task template business logic
+type TaskTemplateService interface {
+	// Create creates a new task template
+	Create(ctx context.Context, userID string, dto *domain.CreateTaskTemplateDTO) (*domain.TaskTemplate, error)
+	// Get retrieves a template by ID (with ownership verification)
+	Get(ctx context.Context, userID, templateID string) (*domain.TaskTemplate, error)
+	// List retrieves all templates for a user
+	List(ctx context.Context, userID string) ([]*domain.TaskTemplate, error)
+	// Update updates an existing template
+	Update(ctx context.Context, userID, templateID string, dto *domain.UpdateTaskTemplateDTO) (*domain.TaskTemplate, error)
+	// Delete removes a template
+	Delete(ctx context.Context, userID, templateID string) error
+	// CreateTaskFromTemplate converts a template to a CreateTaskDTO ready for task creation
+	CreateTaskFromTemplate(ctx context.Context, userID, templateID string, overrides *domain.CreateTaskDTO) (*domain.CreateTaskDTO, error)
+}
