@@ -1,7 +1,40 @@
 # TaskFlow - Session Summary
 
 **Date:** 2025-12-05
-**Branch:** `main` (synced)
+**Branch:** `feature/phase-5b2-dependencies`
+
+---
+
+## In Progress This Session
+
+### Phase 5B.2 - Blocked-By Dependencies (WIP)
+**Branch:** `feature/phase-5b2-dependencies`
+
+Implementing peer-to-peer task blocking relationships:
+
+| Feature | Description |
+|---------|-------------|
+| Blocked-By Relationships | Tasks can be blocked by other tasks |
+| Cycle Prevention | DFS-based graph traversal prevents circular dependencies |
+| Completion Blocking | Can't complete task until all blockers are resolved |
+| Visual Indicators | Lock badge + amber styling for blocked tasks |
+| Dependency Section | Sidebar section to manage blockers |
+
+**Key Files:**
+- `backend/migrations/000006_task_dependencies.up.sql` - Junction table with indexes
+- `backend/internal/domain/dependency.go` - Domain types and DTOs
+- `backend/internal/utils/graph/cycle_detector.go` - DFS cycle detection
+- `backend/internal/service/dependency_service.go` - Business logic with validation
+- `frontend/components/DependencySection.tsx` - Dependency management UI
+- `frontend/hooks/useDependencies.ts` - React Query hooks
+
+**Commits:**
+1. Database migration + domain layer
+2. Graph cycle detection utilities with tests
+3. Repository + service layers
+4. Handler layer + routes
+5. Frontend types, hooks, and UI component
+6. Integration into TaskDetailsSidebar
 
 ---
 
@@ -55,7 +88,7 @@ Created `/migrate` command and updated workflows to handle database migrations:
 | Feature | PR | Status |
 |---------|-----|--------|
 | Parent-Child Subtasks (5B.1) | #47 | ✅ Merged |
-| Blocked-By Dependencies (5B.2) | - | 📋 Planned |
+| Blocked-By Dependencies (5B.2) | WIP | 🚧 In Progress |
 
 ---
 

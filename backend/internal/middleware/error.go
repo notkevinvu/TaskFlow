@@ -79,6 +79,33 @@ func mapErrorToResponse(c *gin.Context, err error) (int, ErrorResponse) {
 		}
 	}
 
+	// Handle dependency sentinel errors
+	if errors.Is(err, domain.ErrDependencyCycle) ||
+		errors.Is(err, domain.ErrSelfDependency) ||
+		errors.Is(err, domain.ErrInvalidDependencyType) {
+		return http.StatusBadRequest, ErrorResponse{
+			Error: err.Error(),
+		}
+	}
+
+	if errors.Is(err, domain.ErrDependencyNotFound) {
+		return http.StatusNotFound, ErrorResponse{
+			Error: err.Error(),
+		}
+	}
+
+	if errors.Is(err, domain.ErrDependencyAlreadyExists) {
+		return http.StatusConflict, ErrorResponse{
+			Error: err.Error(),
+		}
+	}
+
+	if errors.Is(err, domain.ErrCannotCompleteBlocked) {
+		return http.StatusUnprocessableEntity, ErrorResponse{
+			Error: err.Error(),
+		}
+	}
+
 	var internalErr *domain.InternalError
 	if errors.As(err, &internalErr) {
 		// Log the internal error server-side with full details and request context

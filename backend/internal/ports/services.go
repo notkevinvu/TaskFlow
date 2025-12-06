@@ -72,3 +72,17 @@ type RecurrenceService interface {
 	SetCategoryPreference(ctx context.Context, userID, category string, calc domain.DueDateCalculation) error
 	DeleteCategoryPreference(ctx context.Context, userID, category string) error
 }
+
+// DependencyService defines the interface for task dependency business logic
+type DependencyService interface {
+	// Add creates a "blocked by" relationship between tasks
+	AddDependency(ctx context.Context, userID string, dto *domain.AddDependencyDTO) (*domain.DependencyInfo, error)
+	// Remove deletes a "blocked by" relationship
+	RemoveDependency(ctx context.Context, userID string, dto *domain.RemoveDependencyDTO) error
+	// GetDependencyInfo returns complete dependency information for a task
+	GetDependencyInfo(ctx context.Context, userID, taskID string) (*domain.DependencyInfo, error)
+	// ValidateCompletion checks if a task can be completed (no incomplete blockers)
+	ValidateCompletion(ctx context.Context, taskID string) error
+	// GetBlockerCompletionInfo returns info about tasks unblocked when a blocker completes
+	GetBlockerCompletionInfo(ctx context.Context, blockerTaskID string) (*domain.BlockerCompletionInfo, error)
+}

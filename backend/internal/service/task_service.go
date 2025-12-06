@@ -18,8 +18,9 @@ type TaskService struct {
 	taskRepo          ports.TaskRepository
 	taskHistoryRepo   ports.TaskHistoryRepository
 	priorityCalc      *priority.Calculator
-	recurrenceService ports.RecurrenceService // Optional: for recurring task support
-	subtaskService    ports.SubtaskService    // Optional: for subtask validation
+	recurrenceService ports.RecurrenceService  // Optional: for recurring task support
+	subtaskService    ports.SubtaskService     // Optional: for subtask validation
+	dependencyService ports.DependencyService  // Optional: for dependency validation
 }
 
 // NewTaskService creates a new task service
@@ -39,6 +40,11 @@ func (s *TaskService) SetRecurrenceService(recurrenceService ports.RecurrenceSer
 // SetSubtaskService sets the optional subtask service for parent completion validation
 func (s *TaskService) SetSubtaskService(subtaskService ports.SubtaskService) {
 	s.subtaskService = subtaskService
+}
+
+// SetDependencyService sets the optional dependency service for blocker validation
+func (s *TaskService) SetDependencyService(dependencyService ports.DependencyService) {
+	s.dependencyService = dependencyService
 }
 
 // Create creates a new task
@@ -342,6 +348,13 @@ func (s *TaskService) CompleteWithOptions(ctx context.Context, userID, taskID st
 	// Block parent task completion if subtasks are incomplete (if subtask service is available)
 	if s.subtaskService != nil {
 		if err := s.subtaskService.ValidateParentCompletion(ctx, taskID); err != nil {
+			return nil, err
+		}
+	}
+
+	// Block task completion if it has incomplete blockers (if dependency service is available)
+	if s.dependencyService != nil {
+		if err := s.dependencyService.ValidateCompletion(ctx, taskID); err != nil {
 			return nil, err
 		}
 	}
