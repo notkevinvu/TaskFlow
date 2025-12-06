@@ -85,9 +85,13 @@ func main() {
 	taskService := service.NewTaskService(taskRepo, taskHistoryRepo)
 	insightsService := service.NewInsightsService(taskRepo)
 	recurrenceService := service.NewRecurrenceService(taskRepo, taskSeriesRepo, userPrefsRepo, taskHistoryRepo)
+	subtaskService := service.NewSubtaskService(taskRepo, taskHistoryRepo)
 
 	// Wire recurrence service into task service for recurring task completion support
 	taskService.SetRecurrenceService(recurrenceService)
+
+	// Wire subtask service into task service for parent completion validation
+	taskService.SetSubtaskService(subtaskService)
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -96,6 +100,7 @@ func main() {
 	analyticsHandler := handler.NewAnalyticsHandler(taskRepo)
 	insightsHandler := handler.NewInsightsHandler(insightsService, taskService)
 	recurrenceHandler := handler.NewRecurrenceHandler(recurrenceService)
+	subtaskHandler := handler.NewSubtaskHandler(subtaskService)
 
 	// Set Gin mode
 	gin.SetMode(cfg.GinMode)
@@ -166,6 +171,19 @@ func main() {
 			tasks.POST("/:id/bump", taskHandler.Bump)
 			tasks.POST("/:id/complete", taskHandler.Complete)
 			tasks.GET("/:id/estimate", insightsHandler.GetTimeEstimate)
+			// Subtask routes (nested under tasks)
+			tasks.POST("/:id/subtasks", subtaskHandler.CreateSubtask)
+			tasks.GET("/:id/subtasks", subtaskHandler.GetSubtasks)
+			tasks.GET("/:id/subtask-info", subtaskHandler.GetSubtaskInfo)
+			tasks.GET("/:id/expanded", subtaskHandler.GetTaskExpanded)
+			tasks.GET("/:id/can-complete", subtaskHandler.CanCompleteParent)
+		}
+
+		// Subtask routes (protected) - for subtask-specific operations
+		subtasks := v1.Group("/subtasks")
+		subtasks.Use(middleware.AuthRequired(cfg.JWTSecret))
+		{
+			subtasks.POST("/:id/complete", subtaskHandler.CompleteSubtask)
 		}
 
 		// Category routes (protected)

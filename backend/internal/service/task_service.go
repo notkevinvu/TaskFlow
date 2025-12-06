@@ -19,6 +19,7 @@ type TaskService struct {
 	taskHistoryRepo   ports.TaskHistoryRepository
 	priorityCalc      *priority.Calculator
 	recurrenceService ports.RecurrenceService // Optional: for recurring task support
+	subtaskService    ports.SubtaskService    // Optional: for subtask validation
 }
 
 // NewTaskService creates a new task service
@@ -33,6 +34,11 @@ func NewTaskService(taskRepo ports.TaskRepository, taskHistoryRepo ports.TaskHis
 // SetRecurrenceService sets the optional recurrence service for recurring task support
 func (s *TaskService) SetRecurrenceService(recurrenceService ports.RecurrenceService) {
 	s.recurrenceService = recurrenceService
+}
+
+// SetSubtaskService sets the optional subtask service for parent completion validation
+func (s *TaskService) SetSubtaskService(subtaskService ports.SubtaskService) {
+	s.subtaskService = subtaskService
 }
 
 // Create creates a new task
@@ -331,6 +337,13 @@ func (s *TaskService) CompleteWithOptions(ctx context.Context, userID, taskID st
 	// Verify ownership
 	if task.UserID != userID {
 		return nil, domain.NewForbiddenError("task", "complete")
+	}
+
+	// Block parent task completion if subtasks are incomplete (if subtask service is available)
+	if s.subtaskService != nil {
+		if err := s.subtaskService.ValidateParentCompletion(ctx, taskID); err != nil {
+			return nil, err
+		}
 	}
 
 	// Update task

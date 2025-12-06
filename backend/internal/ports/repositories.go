@@ -47,6 +47,10 @@ type TaskRepository interface {
 	// Bulk operations
 	BulkDelete(ctx context.Context, userID string, taskIDs []string) (int, []string, error)
 	BulkUpdateStatus(ctx context.Context, userID string, taskIDs []string, newStatus domain.TaskStatus) (int, []string, error)
+	// Subtask operations
+	GetSubtasks(ctx context.Context, parentTaskID string) ([]*domain.Task, error)
+	GetSubtaskInfo(ctx context.Context, parentTaskID string) (*domain.SubtaskInfo, error)
+	CountIncompleteSubtasks(ctx context.Context, parentTaskID string) (int, error)
 }
 
 // TaskHistoryRepository defines the interface for task history data access

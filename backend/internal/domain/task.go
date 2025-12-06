@@ -31,27 +31,37 @@ const (
 	TaskEffortXLarge TaskEffort = "xlarge"  // > 4 hours
 )
 
+// TaskType represents the type/category of task relationship
+type TaskType string
+
+const (
+	TaskTypeRegular   TaskType = "regular"   // Standalone task (default)
+	TaskTypeRecurring TaskType = "recurring" // Part of recurring series (has series_id)
+	TaskTypeSubtask   TaskType = "subtask"   // Child of another task (has parent_task_id, no series_id)
+)
+
 // Task represents a task in the system
 type Task struct {
-	ID              string     `json:"id"`
-	UserID          string     `json:"user_id"`
-	Title           string     `json:"title"`
-	Description     *string    `json:"description,omitempty"`
-	Status          TaskStatus `json:"status"`
-	UserPriority    int        `json:"user_priority"`     // 1-10
-	DueDate         *time.Time `json:"due_date,omitempty"`
+	ID              string      `json:"id"`
+	UserID          string      `json:"user_id"`
+	Title           string      `json:"title"`
+	Description     *string     `json:"description,omitempty"`
+	Status          TaskStatus  `json:"status"`
+	TaskType        TaskType    `json:"task_type"`         // regular, recurring, or subtask
+	UserPriority    int         `json:"user_priority"`     // 1-10
+	DueDate         *time.Time  `json:"due_date,omitempty"`
 	EstimatedEffort *TaskEffort `json:"estimated_effort,omitempty"`
-	Category        *string    `json:"category,omitempty"`
-	Context         *string    `json:"context,omitempty"`
-	RelatedPeople   []string   `json:"related_people,omitempty"`
-	PriorityScore   int        `json:"priority_score"`    // 0-100, calculated
-	BumpCount       int        `json:"bump_count"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
-	CompletedAt     *time.Time `json:"completed_at,omitempty"`
-	// Recurrence fields
+	Category        *string     `json:"category,omitempty"`
+	Context         *string     `json:"context,omitempty"`
+	RelatedPeople   []string    `json:"related_people,omitempty"`
+	PriorityScore   int         `json:"priority_score"` // 0-100, calculated
+	BumpCount       int         `json:"bump_count"`
+	CreatedAt       time.Time   `json:"created_at"`
+	UpdatedAt       time.Time   `json:"updated_at"`
+	CompletedAt     *time.Time  `json:"completed_at,omitempty"`
+	// Relationship fields (interpretation depends on TaskType)
 	SeriesID     *string `json:"series_id,omitempty"`      // Links to task_series if recurring
-	ParentTaskID *string `json:"parent_task_id,omitempty"` // Previous task in the series
+	ParentTaskID *string `json:"parent_task_id,omitempty"` // For subtasks: parent task; for recurring: previous in series
 	// PriorityBreakdown shows the individual components of the priority calculation
 	// Optional: populated when detailed breakdown is requested
 	PriorityBreakdown *PriorityBreakdown `json:"priority_breakdown,omitempty"`
@@ -68,6 +78,7 @@ type CreateTaskDTO struct {
 	Context         *string         `json:"context,omitempty" binding:"omitempty,max=500"`
 	RelatedPeople   []string        `json:"related_people,omitempty"`
 	Recurrence      *RecurrenceRule `json:"recurrence,omitempty"` // Optional: make this a recurring task
+	ParentTaskID    *string         `json:"parent_task_id,omitempty" binding:"omitempty,uuid"` // Optional: make this a subtask
 }
 
 // UpdateTaskDTO is used for updating tasks
@@ -133,6 +144,27 @@ func (e TaskEffort) Validate() error {
 	default:
 		return ErrInvalidEffort
 	}
+}
+
+// Validate validates the task type
+func (t TaskType) Validate() error {
+	switch t {
+	case TaskTypeRegular, TaskTypeRecurring, TaskTypeSubtask:
+		return nil
+	default:
+		return errors.New("invalid task type")
+	}
+}
+
+// IsSubtask returns true if the task is a subtask (has parent but not part of a recurring series)
+func (t *Task) IsSubtask() bool {
+	return t.TaskType == TaskTypeSubtask && t.ParentTaskID != nil
+}
+
+// CanHaveSubtasks returns true if the task can have subtasks
+// Only regular tasks can have subtasks (subtasks cannot have subtasks - single level only)
+func (t *Task) CanHaveSubtasks() bool {
+	return t.TaskType == TaskTypeRegular
 }
 
 // GetEffortMultiplier returns the priority multiplier for the effort

@@ -39,6 +39,22 @@ type InsightsService interface {
 	SuggestCategory(ctx context.Context, userID string, req *domain.CategorySuggestionRequest) (*domain.CategorySuggestionResponse, error)
 }
 
+// SubtaskService defines the interface for subtask business logic
+type SubtaskService interface {
+	// Subtask CRUD operations
+	Create(ctx context.Context, userID string, dto *domain.CreateSubtaskDTO) (*domain.Task, error)
+	GetSubtasks(ctx context.Context, userID, parentTaskID string) ([]*domain.Task, error)
+	GetSubtaskInfo(ctx context.Context, userID, parentTaskID string) (*domain.SubtaskInfo, error)
+	GetTaskWithSubtasks(ctx context.Context, userID, taskID string, expandSubtasks bool) (*domain.TaskWithSubtasks, error)
+
+	// Subtask completion with parent prompt
+	CompleteSubtask(ctx context.Context, userID, subtaskID string) (*domain.SubtaskCompletionResponse, error)
+
+	// Parent task completion validation
+	CanCompleteParent(ctx context.Context, userID, parentTaskID string) (bool, error)
+	ValidateParentCompletion(ctx context.Context, taskID string) error
+}
+
 // RecurrenceService defines the interface for recurring task business logic
 type RecurrenceService interface {
 	// Task series management
