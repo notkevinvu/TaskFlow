@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/notkevinvu/taskflow/backend/internal/ports"
@@ -184,7 +185,12 @@ func (s *DependencyService) GetBlockerCompletionInfo(ctx context.Context, blocke
 	for _, taskID := range blockedTaskIDs {
 		incompleteCount, err := s.dependencyRepo.CountIncompleteBlockers(ctx, taskID)
 		if err != nil {
-			// Skip on error, don't fail the whole operation
+			// Log error but continue with partial data - graceful degradation
+			slog.Warn("failed to count incomplete blockers",
+				"blocker_task_id", blockerTaskID,
+				"blocked_task_id", taskID,
+				"error", err,
+			)
 			continue
 		}
 		if incompleteCount == 0 {
