@@ -106,6 +106,25 @@ func mapErrorToResponse(c *gin.Context, err error) (int, ErrorResponse) {
 		}
 	}
 
+	// Handle template sentinel errors
+	if errors.Is(err, domain.ErrTemplateNotFound) {
+		return http.StatusNotFound, ErrorResponse{
+			Error: err.Error(),
+		}
+	}
+
+	if errors.Is(err, domain.ErrTemplateDuplicateName) {
+		return http.StatusConflict, ErrorResponse{
+			Error: err.Error(),
+		}
+	}
+
+	if errors.Is(err, domain.ErrInvalidDueDateOffset) {
+		return http.StatusBadRequest, ErrorResponse{
+			Error: err.Error(),
+		}
+	}
+
 	var internalErr *domain.InternalError
 	if errors.As(err, &internalErr) {
 		// Log the internal error server-side with full details and request context
