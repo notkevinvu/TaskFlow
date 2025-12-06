@@ -84,3 +84,27 @@ type UserPreferencesRepository interface {
 	DeleteAllCategoryPreferences(ctx context.Context, userID string) error
 	GetAllPreferences(ctx context.Context, userID string) (*domain.AllPreferences, error)
 }
+
+// DependencyRepository defines the interface for task dependency data access
+type DependencyRepository interface {
+	// Add creates a new dependency (taskID is blocked by blockedByID)
+	Add(ctx context.Context, userID, taskID, blockedByID string) (*domain.TaskDependency, error)
+	// Remove deletes a dependency relationship
+	Remove(ctx context.Context, userID, taskID, blockedByID string) error
+	// Exists checks if a specific dependency exists
+	Exists(ctx context.Context, taskID, blockedByID string) (bool, error)
+	// GetBlockers returns all tasks blocking the given task (with task details)
+	GetBlockers(ctx context.Context, taskID string) ([]*domain.DependencyWithTask, error)
+	// GetBlocking returns all tasks that the given task is blocking (with task details)
+	GetBlocking(ctx context.Context, taskID string) ([]*domain.DependencyWithTask, error)
+	// GetDependencyInfo returns complete dependency info for a task
+	GetDependencyInfo(ctx context.Context, taskID string) (*domain.DependencyInfo, error)
+	// GetAllBlockerIDs returns just the blocker task IDs (for cycle detection)
+	GetAllBlockerIDs(ctx context.Context, taskID string) ([]string, error)
+	// GetDependencyGraph returns all dependencies for cycle detection
+	GetDependencyGraph(ctx context.Context, userID string) (map[string][]string, error)
+	// CountIncompleteBlockers returns the number of incomplete blockers for a task
+	CountIncompleteBlockers(ctx context.Context, taskID string) (int, error)
+	// GetTasksBlockedBy returns tasks that will be unblocked when this task completes
+	GetTasksBlockedBy(ctx context.Context, blockerTaskID string) ([]string, error)
+}
