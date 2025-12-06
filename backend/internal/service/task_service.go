@@ -397,6 +397,17 @@ func (s *TaskService) CompleteWithOptions(ctx context.Context, userID, taskID st
 		}
 	}
 
+	// Process gamification rewards if gamification service is available
+	if s.gamificationService != nil {
+		gamificationResult, err := s.gamificationService.ProcessTaskCompletion(ctx, userID, task)
+		if err != nil {
+			// Log error but don't fail the completion - the task is already completed
+			// Gamification is non-critical functionality
+		} else {
+			response.Gamification = gamificationResult
+		}
+	}
+
 	return response, nil
 }
 

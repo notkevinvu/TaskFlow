@@ -161,10 +161,11 @@ type TaskCompletionRequest struct {
 
 // TaskCompletionResponse is returned after completing a recurring task
 type TaskCompletionResponse struct {
-	CompletedTask *Task       `json:"completed_task"`
-	NextTask      *Task       `json:"next_task,omitempty"`      // nil if series ended or stopped
-	Series        *TaskSeries `json:"series,omitempty"`
-	Message       string      `json:"message"`
+	CompletedTask *Task                           `json:"completed_task"`
+	NextTask      *Task                           `json:"next_task,omitempty"` // nil if series ended or stopped
+	Series        *TaskSeries                     `json:"series,omitempty"`
+	Message       string                          `json:"message"`
+	Gamification  *TaskCompletionGamificationResult `json:"gamification,omitempty"` // Gamification rewards from completion
 }
 
 // SeriesHistoryEntry represents a task in the series history
