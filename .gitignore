@@ -25,3 +25,6 @@ nul
 
 # Database backups (contain sensitive data)
 backend/backups/*.sql
+
+# Migration tracking (local state only)
+backend/migrations/.applied
