@@ -214,6 +214,29 @@ func (m *MockTaskRepository) BulkUpdateStatus(ctx context.Context, userID string
 	return args.Int(0), failedIDs, args.Error(2)
 }
 
+// Subtask methods
+
+func (m *MockTaskRepository) GetSubtasks(ctx context.Context, parentTaskID string) ([]*domain.Task, error) {
+	args := m.Called(ctx, parentTaskID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Task), args.Error(1)
+}
+
+func (m *MockTaskRepository) GetSubtaskInfo(ctx context.Context, parentTaskID string) (*domain.SubtaskInfo, error) {
+	args := m.Called(ctx, parentTaskID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.SubtaskInfo), args.Error(1)
+}
+
+func (m *MockTaskRepository) CountIncompleteSubtasks(ctx context.Context, parentTaskID string) (int, error) {
+	args := m.Called(ctx, parentTaskID)
+	return args.Int(0), args.Error(1)
+}
+
 // setupAnalyticsTest creates a test router and mock repository
 func setupAnalyticsTest() (*gin.Engine, *MockTaskRepository) {
 	router := testutil.SetupTestRouter()
