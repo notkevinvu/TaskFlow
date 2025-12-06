@@ -241,7 +241,12 @@ Use `/pr-review [PR_NUMBER]` to trigger manual review on any PR.
 
 ### Database Migrations
 
-Migrations auto-run on backend startup. Files in `backend/migrations/`.
+**IMPORTANT:** Migrations do NOT auto-run. You must apply them manually using the `/migrate` command.
+
+- Migration files: `backend/migrations/*.up.sql`
+- Run `/migrate` to check status and apply pending migrations
+- Migrations are applied via Supabase SQL Editor (copy/paste SQL)
+- Always run `/migrate` after pulling changes that include new migration files
 
 ---
 

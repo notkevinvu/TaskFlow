@@ -25,6 +25,7 @@ Run these commands in parallel to gather PR context:
 - `gh pr view <PR_NUMBER> --json title,body,files,additions,deletions,changedFiles`
 - `git diff main...HEAD --stat` (to see what changed)
 - Read any CLAUDE.md files in the repository for project conventions
+- Check for new migration files: `git diff main...HEAD --name-only | grep migrations`
 
 ### Step 3: Launch Review Agents
 
@@ -171,13 +172,30 @@ If fixes were made in Step 6:
 2. Verify the fixes properly address the original issues
 3. Post a follow-up comment confirming fixes
 
-### Step 9: Report Completion
+### Step 9: Check for Pending Migrations
+
+If migration files were detected in Step 2:
+
+```markdown
+## ⚠️ Database Migration Required
+
+This PR includes database schema changes:
+
+| File | Description |
+|------|-------------|
+| `backend/migrations/NNNNNN_*.up.sql` | [Migration name] |
+
+**Before testing this feature locally, run `/migrate` to apply the schema changes.**
+```
+
+### Step 10: Report Completion
 
 Inform the user:
 - PR review posted successfully
 - Any issues found and fixed
 - CI status
 - Whether the PR is ready for merge
+- **If migrations exist**: Remind to run `/migrate` before testing
 
 ---
 

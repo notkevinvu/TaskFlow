@@ -154,6 +154,36 @@ This command guides you through the complete feature development lifecycle with 
 
    After all tasks are marked complete in tasks.md:
 
+   **First, check for database migrations:**
+   ```bash
+   ls backend/migrations/*.up.sql 2>/dev/null | wc -l
+   ```
+
+   If new migration files were created during this feature:
+   ```markdown
+   ## ⚠️ Database Migration Required
+
+   This feature includes database schema changes:
+
+   | Migration | File |
+   |-----------|------|
+   | 000005 | `backend/migrations/000005_subtasks_support.up.sql` |
+
+   **You must apply these migrations before testing!**
+
+   | Option | Action |
+   |--------|--------|
+   | **M** | Run `/migrate` to apply migrations now |
+   | **S** | Skip - I'll apply migrations manually later |
+
+   Your choice:
+   ```
+
+   - If M: Run the `/migrate` command
+   - If S: Warn user that feature won't work until migrations are applied
+
+   **Then show completion summary:**
+
    ```markdown
    ## 🎉 Implementation Complete!
 
@@ -161,6 +191,7 @@ This command guides you through the complete feature development lifecycle with 
    - [X] Specification defined
    - [X] Technical plan created
    - [X] [N] tasks completed
+   - [X/⚠️] Database migrations [applied/pending]
 
    ### Final Steps
 
