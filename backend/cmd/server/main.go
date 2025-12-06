@@ -79,6 +79,7 @@ func main() {
 	taskHistoryRepo := repository.NewTaskHistoryRepository(dbPool)
 	taskSeriesRepo := repository.NewTaskSeriesRepository(dbPool)
 	userPrefsRepo := repository.NewUserPreferencesRepository(dbPool)
+	dependencyRepo := repository.NewDependencyRepository(dbPool)
 
 	// Initialize services
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryHours)
@@ -86,12 +87,16 @@ func main() {
 	insightsService := service.NewInsightsService(taskRepo)
 	recurrenceService := service.NewRecurrenceService(taskRepo, taskSeriesRepo, userPrefsRepo, taskHistoryRepo)
 	subtaskService := service.NewSubtaskService(taskRepo, taskHistoryRepo)
+	dependencyService := service.NewDependencyService(dependencyRepo, taskRepo)
 
 	// Wire recurrence service into task service for recurring task completion support
 	taskService.SetRecurrenceService(recurrenceService)
 
 	// Wire subtask service into task service for parent completion validation
 	taskService.SetSubtaskService(subtaskService)
+
+	// Wire dependency service into task service for blocker validation
+	taskService.SetDependencyService(dependencyService)
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -101,6 +106,7 @@ func main() {
 	insightsHandler := handler.NewInsightsHandler(insightsService, taskService)
 	recurrenceHandler := handler.NewRecurrenceHandler(recurrenceService)
 	subtaskHandler := handler.NewSubtaskHandler(subtaskService)
+	dependencyHandler := handler.NewDependencyHandler(dependencyService)
 
 	// Set Gin mode
 	gin.SetMode(cfg.GinMode)
@@ -177,6 +183,11 @@ func main() {
 			tasks.GET("/:id/subtask-info", subtaskHandler.GetSubtaskInfo)
 			tasks.GET("/:id/expanded", subtaskHandler.GetTaskExpanded)
 			tasks.GET("/:id/can-complete", subtaskHandler.CanCompleteParent)
+			// Dependency routes (nested under tasks)
+			tasks.POST("/:id/dependencies", dependencyHandler.AddDependency)
+			tasks.GET("/:id/dependencies", dependencyHandler.GetDependencyInfo)
+			tasks.DELETE("/:id/dependencies/:blocker_id", dependencyHandler.RemoveDependency)
+			tasks.GET("/:id/can-complete-dependencies", dependencyHandler.CheckCanComplete)
 		}
 
 		// Subtask routes (protected) - for subtask-specific operations
