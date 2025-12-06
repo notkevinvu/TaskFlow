@@ -102,3 +102,22 @@ type TaskTemplateService interface {
 	// CreateTaskFromTemplate converts a template to a CreateTaskDTO ready for task creation
 	CreateTaskFromTemplate(ctx context.Context, userID, templateID string, overrides *domain.CreateTaskDTO) (*domain.CreateTaskDTO, error)
 }
+
+// GamificationService defines the interface for gamification business logic
+type GamificationService interface {
+	// Dashboard data
+	GetDashboard(ctx context.Context, userID string) (*domain.GamificationDashboard, error)
+
+	// Called when a task is completed - updates stats and checks achievements
+	ProcessTaskCompletion(ctx context.Context, userID string, task *domain.Task) (*domain.TaskCompletionGamificationResult, error)
+
+	// Stats computation (can be called to refresh cache)
+	ComputeStats(ctx context.Context, userID string) (*domain.GamificationStats, error)
+
+	// Achievement checking
+	CheckAndAwardAchievements(ctx context.Context, userID string, task *domain.Task, stats *domain.GamificationStats) ([]*domain.AchievementEarnedEvent, error)
+
+	// Timezone management
+	SetUserTimezone(ctx context.Context, userID, timezone string) error
+	GetUserTimezone(ctx context.Context, userID string) (string, error)
+}
