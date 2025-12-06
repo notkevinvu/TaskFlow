@@ -13,7 +13,8 @@ Phase 2 Enhancements                   [█████████████�
 Phase 2.5: Quick Wins + Core Features  [████████████████████] 100%
 Phase 3: Production Readiness          [████████████████████] 100%  ✅ COMPLETE
 Phase 4: Advanced Features             [████░░░░░░░░░░░░░░░░]  20%
-Phase 5: Product Enhancements          [░░░░░░░░░░░░░░░░░░░░]   0%  <- YOU ARE HERE (Planning Complete)
+Phase 5A: Quick Wins                   [████████████████████] 100%  ✅ COMPLETE
+Phase 5B: Core Enhancements            [██░░░░░░░░░░░░░░░░░░]  10%  <- YOU ARE HERE
 ```
 
 ---
@@ -133,20 +134,21 @@ Phase 5: Product Enhancements          [░░░░░░░░░░░░░�
 
 **Goal:** Transform TaskFlow from a task manager into an intelligent productivity platform with unique differentiators.
 
-### Phase 5A: Quick Wins (High Impact, Low-Medium Effort)
+### Phase 5A: Quick Wins ✅ COMPLETE (PRs #44-#46)
+
+| # | Feature | PR | Status |
+|---|---------|-----|--------|
+| 1 | **Recurring Tasks** | #45 | ✅ Complete |
+| 2 | **Priority Explanation Panel** | #44 | ✅ Complete |
+| 3 | **Quick Add (Cmd+K)** | #46 | ✅ Complete |
+| 4 | **Keyboard Navigation** | #46 | ✅ Complete |
+
+### Phase 5B: Core Enhancements (In Progress)
 
 | # | Feature | Description | Status |
 |---|---------|-------------|--------|
-| 1 | **Recurring Tasks** | Daily/weekly/monthly task recurrence | [ ] Planned |
-| 2 | **Priority Explanation Panel** | Show breakdown of priority factors (unique differentiator) | [x] Complete |
-| 3 | **Quick Add (Cmd+K)** | Global keyboard shortcut for rapid task entry | [ ] Planned |
-| 4 | **Keyboard Navigation** | j/k navigation, shortcuts for power users | [ ] Planned |
-
-### Phase 5B: Core Enhancements (High Impact, Medium Effort)
-
-| # | Feature | Description | Status |
-|---|---------|-------------|--------|
-| 5 | **Subtasks/Checklists** | Break down tasks into smaller items | [ ] Planned |
+| 5a | **Subtasks (Parent-Child)** | Hierarchical task relationships, priority inheritance | 🔄 In Progress |
+| 5b | **Blocked-By Dependencies** | Task dependency graph, blocked task warnings | [ ] Planned (after 5a) |
 | 6 | **Gamification** | Streaks, achievements, productivity scores | [ ] Planned |
 | 7 | **Procrastination Detection** | AI insights from bump patterns (unique differentiator) | [ ] Planned |
 | 8 | **Natural Language Input** | Parse "Buy groceries tomorrow high priority" | [ ] Planned |
@@ -169,20 +171,27 @@ Phase 5: Product Enhancements          [░░░░░░░░░░░░░�
 
 ---
 
-## Current Focus: Phase 5A Implementation
+## Current Focus: Phase 5B Implementation
 
-### Recently Completed
-- [x] Design tokens system (60 tokens, full component migration)
-- [x] Calendar sidebar with task badges and click-to-create
-- [x] Category management fix for completed tasks
-- [x] Enhanced analytics with trends and heatmap charts
-- [x] Product research and roadmap planning
-- [x] **Priority Explanation Panel** - Donut chart + detailed breakdown of priority factors
+### Phase 5A Completed ✅
+- [x] **Recurring Tasks** (PR #45) - Daily/weekly/monthly task recurrence with series management
+- [x] **Priority Explanation Panel** (PR #44) - Donut chart + detailed breakdown of priority factors
+- [x] **Quick Add (Cmd+K)** (PR #46) - Global keyboard shortcut for rapid task entry
+- [x] **Keyboard Navigation** (PR #46) - j/k navigation, e/c/d shortcuts for power users
 
-### Next Up: Phase 5A Quick Wins
-1. [ ] **Recurring Tasks** - Table stakes feature, unlocks daily/weekly workflows
-2. [ ] **Quick Add (Cmd+K)** - UX improvement for power users
-3. [ ] **Keyboard Navigation** - Power user delight
+### In Progress: Phase 5B.1 - Subtasks
+**Feature:** Parent-Child Task Relationships
+- [ ] Database schema: `parent_id` field on tasks table
+- [ ] Backend: Subtask CRUD operations
+- [ ] Backend: Priority inheritance from parent
+- [ ] Frontend: Subtask display under parent tasks
+- [ ] Frontend: Create subtask UI
+- [ ] Frontend: Prompt to close parent when last subtask completed
+
+### Upcoming: Phase 5B.2 - Blocked-By Dependencies
+- [ ] "Blocked by" task relationships
+- [ ] Dependency graph visualization
+- [ ] Blocked task warnings
 
 ---
 
@@ -274,7 +283,7 @@ hooks:                     0.0% (React Query wrappers)
 - **Frontend Files:** ~55 TypeScript/TSX files
 - **Frontend Tests:** 29 tests
 - **API Endpoints:** ~15 endpoints
-- **Merged PRs:** 41
+- **Merged PRs:** 46
 
 ---
 

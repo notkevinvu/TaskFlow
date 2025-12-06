@@ -118,6 +118,23 @@ func (calc *Calculator) getEffortBoost(effort *domain.TaskEffort) float64 {
 	return effort.GetEffortMultiplier()
 }
 
+// CalculateForSubtask computes priority for a subtask with parent priority boost
+// Subtasks get a ~15% boost based on the parent's priority score
+// This ensures important parent tasks have important subtasks
+func (calc *Calculator) CalculateForSubtask(subtask *domain.Task, parentPriorityScore int) int {
+	// Calculate base priority for the subtask
+	baseScore := calc.Calculate(subtask)
+
+	// Apply 15% boost from parent's priority
+	// parentPriorityScore is 0-100, so 15% boost adds up to 15 points
+	parentBoost := float64(parentPriorityScore) * 0.15
+
+	finalScore := float64(baseScore) + parentBoost
+
+	// Clamp to 0-100 range
+	return int(math.Min(100, math.Max(0, finalScore)))
+}
+
 // IsAtRisk determines if a task is at risk
 // Criteria: Bump count >= 3 OR overdue by >= 3 days
 func (calc *Calculator) IsAtRisk(task *domain.Task) bool {
