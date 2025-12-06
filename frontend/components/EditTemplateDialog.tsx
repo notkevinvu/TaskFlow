@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useUpdateTemplate } from '@/hooks/useTemplates';
 import { useDialogKeyboardShortcuts } from '@/hooks/useDialogKeyboardShortcuts';
 import { TaskTemplate, UpdateTaskTemplateDTO } from '@/lib/api';
@@ -55,6 +55,7 @@ export function EditTemplateDialog({
   template,
 }: EditTemplateDialogProps) {
   const updateTemplate = useUpdateTemplate();
+  const prevOpenRef = useRef(false);
 
   useDialogKeyboardShortcuts(open);
 
@@ -69,9 +70,10 @@ export function EditTemplateDialog({
     context: '',
   });
 
-  // Load template data when dialog opens or template changes
-  useEffect(() => {
-    if (open && template) {
+  // Handle dialog open/close transitions and load template data
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen && !prevOpenRef.current && template) {
+      // Dialog is opening - load template data
       setFormData({
         name: template.name || '',
         title: template.title || '',
@@ -86,7 +88,9 @@ export function EditTemplateDialog({
         context: template.context || '',
       });
     }
-  }, [open, template]);
+    prevOpenRef.current = newOpen;
+    onOpenChange(newOpen);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,7 +142,7 @@ export function EditTemplateDialog({
   if (!template) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[525px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>

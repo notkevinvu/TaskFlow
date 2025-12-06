@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useCreateTemplate } from '@/hooks/useTemplates';
 import { useDialogKeyboardShortcuts } from '@/hooks/useDialogKeyboardShortcuts';
 import { CreateTaskTemplateDTO } from '@/lib/api';
@@ -74,9 +74,9 @@ export function CreateTemplateDialog({
   const [formData, setFormData] = useState<FormData>(getEmptyFormData);
 
   // Handle dialog open/close transitions and apply initialData
-  useEffect(() => {
-    if (open && !prevOpenRef.current) {
-      // Dialog is opening
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen && !prevOpenRef.current) {
+      // Dialog is opening - reset form and apply initial data
       if (initialData) {
         setFormData({
           name: initialData.name || '',
@@ -92,8 +92,9 @@ export function CreateTemplateDialog({
         setFormData(getEmptyFormData());
       }
     }
-    prevOpenRef.current = open;
-  }, [open, initialData]);
+    prevOpenRef.current = newOpen;
+    onOpenChange(newOpen);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,7 +124,7 @@ export function CreateTemplateDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[525px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
