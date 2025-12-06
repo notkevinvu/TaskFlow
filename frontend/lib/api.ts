@@ -293,6 +293,35 @@ export interface SubtaskCompletionResponse {
   message?: string;
 }
 
+// =============================================================================
+// Dependency Types
+// =============================================================================
+
+export interface DependencyWithTask {
+  task_id: string;
+  title: string;
+  status: 'todo' | 'in_progress' | 'done';
+  created_at: string;
+}
+
+export interface DependencyInfo {
+  task_id: string;
+  blockers: DependencyWithTask[];    // Tasks blocking this task
+  blocking: DependencyWithTask[];    // Tasks this task is blocking
+  is_blocked: boolean;               // Has incomplete blockers
+  can_complete: boolean;             // All blockers are done
+}
+
+export interface BlockerCompletionInfo {
+  completed_task_id: string;
+  unblocked_task_ids: string[];
+  unblocked_count: number;
+}
+
+export interface AddDependencyDTO {
+  blocked_by_id: string;
+}
+
 // Calendar Types
 export interface CalendarDayData {
   count: number;
@@ -631,4 +660,32 @@ export const subtaskAPI = {
   // Complete a subtask with parent completion prompt info
   complete: (subtaskId: string) =>
     api.post<SubtaskCompletionResponse>(`/api/v1/subtasks/${subtaskId}/complete`),
+};
+
+// =============================================================================
+// Dependency API
+// =============================================================================
+
+export const dependencyAPI = {
+  // Get dependency info for a task (blockers and blocking)
+  getInfo: (taskId: string) =>
+    api.get<DependencyInfo>(`/api/v1/tasks/${taskId}/dependencies`),
+
+  // Add a blocker to a task
+  addBlocker: (taskId: string, blockedById: string) =>
+    api.post<DependencyInfo>(`/api/v1/tasks/${taskId}/dependencies`, {
+      blocked_by_id: blockedById,
+    }),
+
+  // Remove a blocker from a task
+  removeBlocker: (taskId: string, blockedById: string) =>
+    api.delete<{ message: string }>(`/api/v1/tasks/${taskId}/dependencies/${blockedById}`),
+
+  // Check if a task can be completed (no incomplete blockers)
+  canComplete: (taskId: string) =>
+    api.get<{
+      can_complete: boolean;
+      is_blocked: boolean;
+      incomplete_blockers: number;
+    }>(`/api/v1/tasks/${taskId}/can-complete-dependencies`),
 };
