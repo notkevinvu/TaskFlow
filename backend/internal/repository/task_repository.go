@@ -95,6 +95,18 @@ func pgtypeUUIDToStringPtr(u pgtype.UUID) *string {
 	return &s
 }
 
+// Helper: Derive TaskType from relationship fields
+// Until sqlc is regenerated with task_type column, we derive it from series_id and parent_task_id
+func deriveTaskType(seriesID, parentTaskID pgtype.UUID) domain.TaskType {
+	if seriesID.Valid {
+		return domain.TaskTypeRecurring
+	}
+	if parentTaskID.Valid {
+		return domain.TaskTypeSubtask
+	}
+	return domain.TaskTypeRegular
+}
+
 // Helper: Convert sqlc.Task to domain.Task
 func sqlcTaskToDomain(t sqlc.Task) domain.Task {
 	return domain.Task{
@@ -103,6 +115,7 @@ func sqlcTaskToDomain(t sqlc.Task) domain.Task {
 		Title:           t.Title,
 		Description:     t.Description,
 		Status:          sqlcStatusToDomain(t.Status),
+		TaskType:        deriveTaskType(t.SeriesID, t.ParentTaskID),
 		UserPriority:    int(t.UserPriority),
 		DueDate:         pgtypeTimestamptzToTimePtr(t.DueDate),
 		EstimatedEffort: sqlcEffortToDomain(t.EstimatedEffort),
@@ -130,6 +143,7 @@ func sqlcRowToDomain(id, userID pgtype.UUID, title string, description *string, 
 		Title:           title,
 		Description:     description,
 		Status:          sqlcStatusToDomain(status),
+		TaskType:        deriveTaskType(seriesID, parentTaskID),
 		UserPriority:    int(userPriority),
 		DueDate:         pgtypeTimestamptzToTimePtr(dueDate),
 		EstimatedEffort: sqlcEffortToDomain(estimatedEffort),
@@ -203,6 +217,7 @@ func (r *TaskRepository) FindByID(ctx context.Context, id string) (*domain.Task,
 }
 
 // List retrieves tasks with filters (kept as manual SQL due to dynamic query building)
+// Note: Excludes subtasks from main list - they should only appear under their parent
 func (r *TaskRepository) List(ctx context.Context, userID string, filter *domain.TaskListFilter) ([]*domain.Task, error) {
 	query := `
 		SELECT id, user_id, title, description, status, user_priority,
@@ -210,7 +225,7 @@ func (r *TaskRepository) List(ctx context.Context, userID string, filter *domain
 			   priority_score, bump_count, created_at, updated_at, completed_at,
 			   series_id, parent_task_id
 		FROM tasks
-		WHERE user_id = $1
+		WHERE user_id = $1 AND (task_type IS NULL OR task_type != 'subtask')
 	`
 	args := []interface{}{userID}
 	argNum := 2
@@ -282,6 +297,7 @@ func (r *TaskRepository) List(ctx context.Context, userID string, filter *domain
 	var tasks []*domain.Task
 	for rows.Next() {
 		var task domain.Task
+		var seriesID, parentTaskID pgtype.UUID
 		err := rows.Scan(
 			&task.ID,
 			&task.UserID,
@@ -299,12 +315,16 @@ func (r *TaskRepository) List(ctx context.Context, userID string, filter *domain
 			&task.CreatedAt,
 			&task.UpdatedAt,
 			&task.CompletedAt,
-			&task.SeriesID,
-			&task.ParentTaskID,
+			&seriesID,
+			&parentTaskID,
 		)
 		if err != nil {
 			return nil, err
 		}
+		// Derive TaskType and set relationship fields
+		task.TaskType = deriveTaskType(seriesID, parentTaskID)
+		task.SeriesID = pgtypeUUIDToStringPtr(seriesID)
+		task.ParentTaskID = pgtypeUUIDToStringPtr(parentTaskID)
 		tasks = append(tasks, &task)
 	}
 
