@@ -85,6 +85,17 @@ type UserPreferencesRepository interface {
 	GetAllPreferences(ctx context.Context, userID string) (*domain.AllPreferences, error)
 }
 
+// TaskTemplateRepository defines the interface for task template data access
+type TaskTemplateRepository interface {
+	Create(ctx context.Context, template *domain.TaskTemplate) error
+	FindByID(ctx context.Context, id string) (*domain.TaskTemplate, error)
+	FindByUserID(ctx context.Context, userID string) ([]*domain.TaskTemplate, error)
+	Update(ctx context.Context, template *domain.TaskTemplate) error
+	Delete(ctx context.Context, id, userID string) error
+	ExistsByName(ctx context.Context, userID, name string) (bool, error)
+	ExistsByNameExcludingID(ctx context.Context, userID, name, excludeID string) (bool, error)
+}
+
 // DependencyRepository defines the interface for task dependency data access
 type DependencyRepository interface {
 	// Add creates a new dependency (taskID is blocked by blockedByID)

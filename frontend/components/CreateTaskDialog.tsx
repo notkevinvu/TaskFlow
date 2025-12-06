@@ -26,13 +26,31 @@ import {
 import { CategorySelect } from '@/components/CategorySelect';
 import { RecurrenceSelector } from '@/components/RecurrenceSelector';
 
+interface InitialValues {
+  title?: string;
+  description?: string;
+  category?: string;
+  estimated_effort?: 'small' | 'medium' | 'large' | 'xlarge';
+  user_priority?: number;
+  due_date?: string; // ISO string or YYYY-MM-DD
+  context?: string;
+}
+
 interface CreateTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialDueDate?: string; // YYYY-MM-DD format
+  initialDueDate?: string; // YYYY-MM-DD format (legacy prop, use initialValues instead)
+  initialValues?: InitialValues; // Pre-fill form from template
+  templateName?: string; // Display which template is being used
 }
 
-export function CreateTaskDialog({ open, onOpenChange, initialDueDate }: CreateTaskDialogProps) {
+export function CreateTaskDialog({
+  open,
+  onOpenChange,
+  initialDueDate,
+  initialValues,
+  templateName,
+}: CreateTaskDialogProps) {
   const createTask = useCreateTask();
   const prevOpenRef = useRef(false);
 
@@ -52,14 +70,43 @@ export function CreateTaskDialog({ open, onOpenChange, initialDueDate }: CreateT
 
   const [formData, setFormData] = useState(getEmptyFormData);
 
+  // Helper to convert ISO date to YYYY-MM-DD for input
+  const formatDateForInput = (dateStr: string | undefined): string => {
+    if (!dateStr) return '';
+    // If already in YYYY-MM-DD format, return as-is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    // Otherwise parse ISO and extract date part
+    try {
+      const date = new Date(dateStr);
+      return date.toISOString().split('T')[0];
+    } catch {
+      return '';
+    }
+  };
+
   // Handle dialog open/close transitions
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen && !prevOpenRef.current) {
-      // Dialog is opening - reset form and apply initialDueDate if provided
-      setFormData({
-        ...getEmptyFormData(),
-        due_date: initialDueDate || '',
-      });
+      // Dialog is opening - reset form and apply initial values
+      if (initialValues) {
+        // Pre-fill from template/initialValues
+        setFormData({
+          title: initialValues.title || '',
+          description: initialValues.description || '',
+          category: initialValues.category || '',
+          estimated_effort: initialValues.estimated_effort || 'medium',
+          user_priority: initialValues.user_priority || 5,
+          due_date: formatDateForInput(initialValues.due_date),
+          context: initialValues.context || '',
+          recurrence: null,
+        });
+      } else {
+        // Reset to empty with optional initialDueDate
+        setFormData({
+          ...getEmptyFormData(),
+          due_date: initialDueDate || '',
+        });
+      }
     }
     prevOpenRef.current = newOpen;
     onOpenChange(newOpen);
@@ -110,9 +157,13 @@ export function CreateTaskDialog({ open, onOpenChange, initialDueDate }: CreateT
       <DialogContent className="sm:max-w-[525px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Create New Task</DialogTitle>
+            <DialogTitle>
+              {templateName ? `Create Task from "${templateName}"` : 'Create New Task'}
+            </DialogTitle>
             <DialogDescription>
-              Add a new task to your list. The priority will be calculated automatically.
+              {templateName
+                ? 'Review and customize the pre-filled values from the template.'
+                : 'Add a new task to your list. The priority will be calculated automatically.'}
             </DialogDescription>
           </DialogHeader>
 
