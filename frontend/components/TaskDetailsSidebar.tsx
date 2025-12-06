@@ -3,14 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useTask, useBumpTask, useCompleteTask, useDeleteTask } from '@/hooks/useTasks';
 import { useCanCompleteParent } from '@/hooks/useSubtasks';
+import { useCanCompleteDependencies } from '@/hooks/useDependencies';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { X, Pencil, Trash2, Repeat, ListChecks } from 'lucide-react';
+import { X, Pencil, Trash2, Repeat, ListChecks, Lock } from 'lucide-react';
 import { EditTaskDialog } from '@/components/EditTaskDialog';
 import { PriorityBreakdownPanel } from '@/components/PriorityBreakdownPanel';
 import { SubtaskList } from '@/components/SubtaskList';
+import { DependencySection } from '@/components/DependencySection';
 import { tokens } from '@/lib/tokens';
 
 interface TaskDetailsSidebarProps {
@@ -27,9 +29,13 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
   const deleteTask = useDeleteTask();
 
   // Check if this task can be completed (all subtasks done)
-  const { data: canComplete } = useCanCompleteParent(taskId);
+  const { data: canCompleteSubtasks } = useCanCompleteParent(taskId);
+  // Check if this task can be completed (no incomplete blockers)
+  const { data: dependencyStatus } = useCanCompleteDependencies(taskId);
   const isRegularTask = task?.task_type === 'regular';
-  const hasSubtaskBlocker = isRegularTask && canComplete === false;
+  const hasSubtaskBlocker = isRegularTask && canCompleteSubtasks === false;
+  const hasDependencyBlocker = isRegularTask && dependencyStatus?.is_blocked === true;
+  const hasAnyBlocker = hasSubtaskBlocker || hasDependencyBlocker;
 
   useEffect(() => {
     // Trigger slide-in animation after component mounts
@@ -154,11 +160,18 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                         completeTask.mutate(taskId);
                         onClose();
                       }}
-                      disabled={completeTask.isPending || hasSubtaskBlocker}
-                      title={hasSubtaskBlocker ? 'Complete all subtasks first' : undefined}
+                      disabled={completeTask.isPending || hasAnyBlocker}
+                      title={
+                        hasDependencyBlocker
+                          ? 'Complete all blocking tasks first'
+                          : hasSubtaskBlocker
+                          ? 'Complete all subtasks first'
+                          : undefined
+                      }
                       className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
                     >
-                      {hasSubtaskBlocker && <ListChecks className="mr-1 h-3 w-3" />}
+                      {hasDependencyBlocker && <Lock className="mr-1 h-3 w-3" />}
+                      {hasSubtaskBlocker && !hasDependencyBlocker && <ListChecks className="mr-1 h-3 w-3" />}
                       Complete
                     </Button>
                     <Button
@@ -186,6 +199,14 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                   parentTaskId={taskId}
                   parentTask={task}
                   onParentCompleted={onClose}
+                />
+              )}
+
+              {/* Dependencies - only for regular tasks */}
+              {task.task_type === 'regular' && (
+                <DependencySection
+                  taskId={taskId}
+                  task={task}
                 />
               )}
 
