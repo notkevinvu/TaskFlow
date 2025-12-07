@@ -85,9 +85,16 @@ function playNotificationSound(type: 'work' | 'break') {
 
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.5);
-  } catch {
-    // Audio not available - fail silently
-    console.debug('Audio notification not available');
+
+    // Close AudioContext after sound finishes to prevent memory leak
+    oscillator.onended = () => {
+      audioContext.close().catch(() => {});
+    };
+  } catch (error) {
+    console.warn('[Pomodoro] Audio notification failed:', {
+      type,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 
@@ -120,8 +127,16 @@ function getInitialState(): PomodoroState {
         linkedTaskTitle: parsed.linkedTaskTitle ?? null,
       };
     }
-  } catch {
-    // Invalid stored state - use defaults
+  } catch (error) {
+    console.warn('[Pomodoro] Failed to restore saved state, using defaults:', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    // Clear corrupted state to prevent repeated failures
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // localStorage access completely blocked - continue with defaults
+    }
   }
 
   return {
@@ -155,7 +170,13 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
         linkedTaskTitle: state.linkedTaskTitle,
         isPaused: state.isPaused,
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+      } catch (error) {
+        console.warn('[Pomodoro] Failed to persist state:', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
   }, [state]);
 

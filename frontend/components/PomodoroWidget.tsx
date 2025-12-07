@@ -42,6 +42,7 @@ import { useEffect } from 'react';
  */
 export function PomodoroWidget() {
   const { state, actions } = usePomodoro();
+  const { linkTask } = actions;
   const searchParams = useSearchParams();
   const selectedTaskId = searchParams.get('taskId');
   const { data: tasksData } = useTasks();
@@ -51,10 +52,10 @@ export function PomodoroWidget() {
     if (selectedTaskId && !state.linkedTaskId && tasksData?.tasks) {
       const task = tasksData.tasks.find((t) => t.id === selectedTaskId);
       if (task) {
-        actions.linkTask(task.id, task.title);
+        linkTask(task.id, task.title);
       }
     }
-  }, [selectedTaskId, state.linkedTaskId, tasksData?.tasks, actions]);
+  }, [selectedTaskId, state.linkedTaskId, tasksData?.tasks, linkTask]);
 
   const totalDuration = POMODORO_DURATIONS[state.mode];
   const progress = ((totalDuration - state.timeRemaining) / totalDuration) * 100;
