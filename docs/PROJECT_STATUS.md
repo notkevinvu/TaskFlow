@@ -16,7 +16,7 @@ Phase 4: Advanced Features             [████░░░░░░░░░�
 Phase 5A: Quick Wins                   [████████████████████] 100%  ✅ COMPLETE
 Phase 5B: Core Enhancements            [████████████████████] 100%  ✅ EXIT CRITERIA MET
 Phase 5C: Advanced Features            [████████████████████] 100%  ✅ EXIT CRITERIA MET
-Phase 4: Anonymous User Support        [░░░░░░░░░░░░░░░░░░░░]   0%  <- YOU ARE HERE
+Phase 4: Anonymous User Support        [████████████████████] 100%  ✅ PR #57 (pending merge)
 ```
 
 ---
@@ -121,7 +121,7 @@ Phase 4: Anonymous User Support        [░░░░░░░░░░░░░�
 - [x] **Category Management Fix** - Rename/delete applies to completed tasks (PR #41)
 
 #### Remaining Phase 4 Features
-- [ ] **Anonymous user support** - Allow trial without registration
+- [x] **Anonymous user support** - Allow trial without registration (PR #57)
 - [ ] Background jobs & workers
 - [ ] Performance optimization
 
@@ -179,15 +179,16 @@ Phase 4: Anonymous User Support        [░░░░░░░░░░░░░�
 **Phase 5 exit criteria met!** Shifting focus to launch-critical features.
 
 ### 🎯 Next Up: Anonymous User Support (Phase 4)
-- [ ] **Anonymous user support** - Allow trial without registration
+- [x] **Anonymous user support** - Allow trial without registration (PR #57)
   - High impact for user acquisition
   - Let users experience the app before committing to signup
+  - **Status:** PR #57 ready for merge, migration applied
 
 ### Launch Readiness Priorities
 
 | Priority | Feature | Phase | Status |
 |----------|---------|-------|--------|
-| 🔴 **HIGH** | Anonymous user support | 4 | ← NEXT |
+| 🔴 **HIGH** | Anonymous user support | 4 | ✅ PR #57 |
 | 🔴 **HIGH** | Performance optimization | 4 | Planned |
 | 🟡 Medium | AI Daily Briefing | 5C | Optional |
 | 🟡 Medium | Mobile PWA | 5C | Optional |
@@ -352,6 +353,67 @@ These items are tracked for future cleanup when time permits:
   - Should use simpler patterns like `go test:*`, `go build:*` that work cross-platform
   - Location: `C:\Users\<user>\.claude\settings.json` (user-level)
   - Location: `.claude/settings.local.json` (project-level)
+
+---
+
+## Known Issues / Bug Backlog
+
+### PR #57 Follow-ups (Anonymous User Support)
+
+These items were identified during PR review and should be addressed in follow-up PRs:
+
+#### Test Coverage Gaps (~61 tests needed)
+- [ ] **CreateAnonymousUser service tests** - 5 tests
+- [ ] **ConvertGuestToRegistered service tests** - 8 tests
+- [ ] **CleanupService tests** - 10 tests (background job)
+- [ ] **Feature Gate Middleware tests** - 8 tests
+- [ ] **Domain Feature Gate Logic tests** - 6 tests
+- [ ] **User Domain Methods tests** - 12 tests (IsAnonymous, IsExpired, etc.)
+- [ ] **Guest/Convert Handler tests** - 7 tests
+- [ ] **Repository Integration tests** - 5 tests
+
+#### Observability Improvements
+- [ ] **JWT auth failures not logged** - Add logging for authentication failures (security events)
+- [ ] **Feature denials not logged** - Log when anonymous users hit feature gates (product analytics)
+- [ ] **Cleanup loop escalation** - Add consecutive failure tracking for background job health
+
+### UI/UX Bugs (Reported 2025-12-07)
+
+| # | Issue | Severity | Area | Notes |
+|---|-------|----------|------|-------|
+| 1 | **Task completion latency** | 🔴 High | Performance | 2+ second delay when clicking complete button. Likely related to multiple query invalidations. Check `useCompleteTask` mutation and React Query cache invalidation strategy. |
+| 2 | **Completed tasks showing on calendar** | 🟡 Medium | Calendar | Calendar should filter out completed tasks by default. Check `useCalendarTasks` hook and backend `CalendarFilter`. May need status filter parameter. |
+| 3 | **Keyboard shortcuts only work on dashboard** | 🟡 Medium | UX | Shortcuts (j/k navigation, e/c/d) only work on dashboard page. Review `useGlobalKeyboardShortcuts` hook - may be scoped to dashboard context only. Verify if this was intentional design. |
+| 4 | **Missing cursor:pointer on sidebar buttons** | 🟢 Low | UI Polish | Some buttons/CTAs in `TaskDetailsSidebar` don't show pointer cursor on hover. Audit all interactive elements and add `cursor-pointer` class. |
+| 5 | **Template not inheriting fields** | 🔴 High | Templates | Creating task from template doesn't apply title, category, or priority. Check `templateToFormValues()` in `useTemplates.ts` and how `CreateTaskDialog` consumes template data. |
+| 6 | **Dialog overflow/scroll issues** | 🟡 Medium | UI | Large text in dialog fields can push dialog off-screen without scroll. Add `max-h-[90vh] overflow-y-auto` to `DialogContent` component and ensure padding from screen edges. |
+
+### Investigation Notes
+
+**Bug #1 (Task Completion Latency):**
+- `useCompleteTask` invalidates multiple query keys: `['tasks']`, `['at-risk-tasks']`, gamification queries
+- Each invalidation triggers refetches which can cause cascading delays
+- Consider: optimistic updates, selective invalidation, or batched refetches
+
+**Bug #2 (Calendar Completed Tasks):**
+- `useCalendarTasks` accepts `status` param but Calendar component may not be filtering
+- Backend `CalendarFilter` struct has `Status *TaskStatus` field
+- Fix: Pass `status: 'todo'` or `status: 'in_progress'` to exclude done tasks
+
+**Bug #3 (Keyboard Shortcuts Scope):**
+- `KeyboardShortcutsProvider` in `contexts/KeyboardShortcutsContext.tsx`
+- `useGlobalKeyboardShortcuts` hook listens for keydown events
+- May need to verify provider wraps all relevant pages, not just dashboard
+
+**Bug #5 (Template Inheritance):**
+- `templateToFormValues()` correctly maps template fields to form values
+- Issue likely in how `CreateTaskDialog` applies these values to form state
+- Check if `defaultValues` prop is being used or if form resets after template selection
+
+**Bug #6 (Dialog Overflow):**
+- shadcn/ui `DialogContent` uses fixed positioning
+- Need to add max height and overflow scroll
+- Consider `max-h-[calc(100vh-4rem)]` for screen padding
 
 ---
 
