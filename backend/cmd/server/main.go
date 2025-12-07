@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/notkevinvu/taskflow/backend/internal/config"
+	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/notkevinvu/taskflow/backend/internal/handler"
 	"github.com/notkevinvu/taskflow/backend/internal/logger"
 	"github.com/notkevinvu/taskflow/backend/internal/metrics"
@@ -92,6 +93,7 @@ func main() {
 	dependencyService := service.NewDependencyService(dependencyRepo, taskRepo)
 	templateService := service.NewTaskTemplateService(templateRepo)
 	gamificationService := service.NewGamificationService(gamificationRepo, taskRepo)
+	cleanupService := service.NewCleanupService(userRepo)
 
 	// Wire recurrence service into task service for recurring task completion support
 	taskService.SetRecurrenceService(recurrenceService)
@@ -167,7 +169,9 @@ func main() {
 		{
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/login", authHandler.Login)
+			auth.POST("/guest", authHandler.Guest)
 			auth.GET("/me", middleware.AuthRequired(cfg.JWTSecret), authHandler.Me)
+			auth.POST("/convert", middleware.AuthRequired(cfg.JWTSecret), authHandler.ConvertGuest)
 		}
 
 		// Task routes (protected)
@@ -186,22 +190,35 @@ func main() {
 			tasks.POST("/:id/bump", taskHandler.Bump)
 			tasks.POST("/:id/complete", taskHandler.Complete)
 			tasks.GET("/:id/estimate", insightsHandler.GetTimeEstimate)
-			// Subtask routes (nested under tasks)
-			tasks.POST("/:id/subtasks", subtaskHandler.CreateSubtask)
-			tasks.GET("/:id/subtasks", subtaskHandler.GetSubtasks)
-			tasks.GET("/:id/subtask-info", subtaskHandler.GetSubtaskInfo)
-			tasks.GET("/:id/expanded", subtaskHandler.GetTaskExpanded)
-			tasks.GET("/:id/can-complete", subtaskHandler.CanCompleteParent)
-			// Dependency routes (nested under tasks)
-			tasks.POST("/:id/dependencies", dependencyHandler.AddDependency)
-			tasks.GET("/:id/dependencies", dependencyHandler.GetDependencyInfo)
-			tasks.DELETE("/:id/dependencies/:blocker_id", dependencyHandler.RemoveDependency)
-			tasks.GET("/:id/can-complete-dependencies", dependencyHandler.CheckCanComplete)
 		}
 
-		// Subtask routes (protected) - for subtask-specific operations
+		// Subtask routes (nested under tasks, restricted to registered users)
+		taskSubtasks := v1.Group("/tasks/:id")
+		taskSubtasks.Use(middleware.AuthRequired(cfg.JWTSecret))
+		taskSubtasks.Use(middleware.RequireFeature(domain.FeatureSubtasks))
+		{
+			taskSubtasks.POST("/subtasks", subtaskHandler.CreateSubtask)
+			taskSubtasks.GET("/subtasks", subtaskHandler.GetSubtasks)
+			taskSubtasks.GET("/subtask-info", subtaskHandler.GetSubtaskInfo)
+			taskSubtasks.GET("/expanded", subtaskHandler.GetTaskExpanded)
+			taskSubtasks.GET("/can-complete", subtaskHandler.CanCompleteParent)
+		}
+
+		// Dependency routes (nested under tasks, restricted to registered users)
+		taskDependencies := v1.Group("/tasks/:id")
+		taskDependencies.Use(middleware.AuthRequired(cfg.JWTSecret))
+		taskDependencies.Use(middleware.RequireFeature(domain.FeatureDependencies))
+		{
+			taskDependencies.POST("/dependencies", dependencyHandler.AddDependency)
+			taskDependencies.GET("/dependencies", dependencyHandler.GetDependencyInfo)
+			taskDependencies.DELETE("/dependencies/:blocker_id", dependencyHandler.RemoveDependency)
+			taskDependencies.GET("/can-complete-dependencies", dependencyHandler.CheckCanComplete)
+		}
+
+		// Subtask routes (protected, restricted to registered users)
 		subtasks := v1.Group("/subtasks")
 		subtasks.Use(middleware.AuthRequired(cfg.JWTSecret))
+		subtasks.Use(middleware.RequireFeature(domain.FeatureSubtasks))
 		{
 			subtasks.POST("/:id/complete", subtaskHandler.CompleteSubtask)
 		}
@@ -231,9 +248,10 @@ func main() {
 			insights.GET("", insightsHandler.GetInsights)
 		}
 
-		// Series routes (protected) - recurring task series management
+		// Series routes (protected, restricted to registered users)
 		series := v1.Group("/series")
 		series.Use(middleware.AuthRequired(cfg.JWTSecret))
+		series.Use(middleware.RequireFeature(domain.FeatureRecurring))
 		{
 			series.GET("", recurrenceHandler.ListSeries)
 			series.GET("/:id/history", recurrenceHandler.GetSeriesHistory)
@@ -241,9 +259,10 @@ func main() {
 			series.POST("/:id/deactivate", recurrenceHandler.DeactivateSeries)
 		}
 
-		// Recurrence preferences routes (protected)
+		// Recurrence preferences routes (protected, restricted to registered users)
 		preferences := v1.Group("/preferences/recurrence")
 		preferences.Use(middleware.AuthRequired(cfg.JWTSecret))
+		preferences.Use(middleware.RequireFeature(domain.FeatureRecurring))
 		{
 			preferences.GET("", recurrenceHandler.GetPreferences)
 			preferences.GET("/effective", recurrenceHandler.GetEffectiveCalculation)
@@ -252,9 +271,10 @@ func main() {
 			preferences.DELETE("/category/:category", recurrenceHandler.DeleteCategoryPreference)
 		}
 
-		// Template routes (protected)
+		// Template routes (protected, restricted to registered users)
 		templates := v1.Group("/templates")
 		templates.Use(middleware.AuthRequired(cfg.JWTSecret))
+		templates.Use(middleware.RequireFeature(domain.FeatureTemplates))
 		{
 			templates.POST("", templateHandler.CreateTemplate)
 			templates.GET("", templateHandler.ListTemplates)
@@ -264,9 +284,10 @@ func main() {
 			templates.POST("/:id/use", templateHandler.UseTemplate)
 		}
 
-		// Gamification routes (protected)
+		// Gamification routes (protected, restricted to registered users)
 		gamification := v1.Group("/gamification")
 		gamification.Use(middleware.AuthRequired(cfg.JWTSecret))
+		gamification.Use(middleware.RequireFeature(domain.FeatureGamification))
 		{
 			gamification.GET("/dashboard", gamificationHandler.GetDashboard)
 			gamification.GET("/stats", gamificationHandler.GetStats)
@@ -289,6 +310,11 @@ func main() {
 			os.Exit(1)
 		}
 	}()
+
+	// Start anonymous user cleanup loop in background (runs every 6 hours)
+	cleanupCtx, cleanupCancel := context.WithCancel(context.Background())
+	defer cleanupCancel()
+	go cleanupService.RunCleanupLoop(cleanupCtx, 6*time.Hour)
 
 	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)
