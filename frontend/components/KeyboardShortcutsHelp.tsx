@@ -15,7 +15,7 @@ import { Keyboard } from 'lucide-react';
 interface ShortcutItem {
   keys: string[];
   description: string;
-  category: 'global' | 'navigation' | 'actions';
+  category: 'global' | 'navigation' | 'actions' | 'pomodoro';
 }
 
 const shortcuts: ShortcutItem[] = [
@@ -33,12 +33,16 @@ const shortcuts: ShortcutItem[] = [
   { keys: ['e'], description: 'Edit Selected Task', category: 'actions' },
   { keys: ['c'], description: 'Complete Selected Task', category: 'actions' },
   { keys: ['d'], description: 'Delete Selected Task', category: 'actions' },
+
+  // Pomodoro shortcuts
+  { keys: ['p'], description: 'Start/Pause Pomodoro Timer', category: 'pomodoro' },
 ];
 
 const categoryLabels = {
   global: 'Global',
   navigation: 'Task Navigation',
   actions: 'Task Actions',
+  pomodoro: 'Pomodoro Timer',
 };
 
 export function KeyboardShortcutsHelp() {

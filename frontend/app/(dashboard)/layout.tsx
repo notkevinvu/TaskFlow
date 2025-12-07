@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Calendar } from '@/components/Calendar';
 import { GamificationWidget } from '@/components/GamificationWidget';
+import { PomodoroWidget } from '@/components/PomodoroWidget';
 import { CreateTaskDialog } from '@/components/CreateTaskDialog';
 import { TemplatePickerDialog } from '@/components/TemplatePickerDialog';
 import { ManageTemplatesDialog } from '@/components/ManageTemplatesDialog';
@@ -14,7 +15,12 @@ import { CreateTemplateDialog } from '@/components/CreateTemplateDialog';
 import { EditTemplateDialog } from '@/components/EditTemplateDialog';
 import { useEffect, useState } from 'react';
 import { CreateTaskDTO, TaskTemplate } from '@/lib/api';
-import { FileText, Settings } from 'lucide-react';
+import { FileText, Settings, ChevronDown } from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard' },
@@ -41,6 +47,44 @@ export default function DashboardLayout({
   const [templateToEdit, setTemplateToEdit] = useState<TaskTemplate | null>(null);
   const [initialValues, setInitialValues] = useState<Partial<CreateTaskDTO> | undefined>(undefined);
   const [templateName, setTemplateName] = useState<string | undefined>(undefined);
+
+  // Collapsible section states with localStorage persistence (lazy initializer for SSR safety)
+  const [sectionsOpen, setSectionsOpen] = useState<{
+    templates: boolean;
+    pomodoro: boolean;
+    progress: boolean;
+  }>(() => {
+    const defaultState = { templates: true, pomodoro: true, progress: true };
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('taskflow_sidebar_sections');
+        if (stored) {
+          return { ...defaultState, ...JSON.parse(stored) };
+        }
+      } catch (error) {
+        console.warn('[Sidebar] Failed to restore section state, using defaults:', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+    return defaultState;
+  });
+
+  // Save collapsed state to localStorage
+  const toggleSection = (section: keyof typeof sectionsOpen) => {
+    setSectionsOpen((prev) => {
+      const newState = { ...prev, [section]: !prev[section] };
+      try {
+        localStorage.setItem('taskflow_sidebar_sections', JSON.stringify(newState));
+      } catch (error) {
+        console.warn('[Sidebar] Failed to save section state:', {
+          section,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      return newState;
+    });
+  };
 
   useEffect(() => {
     // Development mode: Auto-login with mock user
@@ -97,73 +141,123 @@ export default function DashboardLayout({
           </p>
         </div>
 
-        <nav className="p-4 space-y-2 flex-shrink-0">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`
-                  block px-4 py-2 rounded-lg transition-colors
-                  ${
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }
-                `}
-              >
-                {item.name}
-              </Link>
-            );
-          })}
-        </nav>
+        {/* Scrollable middle section */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <nav className="p-4 space-y-2">
+            {navigation.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`
+                    block px-4 py-2 rounded-lg transition-colors
+                    ${
+                      isActive
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }
+                  `}
+                >
+                  {item.name}
+                </Link>
+              );
+            })}
+          </nav>
 
-        {/* Templates Section */}
-        <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 px-2">
-            Templates
-          </p>
-          <div className="space-y-1">
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-2 h-9 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-              onClick={() => setTemplatePickerOpen(true)}
-            >
-              <FileText className="h-4 w-4" />
-              Create from Template
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-2 h-9 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-              onClick={() => setManageTemplatesOpen(true)}
-            >
-              <Settings className="h-4 w-4" />
-              Manage Templates
-            </Button>
+          {/* Templates Section */}
+          <Collapsible
+            open={sectionsOpen.templates}
+            onOpenChange={() => toggleSection('templates')}
+            className="border-t border-gray-200 dark:border-gray-800"
+          >
+            <CollapsibleTrigger className="flex items-center justify-between w-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Templates
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                  sectionsOpen.templates ? '' : '-rotate-90'
+                }`}
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-4 pb-2">
+              <div className="space-y-1">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-2 h-9 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  onClick={() => setTemplatePickerOpen(true)}
+                >
+                  <FileText className="h-4 w-4" />
+                  Create from Template
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-2 h-9 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  onClick={() => setManageTemplatesOpen(true)}
+                >
+                  <Settings className="h-4 w-4" />
+                  Manage Templates
+                </Button>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Pomodoro Timer */}
+          <Collapsible
+            open={sectionsOpen.pomodoro}
+            onOpenChange={() => toggleSection('pomodoro')}
+            className="border-t border-gray-200 dark:border-gray-800"
+          >
+            <CollapsibleTrigger className="flex items-center justify-between w-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Pomodoro
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                  sectionsOpen.pomodoro ? '' : '-rotate-90'
+                }`}
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-4 pb-2">
+              <PomodoroWidget />
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Gamification Progress */}
+          <Collapsible
+            open={sectionsOpen.progress}
+            onOpenChange={() => toggleSection('progress')}
+            className="border-t border-gray-200 dark:border-gray-800"
+          >
+            <CollapsibleTrigger className="flex items-center justify-between w-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Progress
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                  sectionsOpen.progress ? '' : '-rotate-90'
+                }`}
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-4 pb-2">
+              <GamificationWidget />
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Calendar */}
+          <div className="px-4 py-4 border-t border-gray-200 dark:border-gray-800">
+            <Calendar
+              onTaskClick={(taskId) => {
+                // Navigate to dashboard with task selected
+                router.push(`/dashboard?taskId=${taskId}`);
+              }}
+              onCreateTask={(dueDate) => {
+                setInitialDueDate(dueDate);
+                setCreateDialogOpen(true);
+              }}
+            />
           </div>
-        </div>
-
-        {/* Gamification Progress */}
-        <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
-          <GamificationWidget />
-        </div>
-
-        {/* Spacer */}
-        <div className="flex-1"></div>
-
-        {/* Calendar */}
-        <div className="px-4 pb-4 flex-shrink-0">
-          <Calendar
-            onTaskClick={(taskId) => {
-              // Navigate to dashboard with task selected
-              router.push(`/dashboard?taskId=${taskId}`);
-            }}
-            onCreateTask={(dueDate) => {
-              setInitialDueDate(dueDate);
-              setCreateDialogOpen(true);
-            }}
-          />
         </div>
 
         <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">

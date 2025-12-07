@@ -70,9 +70,14 @@ export function GamificationSection() {
   const { stats, all_achievements, available_achievements, category_progress } = data;
   const tier = getProductivityTier(stats.productivity_score);
 
+  // Handle null cases for new users with no data
+  const achievements = all_achievements ?? [];
+  const availableAchievements = available_achievements ?? [];
+  const categoryProgress = category_progress ?? [];
+
   // Determine which achievements are NOT yet earned
-  const earnedTypes = new Set(all_achievements.map((a) => a.achievement_type));
-  const unearnedAchievements = available_achievements.filter(
+  const earnedTypes = new Set(achievements.map((a) => a.achievement_type));
+  const unearnedAchievements = availableAchievements.filter(
     (def) => !earnedTypes.has(def.type)
   );
 
@@ -170,10 +175,10 @@ export function GamificationSection() {
                       Achievements
                     </p>
                     <p className="text-3xl font-bold text-yellow-700 dark:text-yellow-300">
-                      {all_achievements.length}
+                      {achievements.length}
                     </p>
                     <p className="text-xs text-yellow-600/70 dark:text-yellow-400/70">
-                      of {available_achievements.length} unlocked
+                      of {availableAchievements.length} unlocked
                     </p>
                   </div>
                 </div>
@@ -228,21 +233,21 @@ export function GamificationSection() {
               Earned Achievements
             </CardTitle>
             <CardDescription>
-              {all_achievements.length} achievements unlocked
+              {achievements.length} achievements unlocked
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {all_achievements.length === 0 ? (
+            {achievements.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
                 Complete tasks to unlock achievements!
               </p>
             ) : (
               <div className="grid gap-3 max-h-[400px] overflow-y-auto pr-2">
-                {all_achievements.map((achievement) => (
+                {achievements.map((achievement) => (
                   <AchievementCard
                     key={achievement.id}
                     achievement={achievement}
-                    definitions={available_achievements}
+                    definitions={availableAchievements}
                   />
                 ))}
               </div>
@@ -278,7 +283,7 @@ export function GamificationSection() {
       </div>
 
       {/* Category Mastery */}
-      {category_progress.length > 0 && (
+      {categoryProgress.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -291,7 +296,7 @@ export function GamificationSection() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {category_progress.map((cat) => (
+              {categoryProgress.map((cat) => (
                 <CategoryMasteryCard key={cat.id} mastery={cat} />
               ))}
             </div>
