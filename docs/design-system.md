@@ -1110,6 +1110,55 @@ interface BumpAnalytics {
 
 ## Interactions
 
+### Cursor Styles
+
+**Pattern:** All interactive elements must show `cursor-pointer` to indicate clickability.
+
+**Rule:** Any element with a click handler or interactive behavior must include `cursor-pointer` class.
+
+**Elements requiring cursor-pointer:**
+```tsx
+// Buttons (shadcn Button already has cursor-pointer built-in)
+<Button>Click me</Button>
+
+// Custom clickable elements
+<CollapsibleTrigger className="... cursor-pointer">
+  Section Header
+</CollapsibleTrigger>
+
+// Clickable cards
+<Card className="hover:shadow-md cursor-pointer" onClick={...}>
+
+// Icon buttons
+<button className="cursor-pointer" onClick={...}>
+  <ChevronLeft className="h-4 w-4" />
+</button>
+
+// Interactive list items
+<div onClick={...} className="cursor-pointer hover:bg-accent">
+```
+
+**Exemptions (cursor-default):**
+```tsx
+// Non-clickable stat cards
+<Card className="cursor-default">
+  <p>Read-only content</p>
+</Card>
+
+// Heatmap cells (informational only)
+<div className="cursor-default" />
+```
+
+**Applied to:**
+- ✅ All shadcn Button components (built-in)
+- ✅ Task cards on dashboard
+- ✅ Calendar navigation buttons
+- ✅ Calendar date buttons
+- ✅ Collapsible section triggers (Templates, Pomodoro, Progress)
+- ✅ Mode toggle buttons in PomodoroWidget
+
+---
+
 ### Hover States
 
 *Pattern established:* All interactive elements should provide visual feedback on hover.

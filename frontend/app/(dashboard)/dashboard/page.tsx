@@ -252,7 +252,6 @@ export default function DashboardPage() {
           <div className="flex gap-2">
             <Button
               variant="ghost"
-              size="sm"
               onClick={() => keyboardActions.setHelpDialogOpen(true)}
               className="transition-all hover:scale-105 cursor-pointer"
               title="Keyboard shortcuts"

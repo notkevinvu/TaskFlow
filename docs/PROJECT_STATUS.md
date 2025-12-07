@@ -193,6 +193,11 @@ Phase 5C: Advanced Features            [████████░░░░░�
 - [ ] **Smart Scheduling** - Calendar integration with auto time-blocking
 - [ ] **Mobile PWA** - Progressive Web App for mobile access
 
+### UI Polish ✅ Complete
+- [x] **Cursor Styles** - Added cursor-pointer to collapsible triggers and interactive buttons
+- [x] **Collapsible Padding** - Added visual breathing room between section headers and content
+- [x] **Chart Tooltip Contrast** - Fixed text contrast in dark mode for Recharts tooltips
+
 ### Remaining Phase 5B Features (Optional)
 - [ ] **Procrastination Detection** - AI insights from bump patterns
 - [ ] **Natural Language Input** - Parse "Buy groceries tomorrow high priority"

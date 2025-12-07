@@ -215,7 +215,7 @@ export function SubtaskList({ parentTaskId, parentTask, onParentCompleted }: Sub
         {hasSubtasks && !isExpanded && (
           <button
             onClick={() => setIsExpanded(true)}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left cursor-pointer"
           >
             Click to expand {subtaskInfo?.total_count} subtask
             {subtaskInfo?.total_count !== 1 ? 's' : ''}...

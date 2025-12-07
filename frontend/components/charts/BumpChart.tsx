@@ -80,6 +80,7 @@ export function BumpChart({ data }: BumpChartProps) {
                   backgroundColor: 'hsl(var(--card))',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '6px',
+                  color: 'hsl(var(--card-foreground))',
                 }}
                 formatter={(value: number) => [`${value} tasks`, 'Count']}
               />

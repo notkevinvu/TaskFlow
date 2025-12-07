@@ -106,11 +106,11 @@ export function PomodoroWidget() {
                         onClick={() => handleModeClick(mode)}
                         disabled={state.isRunning}
                         className={`
-                          px-2 py-1 text-xs rounded-md transition-colors
+                          px-2 py-1 text-xs rounded-md transition-colors cursor-pointer
                           ${
                             state.mode === mode
                               ? `${modeBgColor} ${modeColor} font-medium`
-                              : 'text-muted-foreground hover:bg-accent disabled:opacity-50'
+                              : 'text-muted-foreground hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed'
                           }
                         `}
                       >

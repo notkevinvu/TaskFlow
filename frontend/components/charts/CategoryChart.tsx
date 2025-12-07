@@ -65,6 +65,7 @@ export function CategoryChart({ data }: CategoryChartProps) {
                 backgroundColor: 'hsl(var(--card))',
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '6px',
+                color: 'hsl(var(--card-foreground))',
               }}
               formatter={(value: number, _name: string, props: { payload?: { completionRate?: number; name?: string } }) => [
                 `${value} tasks (${props.payload?.completionRate ?? 0}% complete)`,
