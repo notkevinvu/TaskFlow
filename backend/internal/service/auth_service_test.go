@@ -17,11 +17,6 @@ import (
 const testJWTSecret = "test-secret-key-for-jwt-testing-minimum-32-chars"
 const testJWTExpiryHours = 24
 
-// Helper to create string pointers
-func strPtr(s string) *string {
-	return &s
-}
-
 // Helper to create a valid user for testing
 func createTestUser(id, email string) *domain.User {
 	now := time.Now()
