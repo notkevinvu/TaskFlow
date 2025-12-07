@@ -42,7 +42,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       >
         <KeyboardShortcutsProvider>
           {children}
-          <Toaster position="top-right" />
+          <Toaster position="bottom-center" />
         </KeyboardShortcutsProvider>
       </ThemeProvider>
     </QueryClientProvider>
