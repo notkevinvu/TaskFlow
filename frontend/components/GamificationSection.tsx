@@ -70,8 +70,9 @@ export function GamificationSection() {
   const { stats, all_achievements, available_achievements, category_progress } = data;
   const tier = getProductivityTier(stats.productivity_score);
 
-  // Determine which achievements are NOT yet earned
-  const earnedTypes = new Set(all_achievements.map((a) => a.achievement_type));
+  // Determine which achievements are NOT yet earned (handle null case for new users)
+  const achievements = all_achievements ?? [];
+  const earnedTypes = new Set(achievements.map((a) => a.achievement_type));
   const unearnedAchievements = available_achievements.filter(
     (def) => !earnedTypes.has(def.type)
   );
@@ -170,7 +171,7 @@ export function GamificationSection() {
                       Achievements
                     </p>
                     <p className="text-3xl font-bold text-yellow-700 dark:text-yellow-300">
-                      {all_achievements.length}
+                      {achievements.length}
                     </p>
                     <p className="text-xs text-yellow-600/70 dark:text-yellow-400/70">
                       of {available_achievements.length} unlocked
@@ -228,17 +229,17 @@ export function GamificationSection() {
               Earned Achievements
             </CardTitle>
             <CardDescription>
-              {all_achievements.length} achievements unlocked
+              {achievements.length} achievements unlocked
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {all_achievements.length === 0 ? (
+            {achievements.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
                 Complete tasks to unlock achievements!
               </p>
             ) : (
               <div className="grid gap-3 max-h-[400px] overflow-y-auto pr-2">
-                {all_achievements.map((achievement) => (
+                {achievements.map((achievement) => (
                   <AchievementCard
                     key={achievement.id}
                     achievement={achievement}
