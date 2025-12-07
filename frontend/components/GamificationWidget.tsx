@@ -9,7 +9,6 @@ import {
   getProductivityTier,
   formatStreakDisplay,
   getNextMilestone,
-  getAchievementIcon,
 } from '@/hooks/useGamification';
 import { Flame, Trophy, TrendingUp, Target } from 'lucide-react';
 import Link from 'next/link';

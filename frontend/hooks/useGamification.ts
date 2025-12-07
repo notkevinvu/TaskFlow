@@ -4,9 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   gamificationAPI,
   getApiErrorMessage,
-  GamificationDashboard,
-  GamificationStats,
-  AchievementEarnedEvent,
   AchievementDefinition,
   AchievementType,
 } from '@/lib/api';

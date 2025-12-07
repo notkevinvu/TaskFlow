@@ -12,9 +12,8 @@ import {
   getProductivityTier,
   formatStreakDisplay,
 } from '@/hooks/useGamification';
-import { UserAchievement, AchievementDefinition, AchievementType } from '@/lib/api';
+import { UserAchievement, AchievementDefinition } from '@/lib/api';
 import { Trophy, Flame, Target, TrendingUp, Clock, Zap, Award, Crown } from 'lucide-react';
-import { tokens } from '@/lib/tokens';
 
 /**
  * GamificationSection - Full gamification dashboard for analytics page
@@ -68,7 +67,7 @@ export function GamificationSection() {
     return null;
   }
 
-  const { stats, recent_achievements, all_achievements, available_achievements, category_progress } = data;
+  const { stats, all_achievements, available_achievements, category_progress } = data;
   const tier = getProductivityTier(stats.productivity_score);
 
   // Determine which achievements are NOT yet earned
@@ -244,7 +243,6 @@ export function GamificationSection() {
                     key={achievement.id}
                     achievement={achievement}
                     definitions={available_achievements}
-                    earned
                   />
                 ))}
               </div>
@@ -337,11 +335,9 @@ function ScoreComponent({
 function AchievementCard({
   achievement,
   definitions,
-  earned,
 }: {
   achievement: UserAchievement;
   definitions: AchievementDefinition[];
-  earned: boolean;
 }) {
   const title = getAchievementTitle(achievement, definitions);
   const description = getAchievementDescription(achievement, definitions);
