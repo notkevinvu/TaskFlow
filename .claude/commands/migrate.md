@@ -77,26 +77,51 @@ For each pending migration:
    Read backend/migrations/NNNNNN_name.up.sql
    ```
 
-2. **Display migration content for user**:
+2. **Automate migration application**:
+
+   a. **Copy SQL to clipboard** (Windows):
+      ```bash
+      type backend\migrations\NNNNNN_name.up.sql | clip
+      ```
+
+      Or on Unix/Mac:
+      ```bash
+      cat backend/migrations/NNNNNN_name.up.sql | pbcopy  # macOS
+      cat backend/migrations/NNNNNN_name.up.sql | xclip -selection clipboard  # Linux
+      ```
+
+   b. **Open Supabase SQL Editor**:
+      ```bash
+      start https://supabase.com/dashboard/project/mtakopqcylisdegfcgeu/sql/new?skip=true
+      ```
+
+      Or on Unix/Mac:
+      ```bash
+      open "https://supabase.com/dashboard/project/mtakopqcylisdegfcgeu/sql/new?skip=true"  # macOS
+      xdg-open "https://supabase.com/dashboard/project/mtakopqcylisdegfcgeu/sql/new?skip=true"  # Linux
+      ```
+
+   c. **Display confirmation message**:
    ```markdown
    ## Apply Migration: NNNNNN_name
 
    **File:** `backend/migrations/NNNNNN_name.up.sql`
 
-   ### SQL to Execute
-
-   Copy the following SQL and run it in your **Supabase SQL Editor**:
-
-   \`\`\`sql
-   [MIGRATION SQL CONTENT HERE]
-   \`\`\`
+   ✅ **SQL copied to clipboard!**
+   ✅ **Supabase SQL Editor opened in browser!**
 
    ### Instructions
 
-   1. Go to your **Supabase Dashboard** → **SQL Editor**
-   2. Paste the SQL above
+   1. The SQL Editor should now be open in your browser
+   2. **Paste** (Ctrl+V / Cmd+V) the migration SQL
    3. Click **Run**
    4. Verify no errors occurred
+
+   ### SQL Preview
+
+   \`\`\`sql
+   [FIRST 20 LINES OF MIGRATION SQL HERE FOR REFERENCE]
+   \`\`\`
 
    Did the migration apply successfully? (yes/no)
    ```

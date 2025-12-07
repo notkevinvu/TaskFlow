@@ -133,10 +133,13 @@ func (r *GamificationRepository) CreateAchievement(ctx context.Context, achievem
 		achievement.ID = uuid.New().String()
 	}
 
+	// Note: The unique_achievement_per_user index is a functional index using COALESCE,
+	// so we can't use ON CONFLICT ON CONSTRAINT. The HasAchievement check in the service
+	// layer prevents duplicates. If a rare race condition occurs, the unique index
+	// will raise an error which is caught and handled gracefully.
 	query := `
-		INSERT INTO user_achievements (id, user_id, achievement_type, earned_at, metadata)
-		VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT ON CONSTRAINT unique_achievement_per_user DO NOTHING
+		INSERT INTO user_achievements (id, user_id, achievement_type, earned_at, metadata, created_at)
+		VALUES ($1, $2, $3, $4, $5, NOW())
 	`
 
 	_, err = r.pool.Exec(ctx, query,

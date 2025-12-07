@@ -37,15 +37,21 @@ CREATE TABLE user_achievements (
     earned_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     metadata JSONB,  -- e.g., {"category": "Bug Fix", "count": 10} for category_master
 
-    -- Allow multiple category_master achievements (different categories)
-    -- but prevent duplicate milestone/streak achievements
-    CONSTRAINT unique_achievement_per_user UNIQUE(user_id, achievement_type, COALESCE((metadata->>'category')::text, ''))
+    -- Note: Unique constraint for achievements is handled by a functional index below
+    -- This allows multiple category_master achievements (different categories)
+    -- but prevents duplicate milestone/streak achievements
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 -- Create indexes for user_achievements
 CREATE INDEX idx_user_achievements_user_id ON user_achievements(user_id);
 CREATE INDEX idx_user_achievements_earned_at ON user_achievements(earned_at DESC);
 CREATE INDEX idx_user_achievements_type ON user_achievements(achievement_type);
+
+-- Unique functional index: prevents duplicate achievements while allowing multiple category_master per category
+-- Uses COALESCE to handle NULL metadata for non-category achievements
+CREATE UNIQUE INDEX unique_achievement_per_user
+    ON user_achievements(user_id, achievement_type, COALESCE((metadata->>'category')::text, ''));
 
 -- Create gamification_stats table (cached computed stats for performance)
 CREATE TABLE gamification_stats (
