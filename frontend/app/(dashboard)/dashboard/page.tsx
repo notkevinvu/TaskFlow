@@ -4,7 +4,6 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useTasks, useBumpTask, useCompleteTask, useDeleteTask, useAtRiskTasks, useCompletedTasks, type TaskFilters as TaskFiltersType } from '@/hooks/useTasks';
 import { useKeyboardShortcuts } from '@/contexts/KeyboardShortcutsContext';
-import { useGlobalKeyboardShortcuts } from '@/hooks/useGlobalKeyboardShortcuts';
 import { useTaskNavigation } from '@/hooks/useTaskNavigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -114,9 +113,8 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts (global shortcuts now handled in layout.tsx)
   const { state: keyboardState, actions: keyboardActions } = useKeyboardShortcuts();
-  useGlobalKeyboardShortcuts();
 
   // Update URL when filters change (debounced via useEffect)
   useEffect(() => {

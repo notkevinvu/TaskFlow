@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { useGlobalKeyboardShortcuts } from '@/hooks/useGlobalKeyboardShortcuts';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Calendar } from '@/components/Calendar';
 import { GamificationWidget } from '@/components/GamificationWidget';
@@ -37,6 +38,10 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, checkAuth, setMockUser } = useAuth();
+
+  // Enable global keyboard shortcuts (Ctrl+K, ?, P, ESC) across all pages in the dashboard
+  useGlobalKeyboardShortcuts();
+
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [initialDueDate, setInitialDueDate] = useState<string | undefined>(undefined);
 
