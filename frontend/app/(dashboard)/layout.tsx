@@ -98,78 +98,78 @@ export default function DashboardLayout({
           </p>
         </div>
 
-        <nav className="p-4 space-y-2 flex-shrink-0">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`
-                  block px-4 py-2 rounded-lg transition-colors
-                  ${
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }
-                `}
+        {/* Scrollable middle section */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <nav className="p-4 space-y-2">
+            {navigation.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`
+                    block px-4 py-2 rounded-lg transition-colors
+                    ${
+                      isActive
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }
+                  `}
+                >
+                  {item.name}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Templates Section */}
+          <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-800">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 px-2">
+              Templates
+            </p>
+            <div className="space-y-1">
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-2 h-9 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => setTemplatePickerOpen(true)}
               >
-                {item.name}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Templates Section */}
-        <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 px-2">
-            Templates
-          </p>
-          <div className="space-y-1">
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-2 h-9 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-              onClick={() => setTemplatePickerOpen(true)}
-            >
-              <FileText className="h-4 w-4" />
-              Create from Template
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-2 h-9 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-              onClick={() => setManageTemplatesOpen(true)}
-            >
-              <Settings className="h-4 w-4" />
-              Manage Templates
-            </Button>
+                <FileText className="h-4 w-4" />
+                Create from Template
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-2 h-9 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => setManageTemplatesOpen(true)}
+              >
+                <Settings className="h-4 w-4" />
+                Manage Templates
+              </Button>
+            </div>
           </div>
-        </div>
 
-        {/* Pomodoro Timer */}
-        <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
-          <PomodoroWidget />
-        </div>
+          {/* Pomodoro Timer */}
+          <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-800">
+            <PomodoroWidget />
+          </div>
 
-        {/* Gamification Progress */}
-        <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
-          <GamificationWidget />
-        </div>
+          {/* Gamification Progress */}
+          <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-800">
+            <GamificationWidget />
+          </div>
 
-        {/* Spacer */}
-        <div className="flex-1"></div>
-
-        {/* Calendar */}
-        <div className="px-4 pb-4 flex-shrink-0">
-          <Calendar
-            onTaskClick={(taskId) => {
-              // Navigate to dashboard with task selected
-              router.push(`/dashboard?taskId=${taskId}`);
-            }}
-            onCreateTask={(dueDate) => {
-              setInitialDueDate(dueDate);
-              setCreateDialogOpen(true);
-            }}
-          />
+          {/* Calendar */}
+          <div className="px-4 py-4 border-t border-gray-200 dark:border-gray-800">
+            <Calendar
+              onTaskClick={(taskId) => {
+                // Navigate to dashboard with task selected
+                router.push(`/dashboard?taskId=${taskId}`);
+              }}
+              onCreateTask={(dueDate) => {
+                setInitialDueDate(dueDate);
+                setCreateDialogOpen(true);
+              }}
+            />
+          </div>
         </div>
 
         <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
