@@ -93,6 +93,7 @@ export function CategoryTrendsChart({ data }: CategoryTrendsChartProps) {
                 backgroundColor: 'hsl(var(--card))',
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '6px',
+                color: 'hsl(var(--card-foreground))',
               }}
             />
             <Legend />

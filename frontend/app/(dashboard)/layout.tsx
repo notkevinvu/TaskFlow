@@ -171,7 +171,7 @@ export default function DashboardLayout({
             onOpenChange={() => toggleSection('templates')}
             className="border-t border-gray-200 dark:border-gray-800"
           >
-            <CollapsibleTrigger className="flex items-center justify-between w-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <CollapsibleTrigger className="flex items-center justify-between w-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Templates
               </span>
@@ -181,7 +181,7 @@ export default function DashboardLayout({
                 }`}
               />
             </CollapsibleTrigger>
-            <CollapsibleContent className="px-4 pb-2">
+            <CollapsibleContent className="px-4 pt-2 pb-2">
               <div className="space-y-1">
                 <Button
                   variant="ghost"
@@ -209,7 +209,7 @@ export default function DashboardLayout({
             onOpenChange={() => toggleSection('pomodoro')}
             className="border-t border-gray-200 dark:border-gray-800"
           >
-            <CollapsibleTrigger className="flex items-center justify-between w-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <CollapsibleTrigger className="flex items-center justify-between w-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Pomodoro
               </span>
@@ -219,7 +219,7 @@ export default function DashboardLayout({
                 }`}
               />
             </CollapsibleTrigger>
-            <CollapsibleContent className="px-4 pb-2">
+            <CollapsibleContent className="px-4 pt-2 pb-2">
               <PomodoroWidget />
             </CollapsibleContent>
           </Collapsible>
@@ -230,7 +230,7 @@ export default function DashboardLayout({
             onOpenChange={() => toggleSection('progress')}
             className="border-t border-gray-200 dark:border-gray-800"
           >
-            <CollapsibleTrigger className="flex items-center justify-between w-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <CollapsibleTrigger className="flex items-center justify-between w-full px-6 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Progress
               </span>
@@ -240,7 +240,7 @@ export default function DashboardLayout({
                 }`}
               />
             </CollapsibleTrigger>
-            <CollapsibleContent className="px-4 pb-2">
+            <CollapsibleContent className="px-4 pt-2 pb-2">
               <GamificationWidget />
             </CollapsibleContent>
           </Collapsible>

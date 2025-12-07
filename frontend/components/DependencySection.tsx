@@ -227,7 +227,7 @@ export function DependencySection({ taskId, task }: DependencySectionProps) {
         {hasDependencies && !isExpanded && (
           <button
             onClick={() => setIsExpanded(true)}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left cursor-pointer"
           >
             Click to expand dependencies...
           </button>
