@@ -1,4 +1,5 @@
 -- User queries for sqlc code generation
+-- NOTE: After migration 000009 is applied, regenerate sqlc to include user_type and expires_at
 
 -- name: CreateUser :exec
 INSERT INTO users (id, email, name, password_hash, created_at, updated_at)

@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"time"
 
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/notkevinvu/taskflow/backend/internal/repository"
@@ -10,9 +11,16 @@ import (
 // UserRepository defines the interface for user data access
 type UserRepository interface {
 	Create(ctx context.Context, user *domain.User) error
+	CreateAnonymous(ctx context.Context, user *domain.User) error
 	FindByEmail(ctx context.Context, email string) (*domain.User, error)
 	FindByID(ctx context.Context, id string) (*domain.User, error)
 	EmailExists(ctx context.Context, email string) (bool, error)
+	// Anonymous user conversion and cleanup
+	ConvertToRegistered(ctx context.Context, userID string, email, name, passwordHash string) error
+	FindExpiredAnonymous(ctx context.Context) ([]*domain.User, error)
+	Delete(ctx context.Context, id string) error
+	CountTasksByUserID(ctx context.Context, userID string) (int, error)
+	LogAnonymousCleanup(ctx context.Context, userID string, taskCount int, userCreatedAt time.Time) error
 }
 
 // TaskRepository defines the interface for task data access
