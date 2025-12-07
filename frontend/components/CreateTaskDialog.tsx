@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, startTransition } from 'react';
 import { useCreateTask } from '@/hooks/useTasks';
 import { useDialogKeyboardShortcuts } from '@/hooks/useDialogKeyboardShortcuts';
 import { RecurrenceRule } from '@/lib/api';
@@ -84,31 +84,42 @@ export function CreateTaskDialog({
     }
   };
 
-  // Handle dialog open/close transitions
-  const handleOpenChange = (newOpen: boolean) => {
-    if (newOpen && !prevOpenRef.current) {
+  // Effect to apply initial values when dialog opens
+  // This handles the case when parent sets initialValues AND opens the dialog
+  // The handleOpenChange callback only fires on user interaction (backdrop click, escape)
+  // but NOT when parent programmatically sets open={true}
+  // We use startTransition to mark this as a non-urgent update, avoiding cascading render warnings
+  useEffect(() => {
+    if (open && !prevOpenRef.current) {
       // Dialog is opening - reset form and apply initial values
-      if (initialValues) {
-        // Pre-fill from template/initialValues
-        setFormData({
-          title: initialValues.title || '',
-          description: initialValues.description || '',
-          category: initialValues.category || '',
-          estimated_effort: initialValues.estimated_effort || 'medium',
-          user_priority: initialValues.user_priority || 5,
-          due_date: formatDateForInput(initialValues.due_date),
-          context: initialValues.context || '',
-          recurrence: null,
-        });
-      } else {
-        // Reset to empty with optional initialDueDate
-        setFormData({
-          ...getEmptyFormData(),
-          due_date: initialDueDate || '',
-        });
-      }
+      // Wrap in startTransition to avoid synchronous setState warning
+      startTransition(() => {
+        if (initialValues) {
+          // Pre-fill from template/initialValues
+          setFormData({
+            title: initialValues.title || '',
+            description: initialValues.description || '',
+            category: initialValues.category || '',
+            estimated_effort: initialValues.estimated_effort || 'medium',
+            user_priority: initialValues.user_priority || 5,
+            due_date: formatDateForInput(initialValues.due_date),
+            context: initialValues.context || '',
+            recurrence: null,
+          });
+        } else {
+          // Reset to empty with optional initialDueDate
+          setFormData({
+            ...getEmptyFormData(),
+            due_date: initialDueDate || '',
+          });
+        }
+      });
     }
-    prevOpenRef.current = newOpen;
+    prevOpenRef.current = open;
+  }, [open, initialValues, initialDueDate]);
+
+  // Handle dialog close (user interaction like backdrop click or escape)
+  const handleOpenChange = (newOpen: boolean) => {
     onOpenChange(newOpen);
   };
 
