@@ -49,12 +49,17 @@ export default function DashboardLayout({
   const [templateName, setTemplateName] = useState<string | undefined>(undefined);
 
   // Collapsible section states with localStorage persistence (lazy initializer for SSR safety)
-  const [sectionsOpen, setSectionsOpen] = useState(() => {
+  const [sectionsOpen, setSectionsOpen] = useState<{
+    templates: boolean;
+    pomodoro: boolean;
+    progress: boolean;
+  }>(() => {
+    const defaultState = { templates: true, pomodoro: true, progress: true };
     if (typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem('taskflow_sidebar_sections');
         if (stored) {
-          return JSON.parse(stored);
+          return { ...defaultState, ...JSON.parse(stored) };
         }
       } catch (error) {
         console.warn('[Sidebar] Failed to restore section state, using defaults:', {
@@ -62,7 +67,7 @@ export default function DashboardLayout({
         });
       }
     }
-    return { templates: true, pomodoro: true, progress: true };
+    return defaultState;
   });
 
   // Save collapsed state to localStorage
