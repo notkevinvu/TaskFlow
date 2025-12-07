@@ -17,6 +17,11 @@ import (
 const testJWTSecret = "test-secret-key-for-jwt-testing-minimum-32-chars"
 const testJWTExpiryHours = 24
 
+// Helper to create string pointers
+func strPtr(s string) *string {
+	return &s
+}
+
 // Helper to create a valid user for testing
 func createTestUser(id, email string) *domain.User {
 	now := time.Now()
@@ -24,11 +29,13 @@ func createTestUser(id, email string) *domain.User {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to hash password in test helper: %v", err))
 	}
+	name := "Test User"
 	return &domain.User{
 		ID:           id,
-		Email:        email,
-		Name:         "Test User",
-		PasswordHash: passwordHash,
+		UserType:     domain.UserTypeRegistered,
+		Email:        &email,
+		Name:         &name,
+		PasswordHash: &passwordHash,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
@@ -55,8 +62,8 @@ func TestAuthService_Register_Success(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, response)
-	assert.Equal(t, "test@example.com", response.User.Email)
-	assert.Equal(t, "Test User", response.User.Name)
+	assert.Equal(t, "test@example.com", *response.User.Email)
+	assert.Equal(t, "Test User", *response.User.Name)
 	assert.NotEmpty(t, response.AccessToken)
 	assert.NotEmpty(t, response.User.ID)
 	mockUserRepo.AssertExpectations(t)
@@ -193,7 +200,7 @@ func TestAuthService_Login_Success(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
-	assert.Equal(t, "test@example.com", response.User.Email)
+	assert.Equal(t, "test@example.com", *response.User.Email)
 	assert.NotEmpty(t, response.AccessToken)
 	mockUserRepo.AssertExpectations(t)
 }
@@ -288,7 +295,7 @@ func TestAuthService_GetUserByID_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
 	assert.Equal(t, "user-123", user.ID)
-	assert.Equal(t, "test@example.com", user.Email)
+	assert.Equal(t, "test@example.com", *user.Email)
 	mockUserRepo.AssertExpectations(t)
 }
 
