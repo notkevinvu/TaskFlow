@@ -15,6 +15,9 @@ export function useSubtasks(parentTaskId: string) {
       return response.data;
     },
     enabled: !!parentTaskId,
+    // Cache for 30 seconds to reduce API calls when opening/closing sidebar
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
   });
 }
 
@@ -29,6 +32,9 @@ export function useSubtaskInfo(parentTaskId: string) {
       return response.data;
     },
     enabled: !!parentTaskId,
+    // Cache for 30 seconds to reduce API calls when opening/closing sidebar
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
   });
 }
 
@@ -43,6 +49,8 @@ export function useTaskWithSubtasks(taskId: string, includeSubtasks = false) {
       return response.data;
     },
     enabled: !!taskId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 }
 
@@ -57,6 +65,8 @@ export function useCanCompleteParent(parentTaskId: string) {
       return response.data.can_complete;
     },
     enabled: !!parentTaskId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 }
 
