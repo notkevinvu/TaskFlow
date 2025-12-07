@@ -11,14 +11,22 @@ import React, {
   ReactNode,
 } from 'react';
 
+// Timer mode type - must be defined before POMODORO_DURATIONS for type safety
+export type PomodoroMode = 'work' | 'shortBreak' | 'longBreak';
+
 // Pomodoro timer durations in seconds
-export const POMODORO_DURATIONS = {
+// Record<PomodoroMode, number> ensures all modes have durations at compile time
+export const POMODORO_DURATIONS: Record<PomodoroMode, number> = {
   work: 25 * 60,      // 25 minutes
   shortBreak: 5 * 60,  // 5 minutes
   longBreak: 15 * 60,  // 15 minutes
-} as const;
+};
 
-export type PomodoroMode = 'work' | 'shortBreak' | 'longBreak';
+// Linked task - both id and title are always set together or both null
+export interface LinkedTask {
+  id: string;
+  title: string;
+}
 
 export interface PomodoroState {
   // Current timer state
@@ -31,21 +39,20 @@ export interface PomodoroState {
   completedSessions: number;
   sessionsUntilLongBreak: number; // Usually 4
 
-  // Task linking
-  linkedTaskId: string | null;
-  linkedTaskTitle: string | null;
+  // Task linking - coupled fields prevent mismatched state
+  linkedTask: LinkedTask | null;
 }
 
 export interface PomodoroActions {
   // Timer controls
-  start: (taskId?: string, taskTitle?: string) => void;
+  start: (linkedTask?: LinkedTask) => void;
   pause: () => void;
   resume: () => void;
   reset: () => void;
   skip: () => void;
 
   // Task linking
-  linkTask: (taskId: string, taskTitle: string) => void;
+  linkTask: (task: LinkedTask) => void;
   unlinkTask: () => void;
 
   // Settings
@@ -107,8 +114,7 @@ function getInitialState(): PomodoroState {
       timeRemaining: POMODORO_DURATIONS.work,
       completedSessions: 0,
       sessionsUntilLongBreak: SESSIONS_UNTIL_LONG_BREAK,
-      linkedTaskId: null,
-      linkedTaskTitle: null,
+      linkedTask: null,
     };
   }
 
@@ -123,8 +129,7 @@ function getInitialState(): PomodoroState {
         timeRemaining: parsed.timeRemaining ?? POMODORO_DURATIONS[parsed.mode ?? 'work'],
         completedSessions: parsed.completedSessions ?? 0,
         sessionsUntilLongBreak: parsed.sessionsUntilLongBreak ?? SESSIONS_UNTIL_LONG_BREAK,
-        linkedTaskId: parsed.linkedTaskId ?? null,
-        linkedTaskTitle: parsed.linkedTaskTitle ?? null,
+        linkedTask: parsed.linkedTask ?? null,
       };
     }
   } catch (error) {
@@ -146,8 +151,7 @@ function getInitialState(): PomodoroState {
     timeRemaining: POMODORO_DURATIONS.work,
     completedSessions: 0,
     sessionsUntilLongBreak: SESSIONS_UNTIL_LONG_BREAK,
-    linkedTaskId: null,
-    linkedTaskTitle: null,
+    linkedTask: null,
   };
 }
 
@@ -166,8 +170,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
         timeRemaining: state.timeRemaining,
         completedSessions: state.completedSessions,
         sessionsUntilLongBreak: state.sessionsUntilLongBreak,
-        linkedTaskId: state.linkedTaskId,
-        linkedTaskTitle: state.linkedTaskTitle,
+        linkedTask: state.linkedTask,
         isPaused: state.isPaused,
       };
       try {
@@ -231,13 +234,12 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     }
   }, [state.isRunning, state.isPaused]);
 
-  const start = useCallback((taskId?: string, taskTitle?: string) => {
+  const start = useCallback((linkedTask?: LinkedTask) => {
     setState((prev) => ({
       ...prev,
       isRunning: true,
       isPaused: false,
-      linkedTaskId: taskId ?? prev.linkedTaskId,
-      linkedTaskTitle: taskTitle ?? prev.linkedTaskTitle,
+      linkedTask: linkedTask ?? prev.linkedTask,
     }));
   }, []);
 
@@ -293,19 +295,17 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const linkTask = useCallback((taskId: string, taskTitle: string) => {
+  const linkTask = useCallback((task: LinkedTask) => {
     setState((prev) => ({
       ...prev,
-      linkedTaskId: taskId,
-      linkedTaskTitle: taskTitle,
+      linkedTask: task,
     }));
   }, []);
 
   const unlinkTask = useCallback(() => {
     setState((prev) => ({
       ...prev,
-      linkedTaskId: null,
-      linkedTaskTitle: null,
+      linkedTask: null,
     }));
   }, []);
 

@@ -49,13 +49,13 @@ export function PomodoroWidget() {
 
   // Auto-link task when selected in dashboard
   useEffect(() => {
-    if (selectedTaskId && !state.linkedTaskId && tasksData?.tasks) {
+    if (selectedTaskId && !state.linkedTask && tasksData?.tasks) {
       const task = tasksData.tasks.find((t) => t.id === selectedTaskId);
       if (task) {
-        linkTask(task.id, task.title);
+        linkTask({ id: task.id, title: task.title });
       }
     }
-  }, [selectedTaskId, state.linkedTaskId, tasksData?.tasks, linkTask]);
+  }, [selectedTaskId, state.linkedTask, tasksData?.tasks, linkTask]);
 
   const totalDuration = POMODORO_DURATIONS[state.mode];
   const progress = ((totalDuration - state.timeRemaining) / totalDuration) * 100;
@@ -247,12 +247,12 @@ export function PomodoroWidget() {
         )}
 
         {/* Linked task */}
-        {state.linkedTaskId && state.linkedTaskTitle && (
+        {state.linkedTask && (
           <div className="px-2">
             <div className="flex items-center gap-2 text-xs">
               <Link2 className="h-3 w-3 text-muted-foreground flex-shrink-0" />
               <span className="text-muted-foreground truncate flex-1">
-                {state.linkedTaskTitle}
+                {state.linkedTask.title}
               </span>
               <Tooltip>
                 <TooltipTrigger asChild>
