@@ -309,15 +309,18 @@ func TestParseDate_Invalid(t *testing.T) {
 func TestUser_PasswordHashNotInJSON(t *testing.T) {
 	// This test verifies the json:"-" tag works by checking the struct
 	// The actual JSON marshaling is handled by the json package
+	email := "test@example.com"
+	name := "Test User"
+	passwordHash := "should-not-appear"
 	user := User{
 		ID:           "user-123",
-		Email:        "test@example.com",
-		Name:         "Test User",
-		PasswordHash: "should-not-appear",
+		Email:        &email,
+		Name:         &name,
+		PasswordHash: &passwordHash,
 	}
 
 	// Password hash should be stored but not exposed
-	assert.NotEmpty(t, user.PasswordHash)
+	assert.NotNil(t, user.PasswordHash)
 }
 
 func TestTask_DefaultValues(t *testing.T) {

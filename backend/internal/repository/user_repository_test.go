@@ -11,6 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Helper function to create string pointers for tests
+func strPtr(s string) *string {
+	return &s
+}
+
 // =============================================================================
 // UserRepository Integration Tests
 // =============================================================================
@@ -25,11 +30,13 @@ func TestUserRepository_Create(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("creates user successfully", func(t *testing.T) {
+		email := "create-test-" + uuid.New().String() + "@example.com"
 		user := &domain.User{
 			ID:           uuid.New().String(),
-			Email:        "create-test-" + uuid.New().String() + "@example.com",
-			Name:         "Test User",
-			PasswordHash: "$2a$10$examplehash",
+			UserType:     domain.UserTypeRegistered,
+			Email:        strPtr(email),
+			Name:         strPtr("Test User"),
+			PasswordHash: strPtr("$2a$10$examplehash"),
 			CreatedAt:    time.Now().UTC().Truncate(time.Microsecond),
 			UpdatedAt:    time.Now().UTC().Truncate(time.Microsecond),
 		}
@@ -38,13 +45,13 @@ func TestUserRepository_Create(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify user was created
-		found, err := repo.FindByEmail(ctx, user.Email)
+		found, err := repo.FindByEmail(ctx, email)
 		require.NoError(t, err)
 		require.NotNil(t, found)
 		assert.Equal(t, user.ID, found.ID)
-		assert.Equal(t, user.Email, found.Email)
-		assert.Equal(t, user.Name, found.Name)
-		assert.Equal(t, user.PasswordHash, found.PasswordHash)
+		assert.Equal(t, *user.Email, *found.Email)
+		assert.Equal(t, *user.Name, *found.Name)
+		assert.Equal(t, *user.PasswordHash, *found.PasswordHash)
 	})
 
 	t.Run("fails with duplicate email", func(t *testing.T) {
@@ -52,18 +59,20 @@ func TestUserRepository_Create(t *testing.T) {
 
 		user1 := &domain.User{
 			ID:           uuid.New().String(),
-			Email:        email,
-			Name:         "First User",
-			PasswordHash: "$2a$10$examplehash1",
+			UserType:     domain.UserTypeRegistered,
+			Email:        strPtr(email),
+			Name:         strPtr("First User"),
+			PasswordHash: strPtr("$2a$10$examplehash1"),
 			CreatedAt:    time.Now().UTC(),
 			UpdatedAt:    time.Now().UTC(),
 		}
 
 		user2 := &domain.User{
 			ID:           uuid.New().String(),
-			Email:        email, // Same email
-			Name:         "Second User",
-			PasswordHash: "$2a$10$examplehash2",
+			UserType:     domain.UserTypeRegistered,
+			Email:        strPtr(email), // Same email
+			Name:         strPtr("Second User"),
+			PasswordHash: strPtr("$2a$10$examplehash2"),
 			CreatedAt:    time.Now().UTC(),
 			UpdatedAt:    time.Now().UTC(),
 		}
@@ -78,9 +87,10 @@ func TestUserRepository_Create(t *testing.T) {
 	t.Run("fails with invalid UUID", func(t *testing.T) {
 		user := &domain.User{
 			ID:           "not-a-valid-uuid",
-			Email:        "invalid-" + uuid.New().String() + "@example.com",
-			Name:         "Invalid User",
-			PasswordHash: "$2a$10$examplehash",
+			UserType:     domain.UserTypeRegistered,
+			Email:        strPtr("invalid-" + uuid.New().String() + "@example.com"),
+			Name:         strPtr("Invalid User"),
+			PasswordHash: strPtr("$2a$10$examplehash"),
 			CreatedAt:    time.Now().UTC(),
 			UpdatedAt:    time.Now().UTC(),
 		}
@@ -93,9 +103,10 @@ func TestUserRepository_Create(t *testing.T) {
 		now := time.Now().UTC().Truncate(time.Microsecond)
 		user := &domain.User{
 			ID:           uuid.New().String(),
-			Email:        "timestamps-" + uuid.New().String() + "@example.com",
-			Name:         "Timestamp User",
-			PasswordHash: "$2a$10$examplehash",
+			UserType:     domain.UserTypeRegistered,
+			Email:        strPtr("timestamps-" + uuid.New().String() + "@example.com"),
+			Name:         strPtr("Timestamp User"),
+			PasswordHash: strPtr("$2a$10$examplehash"),
 			CreatedAt:    now,
 			UpdatedAt:    now,
 		}
@@ -126,9 +137,10 @@ func TestUserRepository_FindByEmail(t *testing.T) {
 		email := "findbyemail-" + uuid.New().String() + "@example.com"
 		user := &domain.User{
 			ID:           uuid.New().String(),
-			Email:        email,
-			Name:         "Find Me",
-			PasswordHash: "$2a$10$examplehash",
+			UserType:     domain.UserTypeRegistered,
+			Email:        strPtr(email),
+			Name:         strPtr("Find Me"),
+			PasswordHash: strPtr("$2a$10$examplehash"),
 			CreatedAt:    time.Now().UTC(),
 			UpdatedAt:    time.Now().UTC(),
 		}
@@ -140,7 +152,7 @@ func TestUserRepository_FindByEmail(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, found)
 		assert.Equal(t, user.ID, found.ID)
-		assert.Equal(t, user.Name, found.Name)
+		assert.Equal(t, *user.Name, *found.Name)
 	})
 
 	t.Run("returns nil for non-existent email", func(t *testing.T) {
@@ -154,9 +166,10 @@ func TestUserRepository_FindByEmail(t *testing.T) {
 		email := "CaseSensitive-" + uuid.New().String() + "@example.com"
 		user := &domain.User{
 			ID:           uuid.New().String(),
-			Email:        email,
-			Name:         "Case Sensitive",
-			PasswordHash: "$2a$10$examplehash",
+			UserType:     domain.UserTypeRegistered,
+			Email:        strPtr(email),
+			Name:         strPtr("Case Sensitive"),
+			PasswordHash: strPtr("$2a$10$examplehash"),
 			CreatedAt:    time.Now().UTC(),
 			UpdatedAt:    time.Now().UTC(),
 		}
@@ -188,11 +201,13 @@ func TestUserRepository_FindByID(t *testing.T) {
 
 	t.Run("finds existing user", func(t *testing.T) {
 		userID := uuid.New().String()
+		email := "findbyid-" + uuid.New().String() + "@example.com"
 		user := &domain.User{
 			ID:           userID,
-			Email:        "findbyid-" + uuid.New().String() + "@example.com",
-			Name:         "Find By ID",
-			PasswordHash: "$2a$10$examplehash",
+			UserType:     domain.UserTypeRegistered,
+			Email:        strPtr(email),
+			Name:         strPtr("Find By ID"),
+			PasswordHash: strPtr("$2a$10$examplehash"),
 			CreatedAt:    time.Now().UTC(),
 			UpdatedAt:    time.Now().UTC(),
 		}
@@ -204,7 +219,7 @@ func TestUserRepository_FindByID(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, found)
 		assert.Equal(t, userID, found.ID)
-		assert.Equal(t, user.Email, found.Email)
+		assert.Equal(t, *user.Email, *found.Email)
 	})
 
 	t.Run("returns nil for non-existent ID", func(t *testing.T) {
@@ -233,9 +248,10 @@ func TestUserRepository_EmailExists(t *testing.T) {
 		email := "exists-" + uuid.New().String() + "@example.com"
 		user := &domain.User{
 			ID:           uuid.New().String(),
-			Email:        email,
-			Name:         "Exists",
-			PasswordHash: "$2a$10$examplehash",
+			UserType:     domain.UserTypeRegistered,
+			Email:        strPtr(email),
+			Name:         strPtr("Exists"),
+			PasswordHash: strPtr("$2a$10$examplehash"),
 			CreatedAt:    time.Now().UTC(),
 			UpdatedAt:    time.Now().UTC(),
 		}
