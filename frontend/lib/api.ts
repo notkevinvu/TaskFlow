@@ -365,9 +365,9 @@ export const taskAPI = {
   bump: (id: string, reason?: string) =>
     api.post<{ message: string; task: Task }>(`/api/v1/tasks/${id}/bump`, { reason }),
 
-  // Complete task
+  // Complete task (returns full response with gamification data)
   complete: (id: string) =>
-    api.post<Task>(`/api/v1/tasks/${id}/complete`),
+    api.post<TaskCompletionResponse>(`/api/v1/tasks/${id}/complete`),
 
   // Delete task
   delete: (id: string) =>
@@ -769,4 +769,118 @@ export const templateAPI = {
   // Get pre-filled CreateTaskDTO from template (for use with CreateTaskDialog)
   use: (id: string, overrides?: Partial<CreateTaskDTO>) =>
     api.post<CreateTaskDTO>(`/api/v1/templates/${id}/use`, overrides || {}),
+};
+
+// =============================================================================
+// Gamification Types
+// =============================================================================
+
+export type AchievementType =
+  | 'first_task'
+  | 'milestone_10'
+  | 'milestone_50'
+  | 'milestone_100'
+  | 'streak_3'
+  | 'streak_7'
+  | 'streak_14'
+  | 'streak_30'
+  | 'category_master'
+  | 'speed_demon'
+  | 'consistency_king';
+
+export interface AchievementDefinition {
+  type: AchievementType;
+  title: string;
+  description: string;
+  icon: string;
+  category: 'milestone' | 'streak' | 'special';
+}
+
+export interface UserAchievement {
+  id: string;
+  user_id: string;
+  achievement_type: AchievementType;
+  earned_at: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AchievementEarnedEvent {
+  achievement: UserAchievement;
+  definition: AchievementDefinition;
+}
+
+export interface GamificationStats {
+  user_id: string;
+  current_streak: number;
+  longest_streak: number;
+  last_completion_date?: string;
+  total_completed: number;
+  productivity_score: number;
+  completion_rate: number;
+  streak_score: number;
+  on_time_percentage: number;
+  effort_mix_score: number;
+  last_computed_at: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CategoryMastery {
+  id: string;
+  user_id: string;
+  category: string;
+  completed_count: number;
+  last_completed_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GamificationDashboard {
+  stats: GamificationStats;
+  recent_achievements: UserAchievement[];
+  all_achievements: UserAchievement[];
+  available_achievements: AchievementDefinition[];
+  category_progress: CategoryMastery[];
+  unviewed_count: number;
+}
+
+export interface TaskCompletionGamificationResult {
+  updated_stats: GamificationStats;
+  new_achievements: AchievementEarnedEvent[];
+  streak_extended: boolean;
+  previous_streak: number;
+}
+
+// Full task completion response (includes recurring task and gamification data)
+export interface TaskCompletionResponse {
+  completed_task: Task;
+  next_task?: Task; // For recurring tasks
+  series?: TaskSeries; // For recurring tasks
+  message: string;
+  gamification?: TaskCompletionGamificationResult;
+}
+
+// =============================================================================
+// Gamification API
+// =============================================================================
+
+export const gamificationAPI = {
+  // Get full dashboard data (stats + achievements + category progress)
+  getDashboard: () =>
+    api.get<GamificationDashboard>('/api/v1/gamification/dashboard'),
+
+  // Get current stats only (lighter endpoint for sidebar widget)
+  getStats: () =>
+    api.get<GamificationStats>('/api/v1/gamification/stats'),
+
+  // Get user's timezone setting
+  getTimezone: () =>
+    api.get<{ timezone: string }>('/api/v1/gamification/timezone'),
+
+  // Update user's timezone for streak calculation
+  setTimezone: (timezone: string) =>
+    api.put<{ message: string; timezone: string }>(
+      '/api/v1/gamification/timezone',
+      { timezone }
+    ),
 };

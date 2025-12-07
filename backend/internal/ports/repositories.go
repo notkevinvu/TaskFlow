@@ -119,3 +119,33 @@ type DependencyRepository interface {
 	// GetTasksBlockedBy returns tasks that will be unblocked when this task completes
 	GetTasksBlockedBy(ctx context.Context, blockerTaskID string) ([]string, error)
 }
+
+// GamificationRepository defines the interface for gamification data access
+type GamificationRepository interface {
+	// Stats operations
+	GetStats(ctx context.Context, userID string) (*domain.GamificationStats, error)
+	UpsertStats(ctx context.Context, stats *domain.GamificationStats) error
+
+	// Achievement operations
+	CreateAchievement(ctx context.Context, achievement *domain.UserAchievement) error
+	GetAchievements(ctx context.Context, userID string) ([]*domain.UserAchievement, error)
+	GetRecentAchievements(ctx context.Context, userID string, limit int) ([]*domain.UserAchievement, error)
+	HasAchievement(ctx context.Context, userID string, achievementType domain.AchievementType, category *string) (bool, error)
+
+	// Category mastery operations
+	GetCategoryMastery(ctx context.Context, userID, category string) (*domain.CategoryMastery, error)
+	GetAllCategoryMastery(ctx context.Context, userID string) ([]*domain.CategoryMastery, error)
+	IncrementCategoryMastery(ctx context.Context, userID, category string) (*domain.CategoryMastery, error)
+
+	// Analytics queries for stats computation
+	GetTotalCompletedTasks(ctx context.Context, userID string) (int, error)
+	GetCompletionsByDate(ctx context.Context, userID string, timezone string, daysBack int) (map[string]int, error)
+	GetOnTimeCompletionRate(ctx context.Context, userID string, daysBack int) (float64, error)
+	GetEffortDistribution(ctx context.Context, userID string, daysBack int) (map[domain.TaskEffort]int, error)
+	GetSpeedCompletions(ctx context.Context, userID string) (int, error)
+	GetWeeklyCompletionDays(ctx context.Context, userID string, weekStart string, timezone string) (int, error)
+
+	// User timezone
+	GetUserTimezone(ctx context.Context, userID string) (string, error)
+	SetUserTimezone(ctx context.Context, userID, timezone string) error
+}

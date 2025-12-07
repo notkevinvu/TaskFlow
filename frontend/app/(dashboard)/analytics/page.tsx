@@ -12,6 +12,7 @@ import { BumpChart } from '@/components/charts/BumpChart';
 import { ProductivityHeatmap } from '@/components/charts/ProductivityHeatmap';
 import { CategoryTrendsChart } from '@/components/charts/CategoryTrendsChart';
 import { InsightsList } from '@/components/insights/InsightsList';
+import { GamificationSection } from '@/components/GamificationSection';
 import { tokens } from '@/lib/tokens';
 
 export default function AnalyticsPage() {
@@ -204,6 +205,9 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Gamification Section */}
+      <GamificationSection />
 
       {/* Smart Insights Section */}
       <InsightsList />

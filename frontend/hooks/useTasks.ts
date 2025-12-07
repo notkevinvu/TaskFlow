@@ -1,8 +1,9 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { taskAPI, CreateTaskDTO, getApiErrorMessage } from '@/lib/api';
+import { taskAPI, CreateTaskDTO, getApiErrorMessage, AchievementEarnedEvent } from '@/lib/api';
 import { toast } from 'sonner';
+import { gamificationKeys, getAchievementIcon, getAchievementTitle } from './useGamification';
 
 export interface TaskFilters {
   status?: string;
@@ -93,9 +94,59 @@ export function useCompleteTask() {
 
   return useMutation({
     mutationFn: (id: string) => taskAPI.complete(id),
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      toast.success('Task completed!');
+      // Invalidate gamification data to refresh stats
+      queryClient.invalidateQueries({ queryKey: gamificationKeys.all });
+
+      const gamification = response.data.gamification;
+
+      // Show achievement toasts for new achievements
+      if (gamification?.new_achievements && gamification.new_achievements.length > 0) {
+        // Show task completed toast first
+        toast.success('Task completed!');
+
+        // Show achievement toasts with a slight delay for each
+        gamification.new_achievements.forEach((achievement: AchievementEarnedEvent, index: number) => {
+          setTimeout(() => {
+            const icon = getAchievementIcon(achievement.achievement.achievement_type);
+            const title = getAchievementTitle(achievement.achievement);
+            toast.success(
+              `${icon} Achievement Unlocked: ${title}!`,
+              {
+                description: achievement.definition.description,
+                duration: 5000,
+              }
+            );
+          }, 500 * (index + 1)); // Stagger toasts
+        });
+
+        // Show streak extended toast if applicable
+        if (gamification.streak_extended && gamification.updated_stats.current_streak > 1) {
+          setTimeout(() => {
+            toast.success(
+              `🔥 ${gamification.updated_stats.current_streak}-day streak!`,
+              {
+                description: 'Keep up the momentum!',
+                duration: 3000,
+              }
+            );
+          }, 500 * (gamification.new_achievements.length + 1));
+        }
+      } else {
+        // No achievements, just show regular completion toast
+        toast.success('Task completed!');
+
+        // Show streak extended toast if applicable
+        if (gamification?.streak_extended && gamification.updated_stats.current_streak > 1) {
+          setTimeout(() => {
+            toast.success(
+              `🔥 ${gamification.updated_stats.current_streak}-day streak!`,
+              { duration: 3000 }
+            );
+          }, 500);
+        }
+      }
     },
     onError: (err: unknown) => {
       toast.error(getApiErrorMessage(err, 'Failed to complete task', 'Task Complete'));

@@ -81,6 +81,7 @@ func main() {
 	userPrefsRepo := repository.NewUserPreferencesRepository(dbPool)
 	dependencyRepo := repository.NewDependencyRepository(dbPool)
 	templateRepo := repository.NewTaskTemplateRepository(dbPool)
+	gamificationRepo := repository.NewGamificationRepository(dbPool)
 
 	// Initialize services
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryHours)
@@ -90,6 +91,7 @@ func main() {
 	subtaskService := service.NewSubtaskService(taskRepo, taskHistoryRepo)
 	dependencyService := service.NewDependencyService(dependencyRepo, taskRepo)
 	templateService := service.NewTaskTemplateService(templateRepo)
+	gamificationService := service.NewGamificationService(gamificationRepo, taskRepo)
 
 	// Wire recurrence service into task service for recurring task completion support
 	taskService.SetRecurrenceService(recurrenceService)
@@ -99,6 +101,9 @@ func main() {
 
 	// Wire dependency service into task service for blocker validation
 	taskService.SetDependencyService(dependencyService)
+
+	// Wire gamification service into task service for completion rewards
+	taskService.SetGamificationService(gamificationService)
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -110,6 +115,7 @@ func main() {
 	subtaskHandler := handler.NewSubtaskHandler(subtaskService)
 	dependencyHandler := handler.NewDependencyHandler(dependencyService)
 	templateHandler := handler.NewTaskTemplateHandler(templateService)
+	gamificationHandler := handler.NewGamificationHandler(gamificationService)
 
 	// Set Gin mode
 	gin.SetMode(cfg.GinMode)
@@ -256,6 +262,16 @@ func main() {
 			templates.PUT("/:id", templateHandler.UpdateTemplate)
 			templates.DELETE("/:id", templateHandler.DeleteTemplate)
 			templates.POST("/:id/use", templateHandler.UseTemplate)
+		}
+
+		// Gamification routes (protected)
+		gamification := v1.Group("/gamification")
+		gamification.Use(middleware.AuthRequired(cfg.JWTSecret))
+		{
+			gamification.GET("/dashboard", gamificationHandler.GetDashboard)
+			gamification.GET("/stats", gamificationHandler.GetStats)
+			gamification.PUT("/timezone", gamificationHandler.SetTimezone)
+			gamification.GET("/timezone", gamificationHandler.GetTimezone)
 		}
 	}
 
