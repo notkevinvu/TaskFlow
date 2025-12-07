@@ -1,26 +1,23 @@
 'use client';
 
 import { create } from 'zustand';
-import { authAPI, isAuthError, isNetworkError } from '@/lib/api';
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-}
+import { authAPI, isAuthError, isNetworkError, User, ConvertGuestDTO } from '@/lib/api';
 
 interface AuthStore {
   user: User | null;
   isLoading: boolean;
-  connectionError: boolean; // True when network error prevented auth check
+  connectionError: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, name: string, password: string) => Promise<void>;
+  startGuest: () => Promise<void>;
+  convertToRegistered: (data: ConvertGuestDTO) => Promise<void>;
   logout: () => void;
   checkAuth: () => Promise<void>;
   setMockUser: (user: User) => void;
+  isAnonymous: () => boolean;
 }
 
-export const useAuth = create<AuthStore>((set) => ({
+export const useAuth = create<AuthStore>((set, get) => ({
   user: null,
   isLoading: false,
   connectionError: false,
@@ -49,6 +46,30 @@ export const useAuth = create<AuthStore>((set) => ({
     }
   },
 
+  startGuest: async () => {
+    set({ isLoading: true });
+    try {
+      const response = await authAPI.guest();
+      localStorage.setItem('token', response.data.access_token);
+      set({ user: response.data.user, isLoading: false });
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
+  },
+
+  convertToRegistered: async (data) => {
+    set({ isLoading: true });
+    try {
+      const response = await authAPI.convert(data);
+      localStorage.setItem('token', response.data.access_token);
+      set({ user: response.data.user, isLoading: false });
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
+  },
+
   logout: () => {
     localStorage.removeItem('token');
     set({ user: null });
@@ -66,21 +87,15 @@ export const useAuth = create<AuthStore>((set) => ({
       const response = await authAPI.me();
       set({ user: response.data, isLoading: false, connectionError: false });
     } catch (err: unknown) {
-      // Always log the error for debugging
       console.error('[Auth] Session verification failed:', err);
 
-      // Only clear token for authentication errors (401, 403)
-      // For network errors, keep the token and let user retry
       if (isAuthError(err)) {
         localStorage.removeItem('token');
         set({ user: null, isLoading: false, connectionError: false });
       } else if (isNetworkError(err)) {
-        // Network error - keep token and set connectionError flag
-        // User can retry when connection is restored
         console.warn('[Auth] Network error during session check - keeping token');
         set({ user: null, isLoading: false, connectionError: true });
       } else {
-        // Unknown error - clear token to be safe, notify user
         console.error('[Auth] Unknown error type - clearing token for safety');
         localStorage.removeItem('token');
         set({ user: null, isLoading: false, connectionError: false });
@@ -90,5 +105,10 @@ export const useAuth = create<AuthStore>((set) => ({
 
   setMockUser: (user: User) => {
     set({ user, isLoading: false });
+  },
+
+  isAnonymous: () => {
+    const { user } = get();
+    return user?.user_type === 'anonymous';
   },
 }));
