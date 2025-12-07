@@ -25,9 +25,11 @@ export function Calendar({ onTaskClick, onCreateTask }: CalendarProps) {
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
   // Fetch calendar data for entire visible range (includes prev/next month days)
+  // Only fetch incomplete tasks to hide completed tasks from calendar view
   const { data: calendarData, isLoading, error } = useCalendarTasks({
     start_date: format(calendarStart, 'yyyy-MM-dd'),
     end_date: format(calendarEnd, 'yyyy-MM-dd'),
+    status: 'todo', // Exclude completed tasks from calendar
   });
 
   const handlePreviousMonth = () => {
