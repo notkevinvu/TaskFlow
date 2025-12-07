@@ -113,7 +113,7 @@ func TestAuthHandler_Register_Success(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.Equal(t, "user-123", response.User.ID)
-	assert.Equal(t, "test@example.com", response.User.Email)
+	assert.Equal(t, "test@example.com", *response.User.Email)
 	assert.Equal(t, "test-token-123", response.AccessToken)
 }
 
@@ -318,7 +318,7 @@ func TestAuthHandler_Me_Success(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &user)
 	assert.NoError(t, err)
 	assert.Equal(t, "user-123", user.ID)
-	assert.Equal(t, "test@example.com", user.Email)
+	assert.Equal(t, "test@example.com", *user.Email)
 }
 
 func TestAuthHandler_Me_Unauthenticated(t *testing.T) {
