@@ -10,14 +10,16 @@ import (
 
 // Context keys for storing user information
 const (
-	UserIDKey    = "user_id"
-	UserEmailKey = "user_email"
+	UserIDKey        = "user_id"
+	UserEmailKey     = "user_email"
+	UserIsAnonymous  = "user_is_anonymous"
 )
 
 // Claims represents the JWT claims
 type Claims struct {
-	UserID string `json:"user_id"`
-	Email  string `json:"email"`
+	UserID      string `json:"user_id"`
+	Email       string `json:"email"`
+	IsAnonymous bool   `json:"is_anonymous"`
 	jwt.RegisteredClaims
 }
 
@@ -63,6 +65,7 @@ func AuthRequired(jwtSecret string) gin.HandlerFunc {
 		// Set user information in context
 		c.Set(UserIDKey, claims.UserID)
 		c.Set(UserEmailKey, claims.Email)
+		c.Set(UserIsAnonymous, claims.IsAnonymous)
 
 		c.Next()
 	}
@@ -75,4 +78,13 @@ func GetUserID(c *gin.Context) (string, bool) {
 		return "", false
 	}
 	return userID.(string), true
+}
+
+// IsAnonymousUser checks if the current user is anonymous
+func IsAnonymousUser(c *gin.Context) bool {
+	isAnon, exists := c.Get(UserIsAnonymous)
+	if !exists {
+		return false
+	}
+	return isAnon.(bool)
 }
