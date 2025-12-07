@@ -48,26 +48,22 @@ export default function DashboardLayout({
   const [initialValues, setInitialValues] = useState<Partial<CreateTaskDTO> | undefined>(undefined);
   const [templateName, setTemplateName] = useState<string | undefined>(undefined);
 
-  // Collapsible section states with localStorage persistence
-  const [sectionsOpen, setSectionsOpen] = useState({
-    templates: true,
-    pomodoro: true,
-    progress: true,
-  });
-
-  // Load collapsed state from localStorage on mount
-  useEffect(() => {
+  // Collapsible section states with localStorage persistence (lazy initializer for SSR safety)
+  const [sectionsOpen, setSectionsOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem('taskflow_sidebar_sections');
         if (stored) {
-          setSectionsOpen(JSON.parse(stored));
+          return JSON.parse(stored);
         }
-      } catch {
-        // Ignore parse errors
+      } catch (error) {
+        console.warn('[Sidebar] Failed to restore section state, using defaults:', {
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
-  }, []);
+    return { templates: true, pomodoro: true, progress: true };
+  });
 
   // Save collapsed state to localStorage
   const toggleSection = (section: keyof typeof sectionsOpen) => {
@@ -75,8 +71,11 @@ export default function DashboardLayout({
       const newState = { ...prev, [section]: !prev[section] };
       try {
         localStorage.setItem('taskflow_sidebar_sections', JSON.stringify(newState));
-      } catch {
-        // Ignore storage errors
+      } catch (error) {
+        console.warn('[Sidebar] Failed to save section state:', {
+          section,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
       return newState;
     });

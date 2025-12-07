@@ -33,7 +33,7 @@ import { useEffect } from 'react';
  * PomodoroWidget - A compact sidebar widget for the Pomodoro timer
  *
  * Features:
- * - Visual countdown timer with progress ring
+ * - Visual countdown timer with progress bar
  * - Play/pause/reset controls
  * - Mode switching (work/short break/long break)
  * - Task linking from URL or manual selection

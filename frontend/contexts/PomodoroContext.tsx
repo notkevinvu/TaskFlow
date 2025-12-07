@@ -95,7 +95,11 @@ function playNotificationSound(type: 'work' | 'break') {
 
     // Close AudioContext after sound finishes to prevent memory leak
     oscillator.onended = () => {
-      audioContext.close().catch(() => {});
+      audioContext.close().catch((closeError) => {
+        console.warn('[Pomodoro] AudioContext cleanup failed:', {
+          error: closeError instanceof Error ? closeError.message : String(closeError),
+        });
+      });
     };
   } catch (error) {
     console.warn('[Pomodoro] Audio notification failed:', {
@@ -139,8 +143,10 @@ function getInitialState(): PomodoroState {
     // Clear corrupted state to prevent repeated failures
     try {
       localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // localStorage access completely blocked - continue with defaults
+    } catch (cleanupError) {
+      console.warn('[Pomodoro] localStorage completely blocked, state will not persist:', {
+        error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+      });
     }
   }
 
