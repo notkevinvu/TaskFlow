@@ -72,3 +72,39 @@ func (h *AuthHandler) Me(c *gin.Context) {
 
 	c.JSON(http.StatusOK, user)
 }
+
+// Guest creates a new anonymous guest user
+// POST /api/v1/auth/guest
+func (h *AuthHandler) Guest(c *gin.Context) {
+	response, err := h.authService.CreateAnonymousUser(c.Request.Context())
+	if err != nil {
+		middleware.AbortWithError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, response)
+}
+
+// ConvertGuest converts an anonymous user to a registered user
+// POST /api/v1/auth/convert
+func (h *AuthHandler) ConvertGuest(c *gin.Context) {
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
+		return
+	}
+
+	var dto domain.ConvertGuestDTO
+	if err := c.ShouldBindJSON(&dto); err != nil {
+		middleware.AbortWithError(c, domain.NewValidationError("request_body", "invalid JSON format"))
+		return
+	}
+
+	response, err := h.authService.ConvertGuestToRegistered(c.Request.Context(), userID, &dto)
+	if err != nil {
+		middleware.AbortWithError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}

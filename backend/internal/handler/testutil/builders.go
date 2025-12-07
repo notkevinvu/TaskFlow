@@ -7,19 +7,25 @@ import (
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
 )
 
+// strPtr returns a pointer to the given string
+func strPtr(s string) *string {
+	return &s
+}
+
 // UserBuilder provides a fluent API for building test User objects
 type UserBuilder struct {
 	user *domain.User
 }
 
-// NewUserBuilder creates a new UserBuilder with sensible defaults
+// NewUserBuilder creates a new UserBuilder with sensible defaults (registered user)
 func NewUserBuilder() *UserBuilder {
 	return &UserBuilder{
 		user: &domain.User{
 			ID:           uuid.New().String(),
-			Email:        "test@example.com",
-			Name:         "Test User",
-			PasswordHash: "$2a$10$hashedpassword",
+			UserType:     domain.UserTypeRegistered,
+			Email:        strPtr("test@example.com"),
+			Name:         strPtr("Test User"),
+			PasswordHash: strPtr("$2a$10$hashedpassword"),
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		},
@@ -32,12 +38,27 @@ func (b *UserBuilder) WithID(id string) *UserBuilder {
 }
 
 func (b *UserBuilder) WithEmail(email string) *UserBuilder {
-	b.user.Email = email
+	b.user.Email = strPtr(email)
 	return b
 }
 
 func (b *UserBuilder) WithName(name string) *UserBuilder {
-	b.user.Name = name
+	b.user.Name = strPtr(name)
+	return b
+}
+
+func (b *UserBuilder) WithUserType(userType domain.UserType) *UserBuilder {
+	b.user.UserType = userType
+	return b
+}
+
+func (b *UserBuilder) AsAnonymous() *UserBuilder {
+	b.user.UserType = domain.UserTypeAnonymous
+	b.user.Email = nil
+	b.user.Name = nil
+	b.user.PasswordHash = nil
+	expiresAt := time.Now().Add(30 * 24 * time.Hour)
+	b.user.ExpiresAt = &expiresAt
 	return b
 }
 
