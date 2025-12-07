@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { taskAPI, CreateTaskDTO, getApiErrorMessage, AchievementEarnedEvent } from '@/lib/api';
+import { taskAPI, CreateTaskDTO, getApiErrorMessage, AchievementEarnedEvent, Task } from '@/lib/api';
 import { toast } from 'sonner';
 import { gamificationKeys, getAchievementIcon, getAchievementTitle } from './useGamification';
 
@@ -94,9 +94,40 @@ export function useCompleteTask() {
 
   return useMutation({
     mutationFn: (id: string) => taskAPI.complete(id),
+    // Optimistic update: immediately mark task as completed in cache
+    onMutate: async (taskId: string) => {
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['tasks'] });
+
+      // Snapshot previous task list queries for rollback
+      const previousTaskQueries = queryClient.getQueriesData<{ tasks: Task[]; count: number }>({
+        queryKey: ['tasks'],
+      });
+
+      // Optimistically update all task list caches
+      queryClient.setQueriesData<{ tasks: Task[]; count: number }>(
+        { queryKey: ['tasks'] },
+        (old) => {
+          if (!old?.tasks) return old;
+          return {
+            ...old,
+            tasks: old.tasks.map((task) =>
+              task.id === taskId
+                ? { ...task, status: 'done' as const, completed_at: new Date().toISOString() }
+                : task
+            ),
+          };
+        }
+      );
+
+      // Return context for rollback
+      return { previousTaskQueries };
+    },
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      // Invalidate gamification data to refresh stats
+      // Invalidate only specific queries that need fresh data
+      // Use exact: true to avoid broad prefix invalidation
+      queryClient.invalidateQueries({ queryKey: ['tasks'], exact: true });
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'completed'], exact: false });
       queryClient.invalidateQueries({ queryKey: gamificationKeys.all });
 
       const gamification = response.data.gamification;
@@ -148,7 +179,13 @@ export function useCompleteTask() {
         }
       }
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, _taskId: string, context) => {
+      // Rollback to previous state on error
+      if (context?.previousTaskQueries) {
+        context.previousTaskQueries.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
       toast.error(getApiErrorMessage(err, 'Failed to complete task', 'Task Complete'));
     },
   });
