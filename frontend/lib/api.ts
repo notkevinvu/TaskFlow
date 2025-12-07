@@ -365,9 +365,9 @@ export const taskAPI = {
   bump: (id: string, reason?: string) =>
     api.post<{ message: string; task: Task }>(`/api/v1/tasks/${id}/bump`, { reason }),
 
-  // Complete task
+  // Complete task (returns full response with gamification data)
   complete: (id: string) =>
-    api.post<Task>(`/api/v1/tasks/${id}/complete`),
+    api.post<TaskCompletionResponse>(`/api/v1/tasks/${id}/complete`),
 
   // Delete task
   delete: (id: string) =>
@@ -849,6 +849,15 @@ export interface TaskCompletionGamificationResult {
   new_achievements: AchievementEarnedEvent[];
   streak_extended: boolean;
   previous_streak: number;
+}
+
+// Full task completion response (includes recurring task and gamification data)
+export interface TaskCompletionResponse {
+  completed_task: Task;
+  next_task?: Task; // For recurring tasks
+  series?: TaskSeries; // For recurring tasks
+  message: string;
+  gamification?: TaskCompletionGamificationResult;
 }
 
 // =============================================================================
