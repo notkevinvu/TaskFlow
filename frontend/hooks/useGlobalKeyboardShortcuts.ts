@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useKeyboardShortcuts } from '@/contexts/KeyboardShortcutsContext';
+import { usePomodoro } from '@/contexts/PomodoroContext';
 
 /**
  * Global keyboard shortcuts hook
@@ -9,9 +10,11 @@ import { useKeyboardShortcuts } from '@/contexts/KeyboardShortcutsContext';
  * - Cmd/Ctrl+K: Quick Add task
  * - ?: Show keyboard shortcuts help
  * - ESC: Close dialogs
+ * - P: Toggle Pomodoro timer (when not in input)
  */
 export function useGlobalKeyboardShortcuts() {
   const { state, actions } = useKeyboardShortcuts();
+  const { state: pomodoroState, actions: pomodoroActions } = usePomodoro();
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -47,11 +50,24 @@ export function useGlobalKeyboardShortcuts() {
           return;
         }
       }
+
+      // P: Toggle Pomodoro timer (only when not in input)
+      if (e.key === 'p' && !modKey && !state.inputFocused && state.dialogCount === 0) {
+        e.preventDefault();
+        if (pomodoroState.isRunning && !pomodoroState.isPaused) {
+          pomodoroActions.pause();
+        } else if (pomodoroState.isPaused) {
+          pomodoroActions.resume();
+        } else {
+          pomodoroActions.start();
+        }
+        return;
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state, actions]);
+  }, [state, actions, pomodoroState, pomodoroActions]);
 
   // Track input focus state for conditional shortcut handling
   useEffect(() => {

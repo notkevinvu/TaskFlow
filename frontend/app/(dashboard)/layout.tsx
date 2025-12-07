@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Calendar } from '@/components/Calendar';
 import { GamificationWidget } from '@/components/GamificationWidget';
+import { PomodoroWidget } from '@/components/PomodoroWidget';
 import { CreateTaskDialog } from '@/components/CreateTaskDialog';
 import { TemplatePickerDialog } from '@/components/TemplatePickerDialog';
 import { ManageTemplatesDialog } from '@/components/ManageTemplatesDialog';
@@ -142,6 +143,11 @@ export default function DashboardLayout({
               Manage Templates
             </Button>
           </div>
+        </div>
+
+        {/* Pomodoro Timer */}
+        <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
+          <PomodoroWidget />
         </div>
 
         {/* Gamification Progress */}

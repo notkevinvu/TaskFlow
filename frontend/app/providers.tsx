@@ -5,6 +5,7 @@ import { Toaster } from 'sonner';
 import { useState } from 'react';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { KeyboardShortcutsProvider } from '@/contexts/KeyboardShortcutsContext';
+import { PomodoroProvider } from '@/contexts/PomodoroContext';
 import { getApiErrorMessage } from '@/lib/api';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -41,8 +42,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
         disableTransitionOnChange
       >
         <KeyboardShortcutsProvider>
-          {children}
-          <Toaster position="bottom-center" />
+          <PomodoroProvider>
+            {children}
+            <Toaster position="bottom-center" />
+          </PomodoroProvider>
         </KeyboardShortcutsProvider>
       </ThemeProvider>
     </QueryClientProvider>
