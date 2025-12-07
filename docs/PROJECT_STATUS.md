@@ -1,6 +1,6 @@
 # TaskFlow - Project Status
 
-**Last Updated:** 2025-12-04
+**Last Updated:** 2025-12-06
 
 ---
 
@@ -14,7 +14,8 @@ Phase 2.5: Quick Wins + Core Features  [█████████████�
 Phase 3: Production Readiness          [████████████████████] 100%  ✅ COMPLETE
 Phase 4: Advanced Features             [████░░░░░░░░░░░░░░░░]  20%
 Phase 5A: Quick Wins                   [████████████████████] 100%  ✅ COMPLETE
-Phase 5B: Core Enhancements            [██░░░░░░░░░░░░░░░░░░]  10%  <- YOU ARE HERE
+Phase 5B: Core Enhancements            [████████████████░░░░]  75%  ✅ 3/4 Complete
+Phase 5C: Advanced Features            [████░░░░░░░░░░░░░░░░]  25%  <- YOU ARE HERE
 ```
 
 ---
@@ -143,55 +144,58 @@ Phase 5B: Core Enhancements            [██░░░░░░░░░░░�
 | 3 | **Quick Add (Cmd+K)** | #46 | ✅ Complete |
 | 4 | **Keyboard Navigation** | #46 | ✅ Complete |
 
-### Phase 5B: Core Enhancements (In Progress)
+### Phase 5B: Core Enhancements (75% Complete)
 
-| # | Feature | Description | Status |
-|---|---------|-------------|--------|
-| 5a | **Subtasks (Parent-Child)** | Hierarchical task relationships, priority inheritance | 🔄 In Progress |
-| 5b | **Blocked-By Dependencies** | Task dependency graph, blocked task warnings | [ ] Planned (after 5a) |
-| 6 | **Gamification** | Streaks, achievements, productivity scores | [ ] Planned |
-| 7 | **Procrastination Detection** | AI insights from bump patterns (unique differentiator) | [ ] Planned |
-| 8 | **Natural Language Input** | Parse "Buy groceries tomorrow high priority" | [ ] Planned |
+| # | Feature | PR | Status |
+|---|---------|-----|--------|
+| 5B.1 | **Subtasks (Parent-Child)** | #47 | ✅ Complete |
+| 5B.2 | **Blocked-By Dependencies** | #49 | ✅ Complete |
+| 5B.3 | **Gamification** | #51 | ✅ Complete |
+| 5B.4 | **Procrastination Detection** | - | [ ] Planned |
+| 5B.5 | **Natural Language Input** | - | [ ] Planned |
 
-### Phase 5C: Advanced Features (High Impact, High Effort)
+### Phase 5C: Advanced Features (25% Complete)
 
-| # | Feature | Description | Status |
-|---|---------|-------------|--------|
-| 9 | **Pomodoro Timer** | Built-in focus timer tied to tasks | [ ] Planned |
-| 10 | **AI Daily Briefing** | Claude-powered morning productivity summary | [ ] Planned |
-| 11 | **Smart Scheduling** | Calendar integration with auto time-blocking | [ ] Planned |
-| 12 | **Mobile PWA** | Progressive Web App for mobile access | [ ] Planned |
+| # | Feature | PR | Status |
+|---|---------|-----|--------|
+| 5C.1 | **Task Templates** | #50 | ✅ Complete |
+| 5C.2 | **Pomodoro Timer** | - | [ ] Planned |
+| 5C.3 | **AI Daily Briefing** | - | [ ] Planned |
+| 5C.4 | **Smart Scheduling** | - | [ ] Planned |
+| 5C.5 | **Mobile PWA** | - | [ ] Planned |
 
 ### Phase 5 Exit Criteria
-- [ ] All Phase 5A features complete
-- [ ] At least 3 Phase 5B features complete
-- [ ] At least 1 Phase 5C feature complete
+- [x] All Phase 5A features complete (4/4)
+- [x] At least 3 Phase 5B features complete (3/5) ✅
+- [x] At least 1 Phase 5C feature complete (1/5) ✅
 - [ ] Analytics expanded for new features
 - [ ] User engagement metrics show improvement
 
 ---
 
-## Current Focus: Phase 5B Implementation
+## Current Focus: Phase 5 Completion
 
-### Phase 5A Completed ✅
+### Phase 5A Completed ✅ (PRs #44-#46)
 - [x] **Recurring Tasks** (PR #45) - Daily/weekly/monthly task recurrence with series management
 - [x] **Priority Explanation Panel** (PR #44) - Donut chart + detailed breakdown of priority factors
 - [x] **Quick Add (Cmd+K)** (PR #46) - Global keyboard shortcut for rapid task entry
 - [x] **Keyboard Navigation** (PR #46) - j/k navigation, e/c/d shortcuts for power users
 
-### In Progress: Phase 5B.1 - Subtasks
-**Feature:** Parent-Child Task Relationships
-- [ ] Database schema: `parent_id` field on tasks table
-- [ ] Backend: Subtask CRUD operations
-- [ ] Backend: Priority inheritance from parent
-- [ ] Frontend: Subtask display under parent tasks
-- [ ] Frontend: Create subtask UI
-- [ ] Frontend: Prompt to close parent when last subtask completed
+### Phase 5B Completed ✅ (PRs #47-#51)
+- [x] **Subtasks (Parent-Child)** (PR #47) - Hierarchical tasks, priority inheritance, completion flow
+- [x] **Blocked-By Dependencies** (PR #49) - Task dependency graph, blocked warnings, topological sort
+- [x] **Gamification** (PR #51) - Streaks, 11 achievements, productivity scores, sidebar widget
 
-### Upcoming: Phase 5B.2 - Blocked-By Dependencies
-- [ ] "Blocked by" task relationships
-- [ ] Dependency graph visualization
-- [ ] Blocked task warnings
+### Phase 5C In Progress
+- [x] **Task Templates** (PR #50) - Save/apply task templates for recurring workflows
+- [ ] **Pomodoro Timer** - Built-in focus timer tied to tasks
+- [ ] **AI Daily Briefing** - Claude-powered morning productivity summary
+- [ ] **Smart Scheduling** - Calendar integration with auto time-blocking
+- [ ] **Mobile PWA** - Progressive Web App for mobile access
+
+### Remaining Phase 5B Features (Optional)
+- [ ] **Procrastination Detection** - AI insights from bump patterns
+- [ ] **Natural Language Input** - Parse "Buy groceries tomorrow high priority"
 
 ---
 
@@ -283,7 +287,7 @@ hooks:                     0.0% (React Query wrappers)
 - **Frontend Files:** ~55 TypeScript/TSX files
 - **Frontend Tests:** 29 tests
 - **API Endpoints:** ~15 endpoints
-- **Merged PRs:** 46
+- **Merged PRs:** 51
 
 ---
 
