@@ -1,6 +1,6 @@
 # TaskFlow - Project Status
 
-**Last Updated:** 2025-12-06
+**Last Updated:** 2025-12-07
 
 ---
 
@@ -193,10 +193,12 @@ Phase 5C: Advanced Features            [████████░░░░░�
 - [ ] **Smart Scheduling** - Calendar integration with auto time-blocking
 - [ ] **Mobile PWA** - Progressive Web App for mobile access
 
-### UI Polish ✅ Complete
+### UI Polish ✅ Complete (PR #54)
 - [x] **Cursor Styles** - Added cursor-pointer to collapsible triggers and interactive buttons
 - [x] **Collapsible Padding** - Added visual breathing room between section headers and content
 - [x] **Chart Tooltip Contrast** - Fixed text contrast in dark mode for Recharts tooltips
+- [x] **Collapsible Defaults** - Sidebar sections default to collapsed for cleaner initial view
+- [x] **Button Sizing** - Consistent heights for ThemeToggle and Keyboard shortcuts buttons
 
 ### Remaining Phase 5B Features (Optional)
 - [ ] **Procrastination Detection** - AI insights from bump patterns
@@ -292,7 +294,7 @@ hooks:                     0.0% (React Query wrappers)
 - **Frontend Files:** ~55 TypeScript/TSX files
 - **Frontend Tests:** 29 tests
 - **API Endpoints:** ~15 endpoints
-- **Merged PRs:** 51
+- **Merged PRs:** 54
 
 ---
 
