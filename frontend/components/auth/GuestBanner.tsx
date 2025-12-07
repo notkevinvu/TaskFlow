@@ -1,26 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { X, Sparkles } from 'lucide-react';
 import { ConvertDialog } from './ConvertDialog';
 import { tokens } from '@/lib/tokens';
 
+// Helper to calculate days remaining from expiry date
+function calculateDaysRemaining(expiresAt: string | undefined): number {
+  if (!expiresAt) return 30;
+  return Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+}
+
 export function GuestBanner() {
   const { user, isAnonymous } = useAuth();
   const [dismissed, setDismissed] = useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [daysRemaining, setDaysRemaining] = useState(() => calculateDaysRemaining(user?.expires_at));
+
+  // Update countdown periodically (every hour) to prevent stale values
+  useEffect(() => {
+    const updateDays = () => {
+      setDaysRemaining(calculateDaysRemaining(user?.expires_at));
+    };
+
+    // Update immediately when user changes
+    updateDays();
+
+    // Refresh hourly to keep countdown accurate
+    const interval = setInterval(updateDays, 60 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user?.expires_at]);
 
   // Don't show if not anonymous or dismissed
   if (!user || !isAnonymous() || dismissed) {
     return null;
   }
-
-  // Calculate days remaining until expiry
-  const daysRemaining = user.expires_at
-    ? Math.max(0, Math.ceil((new Date(user.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 30;
 
   return (
     <>

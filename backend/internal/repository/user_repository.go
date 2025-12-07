@@ -210,7 +210,7 @@ func (r *UserRepository) ConvertToRegistered(ctx context.Context, userID string,
 	}
 
 	if result.RowsAffected() == 0 {
-		return errors.New("user not found or not anonymous")
+		return domain.NewNotFoundError("anonymous user", userID)
 	}
 
 	return nil

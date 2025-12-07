@@ -40,6 +40,15 @@ func (s *CleanupService) CleanupExpiredAnonymousUsers(ctx context.Context) (*Cle
 
 	slog.Info("[Cleanup] Starting anonymous user cleanup")
 
+	// Check if context is already cancelled before starting
+	select {
+	case <-ctx.Done():
+		slog.Info("[Cleanup] Context cancelled before start")
+		result.Duration = time.Since(startTime)
+		return result, ctx.Err()
+	default:
+	}
+
 	// Find all expired anonymous users
 	expiredUsers, err := s.userRepo.FindExpiredAnonymous(ctx)
 	if err != nil {
@@ -60,21 +69,26 @@ func (s *CleanupService) CleanupExpiredAnonymousUsers(ctx context.Context) (*Cle
 		// Count tasks before deletion (for audit)
 		taskCount, err := s.userRepo.CountTasksByUserID(ctx, user.ID)
 		if err != nil {
-			slog.Warn("[Cleanup] Failed to count tasks for user",
+			slog.Error("[Cleanup] Failed to count tasks for user - skipping to preserve audit integrity",
 				"user_id", user.ID,
 				"error", err,
 			)
-			taskCount = 0 // Continue anyway
+			result.FailedCount++
+			result.Errors = append(result.Errors, "task count failed for user "+user.ID+": "+err.Error())
+			continue // Skip deletion - cannot create accurate audit record
 		}
 		result.TotalTasks += taskCount
 
-		// Log the cleanup for audit purposes
+		// Log the cleanup for audit purposes - REQUIRED before deletion
 		if err := s.userRepo.LogAnonymousCleanup(ctx, user.ID, taskCount, user.CreatedAt); err != nil {
-			slog.Warn("[Cleanup] Failed to log cleanup",
+			slog.Error("[Cleanup] Failed to log cleanup - skipping deletion to preserve audit trail",
 				"user_id", user.ID,
+				"task_count", taskCount,
 				"error", err,
 			)
-			// Continue anyway - logging failure shouldn't prevent cleanup
+			result.FailedCount++
+			result.Errors = append(result.Errors, "audit log failed for user "+user.ID+": "+err.Error())
+			continue // Skip deletion - audit is required for compliance
 		}
 
 		// Delete the user (cascades to tasks via FK)

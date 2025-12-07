@@ -56,11 +56,12 @@ func CanAccessFeature(userType UserType, feature Feature) bool {
 	return allowed
 }
 
-// NewFeatureGatedError creates a standardized error for when a feature is gated
+// NewFeatureGatedError creates a standardized error for when a feature is gated.
+// The error message clearly indicates which feature requires registration.
 func NewFeatureGatedError(feature Feature) *ForbiddenError {
 	return NewForbiddenError(
-		"feature",
-		fmt.Sprintf("The '%s' feature requires a registered account. Sign up to unlock!", feature),
+		string(feature),
+		fmt.Sprintf("access '%s' (requires registered account)", feature),
 	)
 }
 

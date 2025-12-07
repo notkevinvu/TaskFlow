@@ -94,6 +94,12 @@ func (h *AuthHandler) ConvertGuest(c *gin.Context) {
 		return
 	}
 
+	// Early check: only anonymous users can convert (fail fast using JWT claim)
+	if !middleware.IsAnonymousUser(c) {
+		middleware.AbortWithError(c, domain.NewValidationError("user", "only guest users can convert to registered accounts"))
+		return
+	}
+
 	var dto domain.ConvertGuestDTO
 	if err := c.ShouldBindJSON(&dto); err != nil {
 		middleware.AbortWithError(c, domain.NewValidationError("request_body", "invalid JSON format"))

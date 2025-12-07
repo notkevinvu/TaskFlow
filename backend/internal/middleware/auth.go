@@ -71,20 +71,30 @@ func AuthRequired(jwtSecret string) gin.HandlerFunc {
 	}
 }
 
-// GetUserID retrieves the user ID from the context
+// GetUserID retrieves the user ID from the context.
+// Returns empty string and false if not found or if the value is not a string.
 func GetUserID(c *gin.Context) (string, bool) {
 	userID, exists := c.Get(UserIDKey)
 	if !exists {
 		return "", false
 	}
-	return userID.(string), true
+	id, ok := userID.(string)
+	if !ok {
+		return "", false
+	}
+	return id, true
 }
 
-// IsAnonymousUser checks if the current user is anonymous
+// IsAnonymousUser checks if the current user is anonymous.
+// Returns false if the context key is not set or not a boolean (fail-closed).
 func IsAnonymousUser(c *gin.Context) bool {
 	isAnon, exists := c.Get(UserIsAnonymous)
 	if !exists {
 		return false
 	}
-	return isAnon.(bool)
+	anon, ok := isAnon.(bool)
+	if !ok {
+		return false
+	}
+	return anon
 }

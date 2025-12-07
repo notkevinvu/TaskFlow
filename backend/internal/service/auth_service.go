@@ -161,7 +161,7 @@ func (s *AuthService) CreateAnonymousUser(ctx context.Context) (*domain.AuthResp
 	// Generate JWT token
 	token, err := s.generateToken(user)
 	if err != nil {
-		return nil, err
+		return nil, domain.NewInternalError("failed to generate token for anonymous user", err)
 	}
 
 	return &domain.AuthResponse{
@@ -230,7 +230,7 @@ func (s *AuthService) ConvertGuestToRegistered(ctx context.Context, userID strin
 	// Generate new JWT token with registered status
 	token, err := s.generateToken(updatedUser)
 	if err != nil {
-		return nil, err
+		return nil, domain.NewInternalError("failed to generate token after account conversion", err)
 	}
 
 	return &domain.AuthResponse{
