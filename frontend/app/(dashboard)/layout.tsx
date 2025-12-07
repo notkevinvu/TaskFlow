@@ -54,7 +54,7 @@ export default function DashboardLayout({
     pomodoro: boolean;
     progress: boolean;
   }>(() => {
-    const defaultState = { templates: true, pomodoro: true, progress: true };
+    const defaultState = { templates: false, pomodoro: false, progress: false };
     if (typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem('taskflow_sidebar_sections');
