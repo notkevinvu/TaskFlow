@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { taskAPI, CreateTaskDTO, getApiErrorMessage, AchievementEarnedEvent } from '@/lib/api';
+import { taskAPI, CreateTaskDTO, getApiErrorMessage, AchievementEarnedEvent, Task } from '@/lib/api';
 import { toast } from 'sonner';
 import { gamificationKeys, getAchievementIcon, getAchievementTitle } from './useGamification';
 
@@ -94,9 +94,46 @@ export function useCompleteTask() {
 
   return useMutation({
     mutationFn: (id: string) => taskAPI.complete(id),
+    // Optimistic update: immediately mark task as completed in cache
+    onMutate: async (taskId: string) => {
+      try {
+        // Cancel any outgoing refetches to avoid overwriting optimistic update
+        await queryClient.cancelQueries({ queryKey: ['tasks'] });
+
+        // Snapshot previous task list queries for rollback
+        // Using a flexible type to handle both task list and individual task queries
+        const previousTaskQueries = queryClient.getQueriesData<{ tasks?: Task[]; total_count?: number } | Task>({
+          queryKey: ['tasks'],
+        });
+
+        // Optimistically update all task list caches
+        queryClient.setQueriesData<{ tasks?: Task[]; total_count?: number }>(
+          { queryKey: ['tasks'] },
+          (old) => {
+            if (!old?.tasks) return old;
+            return {
+              ...old,
+              tasks: old.tasks.map((task) =>
+                task.id === taskId
+                  ? { ...task, status: 'done' as const, completed_at: new Date().toISOString() }
+                  : task
+              ),
+            };
+          }
+        );
+
+        // Return context for rollback
+        return { previousTaskQueries };
+      } catch (error) {
+        // Log but don't throw - mutation should still proceed even if optimistic update fails
+        console.error('[useCompleteTask.onMutate] Optimistic update failed:', error);
+        // Return empty context - rollback won't work but mutation will complete
+        return { previousTaskQueries: [] };
+      }
+    },
     onSuccess: (response) => {
+      // Invalidate all task-related queries to ensure fresh data after optimistic update
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      // Invalidate gamification data to refresh stats
       queryClient.invalidateQueries({ queryKey: gamificationKeys.all });
 
       const gamification = response.data.gamification;
@@ -148,7 +185,21 @@ export function useCompleteTask() {
         }
       }
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, _taskId: string, context) => {
+      // Rollback to previous state on error
+      if (context?.previousTaskQueries && context.previousTaskQueries.length > 0) {
+        context.previousTaskQueries.forEach(([queryKey, data]) => {
+          // Only restore if we have valid data
+          if (data !== undefined) {
+            queryClient.setQueryData(queryKey, data);
+          } else {
+            // If snapshot was undefined, invalidate to force refetch
+            queryClient.invalidateQueries({ queryKey });
+          }
+        });
+      }
+      // Also invalidate gamification to ensure consistency after failed mutation
+      queryClient.invalidateQueries({ queryKey: gamificationKeys.all });
       toast.error(getApiErrorMessage(err, 'Failed to complete task', 'Task Complete'));
     },
   });
