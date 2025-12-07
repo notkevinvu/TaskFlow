@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/notkevinvu/taskflow/backend/internal/repository"
@@ -277,4 +278,37 @@ func (m *MockUserRepository) FindByID(ctx context.Context, id string) (*domain.U
 func (m *MockUserRepository) EmailExists(ctx context.Context, email string) (bool, error) {
 	args := m.Called(ctx, email)
 	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockUserRepository) CreateAnonymous(ctx context.Context, user *domain.User) error {
+	args := m.Called(ctx, user)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) ConvertToRegistered(ctx context.Context, userID string, email, name, passwordHash string) error {
+	args := m.Called(ctx, userID, email, name, passwordHash)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) FindExpiredAnonymous(ctx context.Context) ([]*domain.User, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.User), args.Error(1)
+}
+
+func (m *MockUserRepository) Delete(ctx context.Context, id string) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) CountTasksByUserID(ctx context.Context, userID string) (int, error) {
+	args := m.Called(ctx, userID)
+	return args.Int(0), args.Error(1)
+}
+
+func (m *MockUserRepository) LogAnonymousCleanup(ctx context.Context, userID string, taskCount int, userCreatedAt time.Time) error {
+	args := m.Called(ctx, userID, taskCount, userCreatedAt)
+	return args.Error(0)
 }

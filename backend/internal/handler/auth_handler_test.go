@@ -45,6 +45,22 @@ func (m *MockAuthService) GetUserByID(ctx context.Context, id string) (*domain.U
 	return args.Get(0).(*domain.User), args.Error(1)
 }
 
+func (m *MockAuthService) CreateAnonymousUser(ctx context.Context) (*domain.AuthResponse, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.AuthResponse), args.Error(1)
+}
+
+func (m *MockAuthService) ConvertGuestToRegistered(ctx context.Context, userID string, dto *domain.ConvertGuestDTO) (*domain.AuthResponse, error) {
+	args := m.Called(ctx, userID, dto)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.AuthResponse), args.Error(1)
+}
+
 // setupAuthTest creates a test router and mock service
 // ResponseRecorder is created per-test for better isolation
 func setupAuthTest() (*gin.Engine, *MockAuthService) {
@@ -97,7 +113,7 @@ func TestAuthHandler_Register_Success(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.Equal(t, "user-123", response.User.ID)
-	assert.Equal(t, "test@example.com", response.User.Email)
+	assert.Equal(t, "test@example.com", *response.User.Email)
 	assert.Equal(t, "test-token-123", response.AccessToken)
 }
 
@@ -302,7 +318,7 @@ func TestAuthHandler_Me_Success(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &user)
 	assert.NoError(t, err)
 	assert.Equal(t, "user-123", user.ID)
-	assert.Equal(t, "test@example.com", user.Email)
+	assert.Equal(t, "test@example.com", *user.Email)
 }
 
 func TestAuthHandler_Me_Unauthenticated(t *testing.T) {

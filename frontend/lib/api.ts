@@ -118,15 +118,48 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// =============================================================================
+// User Types
+// =============================================================================
+
+export type UserType = 'registered' | 'anonymous';
+
+export interface User {
+  id: string;
+  user_type: UserType;
+  email?: string;
+  name?: string;
+  expires_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AuthResponse {
+  user: User;
+  access_token: string;
+}
+
+export interface ConvertGuestDTO {
+  email: string;
+  name: string;
+  password: string;
+}
+
 // Auth API
 export const authAPI = {
   register: (data: { email: string; name: string; password: string }) =>
-    api.post('/api/v1/auth/register', data),
+    api.post<AuthResponse>('/api/v1/auth/register', data),
 
   login: (data: { email: string; password: string }) =>
-    api.post('/api/v1/auth/login', data),
+    api.post<AuthResponse>('/api/v1/auth/login', data),
 
-  me: () => api.get('/api/v1/auth/me'),
+  guest: () =>
+    api.post<AuthResponse>('/api/v1/auth/guest'),
+
+  convert: (data: ConvertGuestDTO) =>
+    api.post<AuthResponse>('/api/v1/auth/convert', data),
+
+  me: () => api.get<User>('/api/v1/auth/me'),
 };
 
 // =============================================================================

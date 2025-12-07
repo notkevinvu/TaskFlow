@@ -64,49 +64,72 @@ func pgtypeTimestamptzToTime(ts pgtype.Timestamptz) time.Time {
 	return ts.Time
 }
 
-// Convert sqlc.User to domain.User
-func sqlcUserToDomain(u sqlc.User) domain.User {
-	return domain.User{
-		ID:           pgtypeUUIDToString(u.ID),
-		Email:        u.Email,
-		Name:         u.Name,
-		PasswordHash: u.PasswordHash,
-		CreatedAt:    pgtypeTimestamptzToTime(u.CreatedAt),
-		UpdatedAt:    pgtypeTimestamptzToTime(u.UpdatedAt),
+// Note: pgtypeTimestamptzToTimePtr and timePtrToPgtypeTimestamptz are defined in task_repository.go
+
+// Create inserts a new user into the database (for registered users - uses legacy sqlc)
+// For anonymous users, use CreateAnonymous instead
+func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
+	// For registered users, use the original sqlc method
+	if user.UserType == domain.UserTypeRegistered {
+		pguuid, err := stringToPgtypeUUID(user.ID)
+		if err != nil {
+			return err
+		}
+
+		// Use raw SQL to include user_type column
+		query := `
+			INSERT INTO users (id, email, name, password_hash, user_type, expires_at, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		`
+		_, err = r.db.Exec(ctx, query,
+			pguuid,
+			user.Email,
+			user.Name,
+			user.PasswordHash,
+			user.UserType,
+			timePtrToPgtypeTimestamptz(user.ExpiresAt),
+			timeToPgtypeTimestamptz(user.CreatedAt),
+			timeToPgtypeTimestamptz(user.UpdatedAt),
+		)
+		return err
 	}
+
+	// For anonymous users
+	return r.CreateAnonymous(ctx, user)
 }
 
-// Create inserts a new user into the database
-func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
+// CreateAnonymous creates a new anonymous user
+func (r *UserRepository) CreateAnonymous(ctx context.Context, user *domain.User) error {
 	pguuid, err := stringToPgtypeUUID(user.ID)
 	if err != nil {
 		return err
 	}
 
-	params := sqlc.CreateUserParams{
-		ID:           pguuid,
-		Email:        user.Email,
-		Name:         user.Name,
-		PasswordHash: user.PasswordHash,
-		CreatedAt:    timeToPgtypeTimestamptz(user.CreatedAt),
-		UpdatedAt:    timeToPgtypeTimestamptz(user.UpdatedAt),
-	}
-
-	return r.queries.CreateUser(ctx, params)
+	query := `
+		INSERT INTO users (id, email, name, password_hash, user_type, expires_at, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`
+	_, err = r.db.Exec(ctx, query,
+		pguuid,
+		user.Email,        // nil for anonymous
+		user.Name,         // nil for anonymous
+		user.PasswordHash, // nil for anonymous
+		user.UserType,
+		timePtrToPgtypeTimestamptz(user.ExpiresAt),
+		timeToPgtypeTimestamptz(user.CreatedAt),
+		timeToPgtypeTimestamptz(user.UpdatedAt),
+	)
+	return err
 }
 
 // FindByEmail retrieves a user by email
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
-	sqlcUser, err := r.queries.GetUserByEmail(ctx, email)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil // User not found
-		}
-		return nil, err
-	}
-
-	domainUser := sqlcUserToDomain(sqlcUser)
-	return &domainUser, nil
+	query := `
+		SELECT id, email, name, password_hash, user_type, expires_at, created_at, updated_at
+		FROM users
+		WHERE email = $1
+	`
+	return r.scanUser(ctx, query, email)
 }
 
 // FindByID retrieves a user by ID
@@ -116,19 +139,177 @@ func (r *UserRepository) FindByID(ctx context.Context, id string) (*domain.User,
 		return nil, err
 	}
 
-	sqlcUser, err := r.queries.GetUserByID(ctx, pguuid)
+	query := `
+		SELECT id, email, name, password_hash, user_type, expires_at, created_at, updated_at
+		FROM users
+		WHERE id = $1
+	`
+	return r.scanUser(ctx, query, pguuid)
+}
+
+// scanUser is a helper to scan a user row from any query
+func (r *UserRepository) scanUser(ctx context.Context, query string, args ...interface{}) (*domain.User, error) {
+	row := r.db.QueryRow(ctx, query, args...)
+
+	var (
+		id           pgtype.UUID
+		email        *string
+		name         *string
+		passwordHash *string
+		userType     string
+		expiresAt    pgtype.Timestamptz
+		createdAt    pgtype.Timestamptz
+		updatedAt    pgtype.Timestamptz
+	)
+
+	err := row.Scan(&id, &email, &name, &passwordHash, &userType, &expiresAt, &createdAt, &updatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil // User not found
+			return nil, nil
 		}
 		return nil, err
 	}
 
-	domainUser := sqlcUserToDomain(sqlcUser)
-	return &domainUser, nil
+	return &domain.User{
+		ID:           pgtypeUUIDToString(id),
+		Email:        email,
+		Name:         name,
+		PasswordHash: passwordHash,
+		UserType:     domain.UserType(userType),
+		ExpiresAt:    pgtypeTimestamptzToTimePtr(expiresAt),
+		CreatedAt:    pgtypeTimestamptzToTime(createdAt),
+		UpdatedAt:    pgtypeTimestamptzToTime(updatedAt),
+	}, nil
 }
 
 // EmailExists checks if an email already exists
 func (r *UserRepository) EmailExists(ctx context.Context, email string) (bool, error) {
 	return r.queries.CheckEmailExists(ctx, email)
+}
+
+// ConvertToRegistered converts an anonymous user to a registered user
+func (r *UserRepository) ConvertToRegistered(ctx context.Context, userID string, email, name, passwordHash string) error {
+	pguuid, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return err
+	}
+
+	query := `
+		UPDATE users
+		SET email = $2,
+			name = $3,
+			password_hash = $4,
+			user_type = 'registered',
+			expires_at = NULL,
+			updated_at = $5
+		WHERE id = $1 AND user_type = 'anonymous'
+	`
+	result, err := r.db.Exec(ctx, query, pguuid, email, name, passwordHash, time.Now())
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return domain.NewNotFoundError("anonymous user", userID)
+	}
+
+	return nil
+}
+
+// FindExpiredAnonymous returns all anonymous users whose expires_at is in the past
+func (r *UserRepository) FindExpiredAnonymous(ctx context.Context) ([]*domain.User, error) {
+	query := `
+		SELECT id, email, name, password_hash, user_type, expires_at, created_at, updated_at
+		FROM users
+		WHERE user_type = 'anonymous'
+		  AND expires_at IS NOT NULL
+		  AND expires_at < NOW()
+		ORDER BY expires_at ASC
+	`
+
+	rows, err := r.db.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []*domain.User
+	for rows.Next() {
+		var (
+			id           pgtype.UUID
+			email        *string
+			name         *string
+			passwordHash *string
+			userType     string
+			expiresAt    pgtype.Timestamptz
+			createdAt    pgtype.Timestamptz
+			updatedAt    pgtype.Timestamptz
+		)
+
+		err := rows.Scan(&id, &email, &name, &passwordHash, &userType, &expiresAt, &createdAt, &updatedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		users = append(users, &domain.User{
+			ID:           pgtypeUUIDToString(id),
+			Email:        email,
+			Name:         name,
+			PasswordHash: passwordHash,
+			UserType:     domain.UserType(userType),
+			ExpiresAt:    pgtypeTimestamptzToTimePtr(expiresAt),
+			CreatedAt:    pgtypeTimestamptzToTime(createdAt),
+			UpdatedAt:    pgtypeTimestamptzToTime(updatedAt),
+		})
+	}
+
+	return users, rows.Err()
+}
+
+// Delete removes a user by ID (cascade deletes tasks via FK)
+func (r *UserRepository) Delete(ctx context.Context, id string) error {
+	pguuid, err := stringToPgtypeUUID(id)
+	if err != nil {
+		return err
+	}
+
+	query := `DELETE FROM users WHERE id = $1`
+	result, err := r.db.Exec(ctx, query, pguuid)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return errors.New("user not found")
+	}
+
+	return nil
+}
+
+// CountTasksByUserID returns the number of tasks owned by a user
+func (r *UserRepository) CountTasksByUserID(ctx context.Context, userID string) (int, error) {
+	pguuid, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return 0, err
+	}
+
+	query := `SELECT COUNT(*) FROM tasks WHERE user_id = $1`
+	var count int
+	err = r.db.QueryRow(ctx, query, pguuid).Scan(&count)
+	return count, err
+}
+
+// LogAnonymousCleanup records the cleanup of an anonymous user for audit purposes
+func (r *UserRepository) LogAnonymousCleanup(ctx context.Context, userID string, taskCount int, userCreatedAt time.Time) error {
+	pguuid, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return err
+	}
+
+	query := `
+		INSERT INTO anonymous_user_cleanups (user_id, task_count, created_at, deleted_at)
+		VALUES ($1, $2, $3, NOW())
+	`
+	_, err = r.db.Exec(ctx, query, pguuid, taskCount, timeToPgtypeTimestamptz(userCreatedAt))
+	return err
 }

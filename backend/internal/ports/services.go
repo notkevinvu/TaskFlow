@@ -11,6 +11,9 @@ type AuthService interface {
 	Register(ctx context.Context, dto *domain.CreateUserDTO) (*domain.AuthResponse, error)
 	Login(ctx context.Context, dto *domain.LoginDTO) (*domain.AuthResponse, error)
 	GetUserByID(ctx context.Context, id string) (*domain.User, error)
+	// Anonymous user methods
+	CreateAnonymousUser(ctx context.Context) (*domain.AuthResponse, error)
+	ConvertGuestToRegistered(ctx context.Context, userID string, dto *domain.ConvertGuestDTO) (*domain.AuthResponse, error)
 }
 
 // TaskService defines the interface for task business logic

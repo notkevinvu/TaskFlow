@@ -13,8 +13,9 @@ import { TemplatePickerDialog } from '@/components/TemplatePickerDialog';
 import { ManageTemplatesDialog } from '@/components/ManageTemplatesDialog';
 import { CreateTemplateDialog } from '@/components/CreateTemplateDialog';
 import { EditTemplateDialog } from '@/components/EditTemplateDialog';
+import { GuestBanner } from '@/components/auth';
 import { useEffect, useState } from 'react';
-import { CreateTaskDTO, TaskTemplate } from '@/lib/api';
+import { CreateTaskDTO, TaskTemplate, User } from '@/lib/api';
 import { FileText, Settings, ChevronDown } from 'lucide-react';
 import {
   Collapsible,
@@ -92,10 +93,13 @@ export default function DashboardLayout({
       const token = localStorage.getItem('token');
       if (!token) {
         // Create mock user for development
-        const mockUser = {
+        const mockUser: User = {
           id: 'dev-user-123',
+          user_type: 'registered',
           email: 'admin@taskflow.dev',
           name: 'Admin User',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         };
         localStorage.setItem('token', 'dev-mock-token');
         setMockUser(mockUser);
@@ -262,8 +266,15 @@ export default function DashboardLayout({
 
         <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
           <div className="mb-3">
-            <p className="text-sm font-medium">{user.name}</p>
-            <p className="text-xs text-muted-foreground">{user.email}</p>
+            <p className="text-sm font-medium">
+              {user.name || 'Guest User'}
+              {user.user_type === 'anonymous' && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">(Guest)</span>
+              )}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {user.email || 'No account'}
+            </p>
           </div>
           <div className="flex gap-2 mb-2">
             <ThemeToggle />
@@ -272,15 +283,16 @@ export default function DashboardLayout({
               onClick={handleLogout}
               className="flex-1 h-10 transition-all hover:scale-105 hover:shadow-md cursor-pointer"
             >
-              Sign Out
+              {user.user_type === 'anonymous' ? 'Exit' : 'Sign Out'}
             </Button>
           </div>
         </div>
       </div>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-8">
+      <main className="flex-1 overflow-y-auto flex flex-col">
+        <GuestBanner />
+        <div className="flex-1 p-8">
           {children}
         </div>
       </main>

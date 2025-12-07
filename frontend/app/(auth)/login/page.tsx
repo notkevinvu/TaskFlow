@@ -10,12 +10,13 @@ import Link from "next/link";
 import { useAuth } from '@/hooks/useAuth';
 import { getApiErrorMessage } from '@/lib/api';
 import { tokens } from '@/lib/tokens';
+import { Sparkles } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login, isLoading } = useAuth();
+  const { login, startGuest, isLoading } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,6 +28,16 @@ export default function LoginPage() {
       router.push('/dashboard');
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, 'Login failed. Please check your credentials.', 'Login'));
+    }
+  };
+
+  const handleTryAsGuest = async () => {
+    setError('');
+    try {
+      await startGuest();
+      router.push('/dashboard');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Failed to start guest session. Please try again.', 'GuestStart'));
     }
   };
 
@@ -83,6 +94,29 @@ export default function LoginPage() {
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">or</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2"
+              onClick={handleTryAsGuest}
+              disabled={isLoading}
+            >
+              <Sparkles className="h-4 w-4" />
+              Try as Guest
+            </Button>
+            <p className="text-xs text-center text-muted-foreground">
+              No sign-up required. Your data is saved for 30 days.
+            </p>
 
             <div className="text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
