@@ -21,7 +21,6 @@ import {
   Pause,
   RotateCcw,
   SkipForward,
-  Timer,
   Coffee,
   X,
   Link2,
@@ -86,17 +85,13 @@ export function PomodoroWidget() {
   return (
     <TooltipProvider>
       <div className="space-y-3">
-        <div className="flex items-center justify-between px-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-            <Timer className="h-3 w-3" />
-            Pomodoro
-          </p>
-          {state.completedSessions > 0 && (
+        {state.completedSessions > 0 && (
+          <div className="flex justify-end px-2">
             <Badge variant="secondary" className="text-xs">
               {state.completedSessions} sessions
             </Badge>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Timer Display */}
         <Card className="py-4 px-4">

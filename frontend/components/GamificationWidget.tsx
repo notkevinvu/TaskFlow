@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
@@ -10,7 +10,7 @@ import {
   formatStreakDisplay,
   getNextMilestone,
 } from '@/hooks/useGamification';
-import { Flame, Trophy, TrendingUp, Target } from 'lucide-react';
+import { Flame, TrendingUp, Target } from 'lucide-react';
 import Link from 'next/link';
 
 /**
@@ -32,18 +32,10 @@ export function GamificationWidget() {
 
   if (isLoading) {
     return (
-      <Card className="border-0 shadow-none bg-transparent">
-        <CardHeader className="pb-2 px-2 pt-2">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-            <Trophy className="h-3 w-3" />
-            Progress
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-2 pb-2 space-y-3">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-8 w-full" />
-        </CardContent>
-      </Card>
+      <div className="space-y-3 px-2">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-8 w-full" />
+      </div>
     );
   }
 
@@ -57,11 +49,7 @@ export function GamificationWidget() {
   return (
     <TooltipProvider>
       <div className="space-y-3">
-        <div className="flex items-center justify-between px-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-            <Trophy className="h-3 w-3" />
-            Progress
-          </p>
+        <div className="flex justify-end px-2">
           <Link
             href="/analytics#gamification"
             className="text-xs text-primary hover:underline"
