@@ -72,7 +72,10 @@ func (r *GamificationRepository) UpsertStats(ctx context.Context, stats *domain.
 	var lastCompletionDate *time.Time
 	if stats.LastCompletionDate != nil {
 		t, err := time.Parse("2006-01-02", *stats.LastCompletionDate)
-		if err == nil {
+		if err != nil {
+			slog.Warn("Failed to parse last_completion_date, storing as null",
+				"value", *stats.LastCompletionDate, "error", err)
+		} else {
 			lastCompletionDate = &t
 		}
 	}
@@ -185,6 +188,13 @@ func (r *GamificationRepository) GetAchievements(ctx context.Context, userID str
 
 // GetRecentAchievements retrieves the most recent achievements for a user
 func (r *GamificationRepository) GetRecentAchievements(ctx context.Context, userID string, limit int) ([]*domain.UserAchievement, error) {
+	// Validate limit parameter
+	if limit <= 0 {
+		limit = 5 // Default
+	} else if limit > 100 {
+		limit = 100 // Max cap
+	}
+
 	query := `
 		SELECT id, user_id, achievement_type, earned_at, metadata
 		FROM user_achievements

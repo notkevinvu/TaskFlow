@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -378,7 +379,8 @@ func (s *TaskService) CompleteWithOptions(ctx context.Context, userID, taskID st
 
 	// Log completion in history
 	if err := s.logHistorySimple(ctx, userID, taskID, domain.EventTaskCompleted, nil, nil); err != nil {
-		// Log error but don't fail the request
+		slog.Warn("Failed to log task completion history",
+			"user_id", userID, "task_id", taskID, "error", err)
 	}
 
 	// Build response
@@ -390,8 +392,8 @@ func (s *TaskService) CompleteWithOptions(ctx context.Context, userID, taskID st
 	if task.SeriesID != nil && s.recurrenceService != nil {
 		nextTask, err := s.recurrenceService.GenerateNextTask(ctx, task, req)
 		if err != nil {
-			// Log error but don't fail the completion - the task is already completed
-			// In production, use a proper logger
+			slog.Warn("Failed to generate next recurring task",
+				"user_id", userID, "task_id", taskID, "series_id", *task.SeriesID, "error", err)
 		} else if nextTask != nil {
 			response.NextTask = nextTask
 		}
@@ -401,8 +403,8 @@ func (s *TaskService) CompleteWithOptions(ctx context.Context, userID, taskID st
 	if s.gamificationService != nil {
 		gamificationResult, err := s.gamificationService.ProcessTaskCompletion(ctx, userID, task)
 		if err != nil {
-			// Log error but don't fail the completion - the task is already completed
-			// Gamification is non-critical functionality
+			slog.Warn("Failed to process gamification rewards",
+				"user_id", userID, "task_id", taskID, "error", err)
 		} else {
 			response.Gamification = gamificationResult
 		}

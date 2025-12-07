@@ -84,7 +84,11 @@ func (s *GamificationService) ProcessTaskCompletion(
 	task *domain.Task,
 ) (*domain.TaskCompletionGamificationResult, error) {
 	// Get previous stats for streak comparison
-	previousStats, _ := s.gamificationRepo.GetStats(ctx, userID)
+	previousStats, err := s.gamificationRepo.GetStats(ctx, userID)
+	if err != nil && !errors.Is(err, domain.ErrGamificationStatsNotFound) {
+		slog.Warn("Failed to get previous stats for streak comparison",
+			"user_id", userID, "error", err)
+	}
 	previousStreak := 0
 	if previousStats != nil {
 		previousStreak = previousStats.CurrentStreak
@@ -114,7 +118,8 @@ func (s *GamificationService) ProcessTaskCompletion(
 
 	// Persist updated stats
 	if err := s.gamificationRepo.UpsertStats(ctx, stats); err != nil {
-		slog.Warn("Failed to persist gamification stats", "user_id", userID, "error", err)
+		slog.Error("Failed to persist gamification stats - progress may be lost",
+			"user_id", userID, "error", err)
 	}
 
 	return &domain.TaskCompletionGamificationResult{
@@ -129,6 +134,8 @@ func (s *GamificationService) ProcessTaskCompletion(
 func (s *GamificationService) ComputeStats(ctx context.Context, userID string) (*domain.GamificationStats, error) {
 	timezone, err := s.GetUserTimezone(ctx, userID)
 	if err != nil {
+		slog.Warn("Failed to get user timezone, using UTC",
+			"user_id", userID, "error", err)
 		timezone = "UTC"
 	}
 
@@ -184,6 +191,8 @@ func (s *GamificationService) computeStreaks(ctx context.Context, userID, timezo
 	// Load user timezone
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
+		slog.Warn("Failed to load timezone location, using UTC",
+			"timezone", timezone, "error", err)
 		loc = time.UTC
 	}
 
@@ -361,7 +370,11 @@ func (s *GamificationService) CheckAndAwardAchievements(
 
 	// Check category mastery (10 tasks in same category)
 	if task.Category != nil && *task.Category != "" {
-		mastery, _ := s.gamificationRepo.GetCategoryMastery(ctx, userID, *task.Category)
+		mastery, err := s.gamificationRepo.GetCategoryMastery(ctx, userID, *task.Category)
+		if err != nil {
+			slog.Warn("Failed to get category mastery for achievement check",
+				"user_id", userID, "category", *task.Category, "error", err)
+		}
 		if mastery != nil && mastery.CompletedCount >= domain.CategoryMasteryThreshold {
 			category := *task.Category
 			if earned := s.awardAchievementIfNew(ctx, userID, domain.AchievementCategoryMaster, &category); earned != nil {
@@ -371,7 +384,11 @@ func (s *GamificationService) CheckAndAwardAchievements(
 	}
 
 	// Check speed demon (5+ tasks completed within 24h of creation)
-	speedCount, _ := s.gamificationRepo.GetSpeedCompletions(ctx, userID)
+	speedCount, err := s.gamificationRepo.GetSpeedCompletions(ctx, userID)
+	if err != nil {
+		slog.Warn("Failed to get speed completions for achievement check",
+			"user_id", userID, "error", err)
+	}
 	if speedCount >= domain.SpeedDemonThreshold {
 		if earned := s.awardAchievementIfNew(ctx, userID, domain.AchievementSpeedDemon, nil); earned != nil {
 			newAchievements = append(newAchievements, earned)
@@ -379,9 +396,16 @@ func (s *GamificationService) CheckAndAwardAchievements(
 	}
 
 	// Check consistency king (5+ days in current week)
-	timezone, _ := s.GetUserTimezone(ctx, userID)
-	loc, _ := time.LoadLocation(timezone)
-	if loc == nil {
+	timezone, tzErr := s.GetUserTimezone(ctx, userID)
+	if tzErr != nil {
+		slog.Warn("Failed to get timezone for consistency check, using UTC",
+			"user_id", userID, "error", tzErr)
+		timezone = "UTC"
+	}
+	loc, locErr := time.LoadLocation(timezone)
+	if locErr != nil {
+		slog.Warn("Failed to load timezone for consistency check, using UTC",
+			"timezone", timezone, "error", locErr)
 		loc = time.UTC
 	}
 	now := time.Now().In(loc)
@@ -391,7 +415,11 @@ func (s *GamificationService) CheckAndAwardAchievements(
 	weekStart = time.Date(weekStart.Year(), weekStart.Month(), weekStart.Day(), 0, 0, 0, 0, loc)
 	weekStartStr := weekStart.Format("2006-01-02")
 
-	daysWithCompletions, _ := s.gamificationRepo.GetWeeklyCompletionDays(ctx, userID, weekStartStr, timezone)
+	daysWithCompletions, daysErr := s.gamificationRepo.GetWeeklyCompletionDays(ctx, userID, weekStartStr, timezone)
+	if daysErr != nil {
+		slog.Warn("Failed to get weekly completion days for consistency check",
+			"user_id", userID, "week_start", weekStartStr, "error", daysErr)
+	}
 	if daysWithCompletions >= domain.ConsistencyKingThreshold {
 		if earned := s.awardAchievementIfNew(ctx, userID, domain.AchievementConsistencyKing, nil); earned != nil {
 			newAchievements = append(newAchievements, earned)
@@ -409,7 +437,12 @@ func (s *GamificationService) awardAchievementIfNew(
 	category *string,
 ) *domain.AchievementEarnedEvent {
 	// Check if already earned
-	has, _ := s.gamificationRepo.HasAchievement(ctx, userID, achievementType, category)
+	has, err := s.gamificationRepo.HasAchievement(ctx, userID, achievementType, category)
+	if err != nil {
+		slog.Warn("Failed to check if achievement exists, attempting to create",
+			"user_id", userID, "type", achievementType, "error", err)
+		// Fall through to attempt create - database constraint will handle duplicate
+	}
 	if has {
 		return nil
 	}
