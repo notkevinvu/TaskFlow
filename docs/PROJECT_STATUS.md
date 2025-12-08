@@ -1,6 +1,6 @@
 # TaskFlow - Project Status
 
-**Last Updated:** 2025-12-08
+**Last Updated:** 2025-12-07
 
 ---
 
@@ -277,6 +277,7 @@ Performance Optimization               [█████████████�
 - `docs/implementation/phase-3-weeks-5-6.md` - Production readiness plan
 - `docs/implementation/phase-4-month-2-plus.md` - Advanced features plan
 - `docs/architecture/backend-analysis-report.md` - Architecture review
+- `docs/architecture/gamification-performance-research.md` - Performance optimization research
 - `docs/design-system.md` - UI/UX patterns
 - `docs/product/PRD.md` - Product requirements
 
@@ -357,6 +358,13 @@ hooks:                     0.0% (React Query wrappers)
 ## Technical Debt / Future Improvements
 
 These items are tracked for future cleanup when time permits:
+
+- [ ] **Gamification Performance: Redis Caching** - Upgrade from async goroutines to Redis cache
+  - Current: PR #67 implements async processing (~50ms response)
+  - Recommended: Redis cache + incremental updates (<10ms response)
+  - Would reduce DB load by 95% and improve reliability
+  - Estimated cost: ~$10/mo for managed Redis
+  - **Research doc:** [`docs/architecture/gamification-performance-research.md`](architecture/gamification-performance-research.md)
 
 - [ ] **Claude Code Allowlist Cleanup** - Simplify Bash command allowlist patterns
   - Current patterns use verbose `cmd.exe /c "cd /d ... && ..."` wrappers

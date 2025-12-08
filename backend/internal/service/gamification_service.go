@@ -7,10 +7,12 @@ import (
 	"log/slog"
 	"math"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/notkevinvu/taskflow/backend/internal/ports"
+	"golang.org/x/sync/errgroup"
 )
 
 // GamificationService provides gamification business logic
@@ -130,8 +132,51 @@ func (s *GamificationService) ProcessTaskCompletion(
 	}, nil
 }
 
-// ComputeStats calculates all gamification stats from scratch
+// ProcessTaskCompletionAsync processes gamification in a background goroutine.
+// This allows the task completion API to return immediately while gamification
+// (which involves multiple DB queries) happens asynchronously.
+// Uses context.Background() since the HTTP request context may be cancelled.
+func (s *GamificationService) ProcessTaskCompletionAsync(userID string, task *domain.Task) {
+	go func() {
+		// Use a background context with a reasonable timeout
+		// The original request context is likely to be cancelled after HTTP response
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		result, err := s.ProcessTaskCompletion(ctx, userID, task)
+		if err != nil {
+			slog.Error("Async gamification processing failed",
+				"user_id", userID,
+				"task_id", task.ID,
+				"error", err)
+			return
+		}
+
+		// Log achievements earned (useful for monitoring)
+		if len(result.NewAchievements) > 0 {
+			achievementTypes := make([]string, len(result.NewAchievements))
+			for i, a := range result.NewAchievements {
+				achievementTypes[i] = string(a.Achievement.AchievementType)
+			}
+			slog.Info("User earned new achievements",
+				"user_id", userID,
+				"task_id", task.ID,
+				"achievements", achievementTypes)
+		}
+
+		if result.StreakExtended {
+			slog.Debug("User streak extended",
+				"user_id", userID,
+				"previous_streak", result.PreviousStreak,
+				"new_streak", result.UpdatedStats.CurrentStreak)
+		}
+	}()
+}
+
+// ComputeStats calculates all gamification stats from scratch.
+// Uses parallel queries via errgroup for improved performance.
 func (s *GamificationService) ComputeStats(ctx context.Context, userID string) (*domain.GamificationStats, error) {
+	// Get timezone first (needed for streak computation)
 	timezone, err := s.GetUserTimezone(ctx, userID)
 	if err != nil {
 		slog.Warn("Failed to get user timezone, using UTC",
@@ -139,20 +184,77 @@ func (s *GamificationService) ComputeStats(ctx context.Context, userID string) (
 		timezone = "UTC"
 	}
 
-	// Get total completed tasks
-	totalCompleted, err := s.gamificationRepo.GetTotalCompletedTasks(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get total completed: %w", err)
+	// Run all independent queries in parallel using errgroup
+	g, gCtx := errgroup.WithContext(ctx)
+
+	var (
+		totalCompleted   int
+		streakResult     domain.StreakCalculationResult
+		completionRate   float64
+		onTimePercentage float64
+		effortMixScore   float64
+		mu               sync.Mutex // Protect shared writes
+	)
+
+	// Query 1: Total completed tasks
+	g.Go(func() error {
+		count, err := s.gamificationRepo.GetTotalCompletedTasks(gCtx, userID)
+		if err != nil {
+			return fmt.Errorf("failed to get total completed: %w", err)
+		}
+		mu.Lock()
+		totalCompleted = count
+		mu.Unlock()
+		return nil
+	})
+
+	// Query 2: Compute streaks (involves GetCompletionsByDate)
+	g.Go(func() error {
+		result := s.computeStreaks(gCtx, userID, timezone)
+		mu.Lock()
+		streakResult = result
+		mu.Unlock()
+		return nil
+	})
+
+	// Query 3: Completion rate (involves GetCompletionStats)
+	g.Go(func() error {
+		rate := s.computeCompletionRate(gCtx, userID, 30)
+		mu.Lock()
+		completionRate = rate
+		mu.Unlock()
+		return nil
+	})
+
+	// Query 4: On-time completion percentage
+	g.Go(func() error {
+		percentage, err := s.gamificationRepo.GetOnTimeCompletionRate(gCtx, userID, 30)
+		if err != nil {
+			slog.Warn("Failed to get on-time completion rate, using 0%",
+				"user_id", userID, "error", err)
+		}
+		mu.Lock()
+		onTimePercentage = percentage
+		mu.Unlock()
+		return nil
+	})
+
+	// Query 5: Effort mix score (involves GetEffortDistribution)
+	g.Go(func() error {
+		score := s.computeEffortMixScore(gCtx, userID, 30)
+		mu.Lock()
+		effortMixScore = score
+		mu.Unlock()
+		return nil
+	})
+
+	// Wait for all queries to complete
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 
-	// Compute streaks (check last 365 days of completions)
-	streakResult := s.computeStreaks(ctx, userID, timezone)
-
-	// Compute productivity score components (last 30 days)
-	completionRate := s.computeCompletionRate(ctx, userID, 30)
+	// Compute productivity score from parallel results
 	streakScore := s.computeStreakScore(streakResult.CurrentStreak)
-	onTimePercentage, _ := s.gamificationRepo.GetOnTimeCompletionRate(ctx, userID, 30)
-	effortMixScore := s.computeEffortMixScore(ctx, userID, 30)
 
 	// Weighted productivity score formula
 	productivityScore := (completionRate * domain.ProductivityScoreWeights.CompletionRate) +
@@ -287,8 +389,13 @@ func (s *GamificationService) computeLongestStreak(dates []string) int {
 // computeCompletionRate calculates the task completion rate
 func (s *GamificationService) computeCompletionRate(ctx context.Context, userID string, daysBack int) float64 {
 	stats, err := s.taskRepo.GetCompletionStats(ctx, userID, daysBack)
-	if err != nil || stats.TotalTasks == 0 {
+	if err != nil {
+		slog.Warn("Failed to get completion stats, using 0%",
+			"user_id", userID, "days_back", daysBack, "error", err)
 		return 0
+	}
+	if stats.TotalTasks == 0 {
+		return 0 // Legitimate case - no tasks in period
 	}
 
 	return float64(stats.CompletedTasks) / float64(stats.TotalTasks) * 100
@@ -305,8 +412,13 @@ func (s *GamificationService) computeStreakScore(currentStreak int) float64 {
 // computeEffortMixScore calculates how balanced the effort distribution is
 func (s *GamificationService) computeEffortMixScore(ctx context.Context, userID string, daysBack int) float64 {
 	distribution, err := s.gamificationRepo.GetEffortDistribution(ctx, userID, daysBack)
-	if err != nil || len(distribution) == 0 {
-		return 50 // Default score if no effort data
+	if err != nil {
+		slog.Warn("Failed to get effort distribution, using default score",
+			"user_id", userID, "days_back", daysBack, "error", err)
+		return 50
+	}
+	if len(distribution) == 0 {
+		return 50 // Legitimate case - no effort data in period
 	}
 
 	// Ideal distribution: 30% small, 40% medium, 20% large, 10% xlarge
@@ -342,6 +454,7 @@ func (s *GamificationService) computeEffortMixScore(ctx context.Context, userID 
 }
 
 // CheckAndAwardAchievements checks if user earned new achievements
+// Uses parallel queries for database lookups to improve performance
 func (s *GamificationService) CheckAndAwardAchievements(
 	ctx context.Context,
 	userID string,
@@ -349,8 +462,9 @@ func (s *GamificationService) CheckAndAwardAchievements(
 	stats *domain.GamificationStats,
 ) ([]*domain.AchievementEarnedEvent, error) {
 	var newAchievements []*domain.AchievementEarnedEvent
+	var mu sync.Mutex // Protect parallel query result variables
 
-	// Check milestone achievements
+	// Check milestone achievements (threshold check uses stats param; awarding makes DB calls)
 	for achievementType, threshold := range domain.MilestoneThresholds {
 		if stats.TotalCompleted >= threshold {
 			if earned := s.awardAchievementIfNew(ctx, userID, achievementType, nil); earned != nil {
@@ -359,7 +473,7 @@ func (s *GamificationService) CheckAndAwardAchievements(
 		}
 	}
 
-	// Check streak achievements
+	// Check streak achievements (threshold check uses stats param; awarding makes DB calls)
 	for achievementType, threshold := range domain.StreakThresholds {
 		if stats.CurrentStreak >= threshold {
 			if earned := s.awardAchievementIfNew(ctx, userID, achievementType, nil); earned != nil {
@@ -368,34 +482,7 @@ func (s *GamificationService) CheckAndAwardAchievements(
 		}
 	}
 
-	// Check category mastery (10 tasks in same category)
-	if task.Category != nil && *task.Category != "" {
-		mastery, err := s.gamificationRepo.GetCategoryMastery(ctx, userID, *task.Category)
-		if err != nil {
-			slog.Warn("Failed to get category mastery for achievement check",
-				"user_id", userID, "category", *task.Category, "error", err)
-		}
-		if mastery != nil && mastery.CompletedCount >= domain.CategoryMasteryThreshold {
-			category := *task.Category
-			if earned := s.awardAchievementIfNew(ctx, userID, domain.AchievementCategoryMaster, &category); earned != nil {
-				newAchievements = append(newAchievements, earned)
-			}
-		}
-	}
-
-	// Check speed demon (5+ tasks completed within 24h of creation)
-	speedCount, err := s.gamificationRepo.GetSpeedCompletions(ctx, userID)
-	if err != nil {
-		slog.Warn("Failed to get speed completions for achievement check",
-			"user_id", userID, "error", err)
-	}
-	if speedCount >= domain.SpeedDemonThreshold {
-		if earned := s.awardAchievementIfNew(ctx, userID, domain.AchievementSpeedDemon, nil); earned != nil {
-			newAchievements = append(newAchievements, earned)
-		}
-	}
-
-	// Check consistency king (5+ days in current week)
+	// Get timezone first (needed for consistency check)
 	timezone, tzErr := s.GetUserTimezone(ctx, userID)
 	if tzErr != nil {
 		slog.Warn("Failed to get timezone for consistency check, using UTC",
@@ -409,17 +496,94 @@ func (s *GamificationService) CheckAndAwardAchievements(
 		loc = time.UTC
 	}
 	now := time.Now().In(loc)
-
-	// Get start of week (Sunday)
 	weekStart := now.AddDate(0, 0, -int(now.Weekday()))
 	weekStart = time.Date(weekStart.Year(), weekStart.Month(), weekStart.Day(), 0, 0, 0, 0, loc)
 	weekStartStr := weekStart.Format("2006-01-02")
 
-	daysWithCompletions, daysErr := s.gamificationRepo.GetWeeklyCompletionDays(ctx, userID, weekStartStr, timezone)
-	if daysErr != nil {
-		slog.Warn("Failed to get weekly completion days for consistency check",
-			"user_id", userID, "week_start", weekStartStr, "error", daysErr)
+	// Run three independent DB queries in parallel
+	g, gCtx := errgroup.WithContext(ctx)
+
+	var (
+		mastery              *domain.CategoryMastery
+		speedCount           int
+		daysWithCompletions  int
+		categoryToCheck      string
+		hasCategoryToCheck   bool
+	)
+
+	// Determine if we need to check category mastery
+	if task.Category != nil && *task.Category != "" {
+		categoryToCheck = *task.Category
+		hasCategoryToCheck = true
 	}
+
+	// Query 1: Category mastery (if applicable)
+	if hasCategoryToCheck {
+		g.Go(func() error {
+			m, err := s.gamificationRepo.GetCategoryMastery(gCtx, userID, categoryToCheck)
+			if err != nil {
+				slog.Warn("Failed to get category mastery for achievement check",
+					"user_id", userID, "category", categoryToCheck, "error", err)
+				return nil // Don't fail the whole check
+			}
+			mu.Lock()
+			mastery = m
+			mu.Unlock()
+			return nil
+		})
+	}
+
+	// Query 2: Speed completions
+	g.Go(func() error {
+		count, err := s.gamificationRepo.GetSpeedCompletions(gCtx, userID)
+		if err != nil {
+			slog.Warn("Failed to get speed completions for achievement check",
+				"user_id", userID, "error", err)
+			return nil // Don't fail the whole check
+		}
+		mu.Lock()
+		speedCount = count
+		mu.Unlock()
+		return nil
+	})
+
+	// Query 3: Weekly completion days
+	g.Go(func() error {
+		days, err := s.gamificationRepo.GetWeeklyCompletionDays(gCtx, userID, weekStartStr, timezone)
+		if err != nil {
+			slog.Warn("Failed to get weekly completion days for consistency check",
+				"user_id", userID, "week_start", weekStartStr, "error", err)
+			return nil // Don't fail the whole check
+		}
+		mu.Lock()
+		daysWithCompletions = days
+		mu.Unlock()
+		return nil
+	})
+
+	// Wait for all parallel queries - individual goroutines log their own errors
+	if err := g.Wait(); err != nil {
+		slog.Warn("Unexpected error from achievement check errgroup",
+			"user_id", userID, "error", err)
+	}
+
+	// Now check thresholds and award achievements based on parallel query results
+
+	// Category mastery (10 tasks in same category)
+	if hasCategoryToCheck && mastery != nil && mastery.CompletedCount >= domain.CategoryMasteryThreshold {
+		if earned := s.awardAchievementIfNew(ctx, userID, domain.AchievementCategoryMaster, &categoryToCheck); earned != nil {
+			newAchievements = append(newAchievements, earned)
+		}
+	}
+
+	// Speed demon (5+ tasks completed within 24h of creation)
+	if speedCount >= domain.SpeedDemonThreshold {
+		if earned := s.awardAchievementIfNew(ctx, userID, domain.AchievementSpeedDemon, nil); earned != nil {
+			newAchievements = append(newAchievements, earned)
+		}
+	}
+
+	// Consistency king (5+ days in current week)
 	if daysWithCompletions >= domain.ConsistencyKingThreshold {
 		if earned := s.awardAchievementIfNew(ctx, userID, domain.AchievementConsistencyKing, nil); earned != nil {
 			newAchievements = append(newAchievements, earned)

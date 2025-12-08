@@ -399,15 +399,12 @@ func (s *TaskService) CompleteWithOptions(ctx context.Context, userID, taskID st
 		}
 	}
 
-	// Process gamification rewards if gamification service is available
+	// Process gamification rewards asynchronously if gamification service is available.
+	// This allows the API to return immediately while gamification (multiple DB queries)
+	// processes in the background. User will see updated gamification on next dashboard visit.
+	// Errors are logged but not returned - gamification failures don't affect task completion.
 	if s.gamificationService != nil {
-		gamificationResult, err := s.gamificationService.ProcessTaskCompletion(ctx, userID, task)
-		if err != nil {
-			slog.Warn("Failed to process gamification rewards",
-				"user_id", userID, "task_id", taskID, "error", err)
-		} else {
-			response.Gamification = gamificationResult
-		}
+		s.gamificationService.ProcessTaskCompletionAsync(userID, task)
 	}
 
 	return response, nil
