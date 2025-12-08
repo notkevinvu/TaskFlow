@@ -7,10 +7,12 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
 	"github.com/notkevinvu/taskflow/backend/internal/ports"
+	"golang.org/x/sync/errgroup"
 )
 
 // InsightsService provides smart suggestions based on user behavior patterns
@@ -23,33 +25,41 @@ func NewInsightsService(taskRepo ports.TaskRepository) *InsightsService {
 	return &InsightsService{taskRepo: taskRepo}
 }
 
-// GetInsights generates all applicable insights for a user
+// GetInsights generates all applicable insights for a user.
+// All 6 insight checks run in parallel for better performance.
 func (s *InsightsService) GetInsights(ctx context.Context, userID string) (*domain.InsightResponse, error) {
 	var insights []domain.Insight
+	var mu sync.Mutex
 
-	// Check each heuristic and collect insights
-	if insight := s.checkAvoidancePattern(ctx, userID); insight != nil {
-		insights = append(insights, *insight)
+	// Use errgroup to run all checks in parallel
+	g, ctx := errgroup.WithContext(ctx)
+
+	// Define all insight check functions
+	checks := []func(context.Context, string) *domain.Insight{
+		s.checkAvoidancePattern,
+		s.checkPeakPerformance,
+		s.checkQuickWins,
+		s.checkDeadlineClustering,
+		s.checkAtRiskTasks,
+		s.checkCategoryOverload,
 	}
 
-	if insight := s.checkPeakPerformance(ctx, userID); insight != nil {
-		insights = append(insights, *insight)
+	// Launch all checks in parallel
+	for _, check := range checks {
+		check := check // Capture loop variable
+		g.Go(func() error {
+			if insight := check(ctx, userID); insight != nil {
+				mu.Lock()
+				insights = append(insights, *insight)
+				mu.Unlock()
+			}
+			return nil // Don't fail the group if one check fails - they handle errors internally
+		})
 	}
 
-	if insight := s.checkQuickWins(ctx, userID); insight != nil {
-		insights = append(insights, *insight)
-	}
-
-	if insight := s.checkDeadlineClustering(ctx, userID); insight != nil {
-		insights = append(insights, *insight)
-	}
-
-	if insight := s.checkAtRiskTasks(ctx, userID); insight != nil {
-		insights = append(insights, *insight)
-	}
-
-	if insight := s.checkCategoryOverload(ctx, userID); insight != nil {
-		insights = append(insights, *insight)
+	// Wait for all checks to complete
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 
 	// Sort by priority (higher first)

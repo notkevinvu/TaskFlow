@@ -5,6 +5,11 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/': ['./public/**/*'],
   },
+  // Enable tree-shaking for large icon libraries
+  // This ensures only imported icons are bundled, not the entire library
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
 };
 
 export default nextConfig;
