@@ -399,13 +399,12 @@ func (s *TaskService) CompleteWithOptions(ctx context.Context, userID, taskID st
 		}
 	}
 
-	// Process gamification rewards asynchronously if gamification service is available
-	// This allows the API to return immediately while gamification (12+ DB queries)
+	// Process gamification rewards asynchronously if gamification service is available.
+	// This allows the API to return immediately while gamification (multiple DB queries)
 	// processes in the background. User will see updated gamification on next dashboard visit.
+	// Errors are logged but not returned - gamification failures don't affect task completion.
 	if s.gamificationService != nil {
 		s.gamificationService.ProcessTaskCompletionAsync(userID, task)
-		// Note: Gamification result is not included in response since it's processed async.
-		// This reduces task completion latency from ~500ms to ~50ms.
 	}
 
 	return response, nil

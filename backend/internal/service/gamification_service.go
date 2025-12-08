@@ -173,8 +173,8 @@ func (s *GamificationService) ProcessTaskCompletionAsync(userID string, task *do
 	}()
 }
 
-// ComputeStats calculates all gamification stats from scratch
-// Uses parallel queries for improved performance (~3-5x faster)
+// ComputeStats calculates all gamification stats from scratch.
+// Uses parallel queries via errgroup for improved performance.
 func (s *GamificationService) ComputeStats(ctx context.Context, userID string) (*domain.GamificationStats, error) {
 	// Get timezone first (needed for streak computation)
 	timezone, err := s.GetUserTimezone(ctx, userID)
@@ -228,7 +228,11 @@ func (s *GamificationService) ComputeStats(ctx context.Context, userID string) (
 
 	// Query 4: On-time completion percentage
 	g.Go(func() error {
-		percentage, _ := s.gamificationRepo.GetOnTimeCompletionRate(gCtx, userID, 30)
+		percentage, err := s.gamificationRepo.GetOnTimeCompletionRate(gCtx, userID, 30)
+		if err != nil {
+			slog.Warn("Failed to get on-time completion rate, using 0%",
+				"user_id", userID, "error", err)
+		}
 		mu.Lock()
 		onTimePercentage = percentage
 		mu.Unlock()
@@ -385,8 +389,13 @@ func (s *GamificationService) computeLongestStreak(dates []string) int {
 // computeCompletionRate calculates the task completion rate
 func (s *GamificationService) computeCompletionRate(ctx context.Context, userID string, daysBack int) float64 {
 	stats, err := s.taskRepo.GetCompletionStats(ctx, userID, daysBack)
-	if err != nil || stats.TotalTasks == 0 {
+	if err != nil {
+		slog.Warn("Failed to get completion stats, using 0%",
+			"user_id", userID, "days_back", daysBack, "error", err)
 		return 0
+	}
+	if stats.TotalTasks == 0 {
+		return 0 // Legitimate case - no tasks in period
 	}
 
 	return float64(stats.CompletedTasks) / float64(stats.TotalTasks) * 100
@@ -403,8 +412,13 @@ func (s *GamificationService) computeStreakScore(currentStreak int) float64 {
 // computeEffortMixScore calculates how balanced the effort distribution is
 func (s *GamificationService) computeEffortMixScore(ctx context.Context, userID string, daysBack int) float64 {
 	distribution, err := s.gamificationRepo.GetEffortDistribution(ctx, userID, daysBack)
-	if err != nil || len(distribution) == 0 {
-		return 50 // Default score if no effort data
+	if err != nil {
+		slog.Warn("Failed to get effort distribution, using default score",
+			"user_id", userID, "days_back", daysBack, "error", err)
+		return 50
+	}
+	if len(distribution) == 0 {
+		return 50 // Legitimate case - no effort data in period
 	}
 
 	// Ideal distribution: 30% small, 40% medium, 20% large, 10% xlarge
@@ -448,9 +462,9 @@ func (s *GamificationService) CheckAndAwardAchievements(
 	stats *domain.GamificationStats,
 ) ([]*domain.AchievementEarnedEvent, error) {
 	var newAchievements []*domain.AchievementEarnedEvent
-	var mu sync.Mutex // Protect shared slice
+	var mu sync.Mutex // Protect parallel query result variables
 
-	// Check milestone achievements (no DB queries needed - uses stats param)
+	// Check milestone achievements (threshold check uses stats param; awarding makes DB calls)
 	for achievementType, threshold := range domain.MilestoneThresholds {
 		if stats.TotalCompleted >= threshold {
 			if earned := s.awardAchievementIfNew(ctx, userID, achievementType, nil); earned != nil {
@@ -459,7 +473,7 @@ func (s *GamificationService) CheckAndAwardAchievements(
 		}
 	}
 
-	// Check streak achievements (no DB queries needed - uses stats param)
+	// Check streak achievements (threshold check uses stats param; awarding makes DB calls)
 	for achievementType, threshold := range domain.StreakThresholds {
 		if stats.CurrentStreak >= threshold {
 			if earned := s.awardAchievementIfNew(ctx, userID, achievementType, nil); earned != nil {
@@ -547,8 +561,11 @@ func (s *GamificationService) CheckAndAwardAchievements(
 		return nil
 	})
 
-	// Wait for all parallel queries
-	_ = g.Wait() // We handle errors in individual goroutines
+	// Wait for all parallel queries - individual goroutines log their own errors
+	if err := g.Wait(); err != nil {
+		slog.Warn("Unexpected error from achievement check errgroup",
+			"user_id", userID, "error", err)
+	}
 
 	// Now check thresholds and award achievements based on parallel query results
 
