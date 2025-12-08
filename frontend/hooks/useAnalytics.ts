@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { analyticsAPI, getApiErrorMessage } from '@/lib/api';
+import { analyticsKeys } from '@/lib/queryKeys';
 
 export function useAnalyticsSummary(days: number = 30) {
   return useQuery({
-    queryKey: ['analytics', 'summary', days],
+    queryKey: analyticsKeys.summary(days),
     queryFn: async () => {
       try {
         const response = await analyticsAPI.getSummary({ days });
@@ -18,7 +19,7 @@ export function useAnalyticsSummary(days: number = 30) {
 
 export function useAnalyticsTrends(days: number = 30) {
   return useQuery({
-    queryKey: ['analytics', 'trends', days],
+    queryKey: analyticsKeys.trends(days),
     queryFn: async () => {
       try {
         const response = await analyticsAPI.getTrends({ days });
@@ -33,7 +34,7 @@ export function useAnalyticsTrends(days: number = 30) {
 
 export function useProductivityHeatmap(days: number = 90) {
   return useQuery({
-    queryKey: ['analytics', 'heatmap', days],
+    queryKey: analyticsKeys.heatmap(days),
     queryFn: async () => {
       try {
         const response = await analyticsAPI.getHeatmap({ days });
@@ -48,7 +49,7 @@ export function useProductivityHeatmap(days: number = 90) {
 
 export function useCategoryTrends(days: number = 90) {
   return useQuery({
-    queryKey: ['analytics', 'category-trends', days],
+    queryKey: analyticsKeys.categoryTrends(days),
     queryFn: async () => {
       try {
         const response = await analyticsAPI.getCategoryTrends({ days });

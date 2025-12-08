@@ -4,22 +4,20 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { taskAPI, CreateTaskDTO, getApiErrorMessage, AchievementEarnedEvent, Task } from '@/lib/api';
 import { toast } from 'sonner';
 import { gamificationKeys, getAchievementIcon, getAchievementTitle } from './useGamification';
+import { taskKeys, analyticsKeys } from '@/lib/queryKeys';
 
-export interface TaskFilters {
-  status?: string;
-  category?: string;
-  search?: string;
-  min_priority?: number;
-  max_priority?: number;
-  due_date_start?: string; // YYYY-MM-DD
-  due_date_end?: string;   // YYYY-MM-DD
-  limit?: number;
-  offset?: number;
+// Re-export TaskFilters from queryKeys for backward compatibility
+export type { TaskFilters } from '@/lib/queryKeys';
+
+// Type for task list response
+interface TaskListResponse {
+  tasks: Task[];
+  total_count: number;
 }
 
-export function useTasks(filters?: TaskFilters) {
+export function useTasks(filters?: Parameters<typeof taskKeys.list>[0]) {
   return useQuery({
-    queryKey: ['tasks', filters],
+    queryKey: taskKeys.list(filters),
     queryFn: async () => {
       const response = await taskAPI.list({
         limit: 100,
@@ -28,12 +26,13 @@ export function useTasks(filters?: TaskFilters) {
       });
       return response.data;
     },
+    staleTime: 2 * 60 * 1000, // 2 minutes - tasks don't change that often
   });
 }
 
 export function useTask(id: string) {
   return useQuery({
-    queryKey: ['tasks', id],
+    queryKey: taskKeys.detail(id),
     queryFn: async () => {
       const response = await taskAPI.getById(id);
       return response.data;
@@ -47,11 +46,64 @@ export function useCreateTask() {
 
   return useMutation({
     mutationFn: (data: CreateTaskDTO) => taskAPI.create(data),
+    // Optimistic update: immediately add task to list with placeholder priority
+    onMutate: async (newTask) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: taskKeys.lists() });
+
+      // Snapshot all list queries for rollback
+      const previousLists = queryClient.getQueriesData<TaskListResponse>({
+        queryKey: taskKeys.lists(),
+      });
+
+      // Optimistically add the new task to all list caches
+      const optimisticTask: Task = {
+        id: `temp-${Date.now()}`, // Temporary ID
+        title: newTask.title,
+        description: newTask.description,
+        category: newTask.category,
+        due_date: newTask.due_date,
+        estimated_effort: newTask.estimated_effort,
+        priority_score: 50, // Placeholder - will be calculated by backend
+        status: 'todo',
+        bump_count: 0,
+        user_priority: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        user_id: '', // Will be set by backend
+        task_type: 'regular',
+      };
+
+      queryClient.setQueriesData<TaskListResponse>(
+        { queryKey: taskKeys.lists() },
+        (old) => {
+          if (!old?.tasks) return old;
+          return {
+            ...old,
+            tasks: [optimisticTask, ...old.tasks],
+            total_count: old.total_count + 1,
+          };
+        }
+      );
+
+      return { previousLists, optimisticTask };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      // Invalidate lists only to get the real task with proper ID and priority
+      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+      // Also invalidate analytics since task counts changed
+      queryClient.invalidateQueries({ queryKey: analyticsKeys.all });
       toast.success('Task created with priority calculated!');
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, _variables, context) => {
+      // Rollback on error
+      if (context?.previousLists) {
+        context.previousLists.forEach(([queryKey, data]) => {
+          if (data) {
+            queryClient.setQueryData(queryKey, data);
+          }
+        });
+      }
       toast.error(getApiErrorMessage(err, 'Failed to create task', 'Task Create'));
     },
   });
@@ -63,11 +115,62 @@ export function useUpdateTask() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateTaskDTO> }) =>
       taskAPI.update(id, data),
-    onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    // Optimistic update: immediately update task in cache
+    onMutate: async ({ id, data }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: taskKeys.lists() });
+      await queryClient.cancelQueries({ queryKey: taskKeys.detail(id) });
+
+      // Snapshot for rollback
+      const previousLists = queryClient.getQueriesData<TaskListResponse>({
+        queryKey: taskKeys.lists(),
+      });
+      const previousDetail = queryClient.getQueryData<Task>(taskKeys.detail(id));
+
+      // Optimistically update in all list caches
+      queryClient.setQueriesData<TaskListResponse>(
+        { queryKey: taskKeys.lists() },
+        (old) => {
+          if (!old?.tasks) return old;
+          return {
+            ...old,
+            tasks: old.tasks.map((task) =>
+              task.id === id ? { ...task, ...data, updated_at: new Date().toISOString() } : task
+            ),
+          };
+        }
+      );
+
+      // Optimistically update detail cache
+      if (previousDetail) {
+        queryClient.setQueryData<Task>(taskKeys.detail(id), {
+          ...previousDetail,
+          ...data,
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      return { previousLists, previousDetail, taskId: id };
+    },
+    onSuccess: (response, { id }) => {
+      // Update the detail cache with the real response
+      queryClient.setQueryData(taskKeys.detail(id), response.data);
+      // Invalidate lists to ensure consistency
+      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
       toast.success(`Task updated! New priority: ${Math.round(response.data.priority_score)}`);
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, { id }, context) => {
+      // Rollback on error
+      if (context?.previousLists) {
+        context.previousLists.forEach(([queryKey, data]) => {
+          if (data) {
+            queryClient.setQueryData(queryKey, data);
+          }
+        });
+      }
+      if (context?.previousDetail) {
+        queryClient.setQueryData(taskKeys.detail(id), context.previousDetail);
+      }
       toast.error(getApiErrorMessage(err, 'Failed to update task', 'Task Update'));
     },
   });
@@ -79,11 +182,48 @@ export function useBumpTask() {
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
       taskAPI.bump(id, reason),
+    // Optimistic update: immediately increment bump count
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: taskKeys.lists() });
+
+      const previousLists = queryClient.getQueriesData<TaskListResponse>({
+        queryKey: taskKeys.lists(),
+      });
+
+      // Optimistically update bump count
+      queryClient.setQueriesData<TaskListResponse>(
+        { queryKey: taskKeys.lists() },
+        (old) => {
+          if (!old?.tasks) return old;
+          return {
+            ...old,
+            tasks: old.tasks.map((task) =>
+              task.id === id
+                ? { ...task, bump_count: task.bump_count + 1, updated_at: new Date().toISOString() }
+                : task
+            ),
+          };
+        }
+      );
+
+      return { previousLists };
+    },
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      // Invalidate to get the real priority score
+      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+      // Invalidate at-risk since bump count changed
+      queryClient.invalidateQueries({ queryKey: taskKeys.atRisk() });
       toast.info(`Task delayed. New priority: ${Math.round(response.data.task.priority_score)}`);
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, _variables, context) => {
+      // Rollback on error
+      if (context?.previousLists) {
+        context.previousLists.forEach(([queryKey, data]) => {
+          if (data) {
+            queryClient.setQueryData(queryKey, data);
+          }
+        });
+      }
       toast.error(getApiErrorMessage(err, 'Failed to bump task', 'Task Bump'));
     },
   });
@@ -97,18 +237,17 @@ export function useCompleteTask() {
     // Optimistic update: immediately mark task as completed in cache
     onMutate: async (taskId: string) => {
       try {
-        // Cancel any outgoing refetches to avoid overwriting optimistic update
-        await queryClient.cancelQueries({ queryKey: ['tasks'] });
+        // Cancel outgoing refetches for lists only (not details, not gamification yet)
+        await queryClient.cancelQueries({ queryKey: taskKeys.lists() });
 
         // Snapshot previous task list queries for rollback
-        // Using a flexible type to handle both task list and individual task queries
-        const previousTaskQueries = queryClient.getQueriesData<{ tasks?: Task[]; total_count?: number } | Task>({
-          queryKey: ['tasks'],
+        const previousTaskQueries = queryClient.getQueriesData<TaskListResponse>({
+          queryKey: taskKeys.lists(),
         });
 
         // Optimistically update all task list caches
-        queryClient.setQueriesData<{ tasks?: Task[]; total_count?: number }>(
-          { queryKey: ['tasks'] },
+        queryClient.setQueriesData<TaskListResponse>(
+          { queryKey: taskKeys.lists() },
           (old) => {
             if (!old?.tasks) return old;
             return {
@@ -127,23 +266,23 @@ export function useCompleteTask() {
       } catch (error) {
         // Log but don't throw - mutation should still proceed even if optimistic update fails
         console.error('[useCompleteTask.onMutate] Optimistic update failed:', error);
-        // Return empty context - rollback won't work but mutation will complete
         return { previousTaskQueries: [] };
       }
     },
     onSuccess: (response) => {
-      // Invalidate all task-related queries to ensure fresh data after optimistic update
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      // Targeted invalidation: lists, completed, at-risk, gamification, analytics
+      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: taskKeys.completed() });
+      queryClient.invalidateQueries({ queryKey: taskKeys.atRisk() });
       queryClient.invalidateQueries({ queryKey: gamificationKeys.all });
+      queryClient.invalidateQueries({ queryKey: analyticsKeys.all });
 
       const gamification = response.data.gamification;
 
       // Show achievement toasts for new achievements
       if (gamification?.new_achievements && gamification.new_achievements.length > 0) {
-        // Show task completed toast first
         toast.success('Task completed!');
 
-        // Show achievement toasts with a slight delay for each
         gamification.new_achievements.forEach((achievement: AchievementEarnedEvent, index: number) => {
           setTimeout(() => {
             const icon = getAchievementIcon(achievement.achievement.achievement_type);
@@ -155,10 +294,9 @@ export function useCompleteTask() {
                 duration: 5000,
               }
             );
-          }, 500 * (index + 1)); // Stagger toasts
+          }, 500 * (index + 1));
         });
 
-        // Show streak extended toast if applicable
         if (gamification.streak_extended && gamification.updated_stats.current_streak > 1) {
           setTimeout(() => {
             toast.success(
@@ -171,10 +309,8 @@ export function useCompleteTask() {
           }, 500 * (gamification.new_achievements.length + 1));
         }
       } else {
-        // No achievements, just show regular completion toast
         toast.success('Task completed!');
 
-        // Show streak extended toast if applicable
         if (gamification?.streak_extended && gamification.updated_stats.current_streak > 1) {
           setTimeout(() => {
             toast.success(
@@ -189,16 +325,13 @@ export function useCompleteTask() {
       // Rollback to previous state on error
       if (context?.previousTaskQueries && context.previousTaskQueries.length > 0) {
         context.previousTaskQueries.forEach(([queryKey, data]) => {
-          // Only restore if we have valid data
           if (data !== undefined) {
             queryClient.setQueryData(queryKey, data);
           } else {
-            // If snapshot was undefined, invalidate to force refetch
             queryClient.invalidateQueries({ queryKey });
           }
         });
       }
-      // Also invalidate gamification to ensure consistency after failed mutation
       queryClient.invalidateQueries({ queryKey: gamificationKeys.all });
       toast.error(getApiErrorMessage(err, 'Failed to complete task', 'Task Complete'));
     },
@@ -210,11 +343,44 @@ export function useDeleteTask() {
 
   return useMutation({
     mutationFn: (id: string) => taskAPI.delete(id),
+    // Optimistic update: immediately remove task from list
+    onMutate: async (taskId: string) => {
+      await queryClient.cancelQueries({ queryKey: taskKeys.lists() });
+
+      const previousLists = queryClient.getQueriesData<TaskListResponse>({
+        queryKey: taskKeys.lists(),
+      });
+
+      // Optimistically remove the task from all list caches
+      queryClient.setQueriesData<TaskListResponse>(
+        { queryKey: taskKeys.lists() },
+        (old) => {
+          if (!old?.tasks) return old;
+          return {
+            ...old,
+            tasks: old.tasks.filter((task) => task.id !== taskId),
+            total_count: old.total_count - 1,
+          };
+        }
+      );
+
+      return { previousLists };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      // Targeted invalidation
+      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: analyticsKeys.all });
       toast.success('Task deleted');
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, _taskId, context) => {
+      // Rollback on error
+      if (context?.previousLists) {
+        context.previousLists.forEach(([queryKey, data]) => {
+          if (data) {
+            queryClient.setQueryData(queryKey, data);
+          }
+        });
+      }
       toast.error(getApiErrorMessage(err, 'Failed to delete task', 'Task Delete'));
     },
   });
@@ -222,23 +388,23 @@ export function useDeleteTask() {
 
 export function useAtRiskTasks() {
   return useQuery({
-    queryKey: ['tasks', 'at-risk'],
+    queryKey: taskKeys.atRisk(),
     queryFn: async () => {
-      // Get all tasks and filter for at-risk ones
       const response = await taskAPI.list({ limit: 100, offset: 0 });
       const atRiskTasks = response.data.tasks.filter(t => t.bump_count >= 3);
       return { tasks: atRiskTasks, count: atRiskTasks.length };
     },
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
 
 export function useCalendarTasks(params: {
-  start_date: string; // YYYY-MM-DD
-  end_date: string;   // YYYY-MM-DD
+  start_date: string;
+  end_date: string;
   status?: string;
 }) {
   return useQuery({
-    queryKey: ['tasks', 'calendar', params.start_date, params.end_date, params.status],
+    queryKey: taskKeys.calendar(params),
     queryFn: async () => {
       const response = await taskAPI.getCalendar(params);
       return response.data;
@@ -248,10 +414,9 @@ export function useCalendarTasks(params: {
   });
 }
 
-// Hook for fetching completed tasks (for archive/completed views)
-export function useCompletedTasks(filters?: Omit<TaskFilters, 'status'>) {
+export function useCompletedTasks(filters?: Omit<Parameters<typeof taskKeys.list>[0], 'status'>) {
   return useQuery({
-    queryKey: ['tasks', 'completed', filters],
+    queryKey: taskKeys.completed(filters),
     queryFn: async () => {
       const response = await taskAPI.list({
         limit: 100,
@@ -259,7 +424,6 @@ export function useCompletedTasks(filters?: Omit<TaskFilters, 'status'>) {
         ...filters,
         status: 'done',
       });
-      // Sort by updated_at descending (most recently completed first)
       const sortedTasks = response.data.tasks.sort((a, b) => {
         const dateA = new Date(a.updated_at).getTime();
         const dateB = new Date(b.updated_at).getTime();
@@ -267,33 +431,68 @@ export function useCompletedTasks(filters?: Omit<TaskFilters, 'status'>) {
       });
       return { ...response.data, tasks: sortedTasks };
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes - completed tasks rarely change
   });
 }
 
-// Hook for bulk deleting tasks
 export function useBulkDelete() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (taskIds: string[]) => taskAPI.bulkDelete(taskIds),
+    // Optimistic update: immediately remove tasks from list
+    onMutate: async (taskIds: string[]) => {
+      await queryClient.cancelQueries({ queryKey: taskKeys.lists() });
+
+      const previousLists = queryClient.getQueriesData<TaskListResponse>({
+        queryKey: taskKeys.lists(),
+      });
+
+      const taskIdSet = new Set(taskIds);
+      queryClient.setQueriesData<TaskListResponse>(
+        { queryKey: taskKeys.lists() },
+        (old) => {
+          if (!old?.tasks) return old;
+          const filtered = old.tasks.filter((task) => !taskIdSet.has(task.id));
+          return {
+            ...old,
+            tasks: filtered,
+            total_count: old.total_count - (old.tasks.length - filtered.length),
+          };
+        }
+      );
+
+      return { previousLists };
+    },
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: taskKeys.completed() });
+      queryClient.invalidateQueries({ queryKey: analyticsKeys.all });
       toast.success(response.data.message);
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, _taskIds, context) => {
+      if (context?.previousLists) {
+        context.previousLists.forEach(([queryKey, data]) => {
+          if (data) {
+            queryClient.setQueryData(queryKey, data);
+          }
+        });
+      }
       toast.error(getApiErrorMessage(err, 'Failed to delete tasks', 'Bulk Delete'));
     },
   });
 }
 
-// Hook for bulk restoring tasks (completed -> todo)
 export function useBulkRestore() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (taskIds: string[]) => taskAPI.bulkRestore(taskIds),
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      // Invalidate both lists and completed
+      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: taskKeys.completed() });
+      queryClient.invalidateQueries({ queryKey: analyticsKeys.all });
       toast.success(response.data.message);
     },
     onError: (err: unknown) => {

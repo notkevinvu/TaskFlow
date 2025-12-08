@@ -1,19 +1,64 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useAnalyticsSummary, useAnalyticsTrends, useProductivityHeatmap, useCategoryTrends } from '@/hooks/useAnalytics';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CompletionChart } from '@/components/charts/CompletionChart';
-import { CategoryChart } from '@/components/charts/CategoryChart';
-import { PriorityChart } from '@/components/charts/PriorityChart';
-import { BumpChart } from '@/components/charts/BumpChart';
-import { ProductivityHeatmap } from '@/components/charts/ProductivityHeatmap';
-import { CategoryTrendsChart } from '@/components/charts/CategoryTrendsChart';
 import { InsightsList } from '@/components/insights/InsightsList';
 import { GamificationSection } from '@/components/GamificationSection';
 import { tokens } from '@/lib/tokens';
+
+// Dynamic imports for chart components - reduces initial bundle by ~500KB (Recharts)
+// Charts load on-demand when analytics page is visited
+const CompletionChart = dynamic(
+  () => import('@/components/charts/CompletionChart').then(mod => mod.CompletionChart),
+  {
+    loading: () => <Skeleton className="h-64" />,
+    ssr: false, // Charts use window dimensions, skip SSR
+  }
+);
+
+const CategoryChart = dynamic(
+  () => import('@/components/charts/CategoryChart').then(mod => mod.CategoryChart),
+  {
+    loading: () => <Skeleton className="h-64" />,
+    ssr: false,
+  }
+);
+
+const PriorityChart = dynamic(
+  () => import('@/components/charts/PriorityChart').then(mod => mod.PriorityChart),
+  {
+    loading: () => <Skeleton className="h-64" />,
+    ssr: false,
+  }
+);
+
+const BumpChart = dynamic(
+  () => import('@/components/charts/BumpChart').then(mod => mod.BumpChart),
+  {
+    loading: () => <Skeleton className="h-64" />,
+    ssr: false,
+  }
+);
+
+const ProductivityHeatmap = dynamic(
+  () => import('@/components/charts/ProductivityHeatmap').then(mod => mod.ProductivityHeatmap),
+  {
+    loading: () => <Skeleton className="h-64" />,
+    ssr: false,
+  }
+);
+
+const CategoryTrendsChart = dynamic(
+  () => import('@/components/charts/CategoryTrendsChart').then(mod => mod.CategoryTrendsChart),
+  {
+    loading: () => <Skeleton className="h-64" />,
+    ssr: false,
+  }
+);
 
 export default function AnalyticsPage() {
   const [timePeriod, setTimePeriod] = useState<number>(30);
