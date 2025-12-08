@@ -57,8 +57,13 @@ export function useCreateTask() {
       });
 
       // Optimistically add the new task to all list caches
+      // Use crypto.randomUUID or fallback to ensure uniqueness even on rapid creates
+      const tempId = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? `temp-${crypto.randomUUID()}`
+        : `temp-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+
       const optimisticTask: Task = {
-        id: `temp-${Date.now()}`, // Temporary ID
+        id: tempId,
         title: newTask.title,
         description: newTask.description,
         category: newTask.category,
