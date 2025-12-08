@@ -82,6 +82,39 @@ TaskFlow is an intelligent task prioritization system built with:
 2. Run `git checkout main && git pull origin main` before creating the feature branch
 3. Use descriptive branch names: `feature/feature-name`, `fix/issue-description`, `chore/task-name`
 
+### Git Worktrees (Preferred for Parallel Work)
+
+**IMPORTANT:** Prefer using git worktrees when:
+- Working on multiple bugs/fixes simultaneously
+- A feature can be split into independent chunks
+- You need to context-switch between branches without stashing
+- Running parallel CI checks on different branches
+
+**When to use worktrees:**
+- Multiple independent bug fixes (e.g., 4 UI bugs → 4 worktrees)
+- Feature phases that don't depend on each other
+- Comparing implementations across branches
+- Testing changes while keeping main branch clean
+
+**Worktree commands:**
+```bash
+# Create worktree for a new branch
+git worktree add ../ProjectName-feature-name -b feature/feature-name
+
+# Create worktree for existing branch
+git worktree add ../ProjectName-bugfix fix/bug-name
+
+# List all worktrees
+git worktree list
+
+# Remove worktree after merging
+git worktree remove ../ProjectName-feature-name
+```
+
+**Naming convention:** `ProjectName-descriptive-suffix` (e.g., `TaskFlow-bug1-calendar`, `TaskFlow-phase2-auth`)
+
+**After merging PRs:** Always clean up worktrees to avoid stale directories.
+
 ### Making Changes
 
 1. **Plan:** Create todos using TodoWrite tool for multi-step tasks
@@ -199,6 +232,20 @@ After opening a PR, execute the PR review workflow:
 #### Manual Review Request
 
 Use `/pr-review [PR_NUMBER]` to trigger manual review on any PR.
+
+### PR Merge Policy
+
+**IMPORTANT:** Never merge PRs unless the user explicitly:
+- Says "merge", "merge it", "merge the PR", or similar explicit merge request
+- Uses a slash command that involves merging (with clear merge intent)
+- Gives clear approval after reviewing PR status
+
+This applies even when:
+- CI passes ✅
+- PR review finds no issues ✅
+- Everything looks ready to merge ✅
+
+After PR review and CI pass, always report status and wait for explicit merge approval.
 
 ---
 

@@ -1,6 +1,6 @@
 # PR Review Workflow
 
-You are performing a comprehensive PR review. This workflow should be run after any PR is opened (excluding spec/plan PRs).
+You are performing a comprehensive PR review. This workflow should be run after any PR is opened.
 
 ## Instructions
 
@@ -13,7 +13,6 @@ Execute the following steps in order:
    - Otherwise, check for open PRs on the current branch using `gh pr list --head $(git branch --show-current)`
 
 2. Check eligibility - skip review if:
-   - PR title contains "spec", "plan", or "specification" (case-insensitive)
    - PR is a draft
    - PR is already merged or closed
 
@@ -29,32 +28,25 @@ Run these commands in parallel to gather PR context:
 
 ### Step 3: Launch Review Agents
 
-Launch 5 parallel review agents using the Task tool with **model: "sonnet"** (minimum). Each agent focuses on a specific review aspect:
+Launch **3 focused review agents** using the Task tool with **model: "sonnet"** (minimum):
 
-1. **CLAUDE.md Compliance Agent**
+1. **Code Quality & Conventions Agent**
    - Check if changes follow project conventions documented in CLAUDE.md
    - Look for naming conventions, architecture patterns, file organization
    - Verify design system patterns are followed (if applicable)
+   - Check if complex logic is documented appropriately
 
-2. **Bug & Logic Scan Agent**
+2. **Bug & Security Scan Agent**
    - Look for potential bugs, logic errors, edge cases
    - Check for security vulnerabilities (OWASP top 10)
    - Verify error handling is appropriate
+   - Look for race conditions, null pointer issues, etc.
 
-3. **Git History Context Agent**
+3. **Git Context & Consistency Agent**
    - Review recent commits on this branch
-   - Understand the evolution of changes
-   - Check for any reverted or contradictory changes
-
-4. **Similar PRs Analysis Agent**
    - Look at recently merged PRs for patterns
    - Check if this PR follows established conventions
    - Identify any inconsistencies with past work
-
-5. **Code Comments & Documentation Agent**
-   - Check if complex logic is documented
-   - Verify public APIs have appropriate documentation
-   - Look for outdated or misleading comments
 
 ### Step 4: Score and Filter Issues
 
@@ -78,7 +70,7 @@ For each issue found by the agents:
 Post a review comment to the PR using `gh pr review <PR_NUMBER> --comment --body "..."` with this format:
 
 ```markdown
-# Code Review: PR #<NUMBER> - <TITLE>
+## Code Review: PR #<NUMBER> - <TITLE>
 
 **Reviewer:** Claude Code Review
 **Date:** <DATE>
@@ -86,33 +78,33 @@ Post a review comment to the PR using `gh pr review <PR_NUMBER> --comment --body
 
 ---
 
-## Files Reviewed
+### Files Reviewed
 
 <List of files with brief descriptions>
 
 ---
 
-## Critical Issues (90-100) - Must Fix
+### Critical Issues (90-100) - Must Fix
 
 <List issues or "None identified.">
 
 ---
 
-## Major Issues (80-89) - Should Fix
+### Major Issues (80-89) - Should Fix
 
 <List issues or "None identified.">
 
 ---
 
-## Strengths - What's Done Well
+### Strengths - What's Done Well
 
 <2-4 positive observations about the code>
 
 ---
 
-## Summary
+### Summary
 
-<Brief overall assessment and recommendation>
+<Brief overall assessment>
 
 ---
 
@@ -122,7 +114,7 @@ Post a review comment to the PR using `gh pr review <PR_NUMBER> --comment --body
 If no issues scored 80+, use this simplified format:
 
 ```markdown
-# Code Review: PR #<NUMBER> - <TITLE>
+## Code Review: PR #<NUMBER> - <TITLE>
 
 **Reviewer:** Claude Code Review
 **Date:** <DATE>
@@ -135,7 +127,7 @@ All identified concerns scored below the 80-point threshold for inclusion.
 
 ---
 
-## Strengths
+### Strengths
 
 <2-4 positive observations>
 
@@ -148,7 +140,7 @@ All identified concerns scored below the 80-point threshold for inclusion.
 
 **IMPORTANT:** If any issues scored 80+ were identified:
 
-1. **Fix the issues immediately** before continuing
+1. **Fix the issues** before continuing
 2. For each critical/major issue:
    - Read the affected file(s)
    - Make the necessary corrections
@@ -158,26 +150,44 @@ All identified concerns scored below the 80-point threshold for inclusion.
    - Commit with message: `fix: Address PR review feedback`
    - Push to the branch: `git push`
 
-### Step 7: Wait for CI
+**Track review cycle count:** This is cycle 1 of max 3.
+
+### Step 7: Re-review Cycles (If Fixes Were Made)
+
+**Maximum 2 additional review cycles allowed** (3 total including initial).
+
+If fixes were made in the previous step:
+
+1. Increment cycle count
+2. If cycle count > 3:
+   - **STOP** - Report that max review cycles reached
+   - List any remaining unresolved issues
+   - Exit the review workflow
+3. Otherwise:
+   - Run a lighter review focusing only on the fixed areas
+   - Verify the fixes properly address the original issues
+   - If new issues found (score 80+), fix them and repeat
+   - Post a follow-up comment confirming fixes
+
+### Step 8: Final CI Check
+
+After all review->fix cycles are complete:
 
 1. Check CI status: `gh pr checks <PR_NUMBER>`
-2. If CI is still running, wait and check again
-3. If CI fails, investigate and fix the issues
-4. Repeat until CI passes
-
-### Step 8: Re-review (If Fixes Were Made)
-
-If fixes were made in Step 6:
-1. Run a lighter review focusing only on the fixed areas
-2. Verify the fixes properly address the original issues
-3. Post a follow-up comment confirming fixes
+2. If CI is still running, wait and check again (poll every 30 seconds, max 5 minutes)
+3. If CI fails:
+   - Investigate the failure
+   - Fix the issues
+   - Commit and push: `git add -A && git commit -m "fix: Address CI failures" && git push`
+   - Re-check CI until it passes
+4. Report final CI status
 
 ### Step 9: Check for Pending Migrations
 
 If migration files were detected in Step 2:
 
 ```markdown
-## ⚠️ Database Migration Required
+## Database Migration Required
 
 This PR includes database schema changes:
 
@@ -188,20 +198,44 @@ This PR includes database schema changes:
 **Before testing this feature locally, run `/migrate` to apply the schema changes.**
 ```
 
-### Step 10: Report Completion
+### Step 10: Report Completion and STOP
 
-Inform the user:
-- PR review posted successfully
+**IMPORTANT: DO NOT MERGE. Wait for user approval.**
+
+Report to the user:
+- PR review completed successfully
+- Number of review cycles used (X of 3)
 - Any issues found and fixed
-- CI status
+- Final CI status (pass/fail)
 - Whether the PR is ready for merge
 - **If migrations exist**: Remind to run `/migrate` before testing
+
+End with this exact format:
+
+```markdown
+---
+
+## PR Ready for Review
+
+**Status:** [READY FOR MERGE / NEEDS ATTENTION]
+**Review Cycles:** X/3
+**CI:** [PASSED / FAILED]
+
+**Awaiting your approval to merge.**
+
+---
+
+**PR:** https://github.com/notkevinvu/TaskFlow/pull/<NUMBER>
+```
+
+**STOP HERE. Do not merge unless the user explicitly requests it.**
 
 ---
 
 ## Notes
 
-- This workflow uses Sonnet agents for thorough code review
-- Issues are scored to filter false positives
-- Critical/major issues are fixed immediately, not just reported
-- The review is posted as a GitHub comment for tracking purposes
+- This workflow uses 3 focused Sonnet agents for thorough code review
+- Issues are scored to filter false positives (80+ threshold)
+- Maximum 3 review->fix cycles to prevent infinite loops
+- CI is verified after all review cycles complete
+- **Workflow stops before merge** - user must explicitly approve
