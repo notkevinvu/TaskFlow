@@ -114,6 +114,10 @@ type GamificationService interface {
 	// Called when a task is completed - updates stats and checks achievements
 	ProcessTaskCompletion(ctx context.Context, userID string, task *domain.Task) (*domain.TaskCompletionGamificationResult, error)
 
+	// Async version that processes gamification in background goroutine
+	// Allows API to return immediately while gamification processing continues
+	ProcessTaskCompletionAsync(userID string, task *domain.Task)
+
 	// Stats computation (can be called to refresh cache)
 	ComputeStats(ctx context.Context, userID string) (*domain.GamificationStats, error)
 
