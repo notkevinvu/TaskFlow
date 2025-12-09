@@ -6,12 +6,13 @@ import "time"
 type TaskHistoryEventType string
 
 const (
-	EventTaskCreated   TaskHistoryEventType = "created"
-	EventTaskUpdated   TaskHistoryEventType = "updated"
-	EventTaskBumped    TaskHistoryEventType = "bumped"
-	EventTaskCompleted TaskHistoryEventType = "completed"
-	EventTaskDeleted   TaskHistoryEventType = "deleted"
-	EventStatusChanged TaskHistoryEventType = "status_changed"
+	EventTaskCreated     TaskHistoryEventType = "created"
+	EventTaskUpdated     TaskHistoryEventType = "updated"
+	EventTaskBumped      TaskHistoryEventType = "bumped"
+	EventTaskCompleted   TaskHistoryEventType = "completed"
+	EventTaskUncompleted TaskHistoryEventType = "uncompleted"
+	EventTaskDeleted     TaskHistoryEventType = "deleted"
+	EventStatusChanged   TaskHistoryEventType = "status_changed"
 )
 
 // TaskHistory represents an audit log entry for task changes

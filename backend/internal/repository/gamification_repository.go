@@ -513,3 +513,25 @@ func (r *GamificationRepository) SetUserTimezone(ctx context.Context, userID, ti
 	_, err = r.pool.Exec(ctx, query, userID, timezone)
 	return err
 }
+
+// DecrementCategoryMastery decreases the completion count for a category
+func (r *GamificationRepository) DecrementCategoryMastery(ctx context.Context, userID, category string) error {
+	query := `
+		UPDATE category_mastery
+		SET completed_count = GREATEST(completed_count - 1, 0),
+			updated_at = NOW()
+		WHERE user_id = $1 AND category = $2
+	`
+	_, err := r.pool.Exec(ctx, query, userID, category)
+	return err
+}
+
+// RevokeAchievement removes an earned achievement from a user
+func (r *GamificationRepository) RevokeAchievement(ctx context.Context, userID string, achievementType domain.AchievementType) error {
+	query := `
+		DELETE FROM user_achievements
+		WHERE user_id = $1 AND achievement_type = $2
+	`
+	_, err := r.pool.Exec(ctx, query, userID, achievementType)
+	return err
+}

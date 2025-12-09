@@ -313,6 +313,46 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 	c.JSON(http.StatusOK, task)
 }
 
+// Uncomplete handles reverting a completed task back to todo
+// POST /api/v1/tasks/:id/uncomplete
+func (h *TaskHandler) Uncomplete(c *gin.Context) {
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
+		return
+	}
+
+	taskID := c.Param("id")
+
+	task, err := h.taskService.Uncomplete(c.Request.Context(), userID, taskID)
+	if err != nil {
+		middleware.AbortWithError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, task)
+}
+
+// Restore handles undeleting a soft-deleted task
+// POST /api/v1/tasks/:id/restore
+func (h *TaskHandler) Restore(c *gin.Context) {
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		middleware.AbortWithError(c, domain.NewUnauthorizedError("user not authenticated"))
+		return
+	}
+
+	taskID := c.Param("id")
+
+	task, err := h.taskService.Restore(c.Request.Context(), userID, taskID)
+	if err != nil {
+		middleware.AbortWithError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, task)
+}
+
 // GetCalendar handles calendar view requests
 // GET /api/v1/tasks/calendar?start_date=2025-11-01&end_date=2025-11-30&status=todo,in_progress
 func (h *TaskHandler) GetCalendar(c *gin.Context) {
