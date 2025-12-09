@@ -402,9 +402,17 @@ export const taskAPI = {
   complete: (id: string) =>
     api.post<TaskCompletionResponse>(`/api/v1/tasks/${id}/complete`),
 
-  // Delete task
+  // Uncomplete task (revert completion back to todo)
+  uncomplete: (id: string) =>
+    api.post<Task>(`/api/v1/tasks/${id}/uncomplete`),
+
+  // Delete task (soft delete)
   delete: (id: string) =>
     api.delete(`/api/v1/tasks/${id}`),
+
+  // Restore a deleted task
+  restore: (id: string) =>
+    api.post<Task>(`/api/v1/tasks/${id}/restore`),
 
   // Get at-risk tasks (bumped 3+ times)
   getAtRisk: () =>

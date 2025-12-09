@@ -274,7 +274,7 @@ export function useCompleteTask() {
         return { previousTaskQueries: [] };
       }
     },
-    onSuccess: (response) => {
+    onSuccess: (response, taskId) => {
       // Targeted invalidation: lists, completed, at-risk, gamification, analytics
       queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
       queryClient.invalidateQueries({ queryKey: taskKeys.completed() });
@@ -286,7 +286,23 @@ export function useCompleteTask() {
 
       // Show achievement toasts for new achievements
       if (gamification?.new_achievements && gamification.new_achievements.length > 0) {
-        toast.success('Task completed!');
+        toast.success('Task completed!', {
+          duration: 5000,
+          action: {
+            label: 'Undo',
+            onClick: () => {
+              taskAPI.uncomplete(taskId).then(() => {
+                queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+                queryClient.invalidateQueries({ queryKey: taskKeys.completed() });
+                queryClient.invalidateQueries({ queryKey: gamificationKeys.all });
+                queryClient.invalidateQueries({ queryKey: analyticsKeys.all });
+                toast.success('Task restored to todo');
+              }).catch(() => {
+                toast.error('Failed to undo completion');
+              });
+            },
+          },
+        });
 
         gamification.new_achievements.forEach((achievement: AchievementEarnedEvent, index: number) => {
           setTimeout(() => {
@@ -314,7 +330,23 @@ export function useCompleteTask() {
           }, 500 * (gamification.new_achievements.length + 1));
         }
       } else {
-        toast.success('Task completed!');
+        toast.success('Task completed!', {
+          duration: 5000,
+          action: {
+            label: 'Undo',
+            onClick: () => {
+              taskAPI.uncomplete(taskId).then(() => {
+                queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+                queryClient.invalidateQueries({ queryKey: taskKeys.completed() });
+                queryClient.invalidateQueries({ queryKey: gamificationKeys.all });
+                queryClient.invalidateQueries({ queryKey: analyticsKeys.all });
+                toast.success('Task restored to todo');
+              }).catch(() => {
+                toast.error('Failed to undo completion');
+              });
+            },
+          },
+        });
 
         if (gamification?.streak_extended && gamification.updated_stats.current_streak > 1) {
           setTimeout(() => {
@@ -339,6 +371,58 @@ export function useCompleteTask() {
       }
       queryClient.invalidateQueries({ queryKey: gamificationKeys.all });
       toast.error(getApiErrorMessage(err, 'Failed to complete task', 'Task Complete'));
+    },
+  });
+}
+
+export function useUncompleteTask() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => taskAPI.uncomplete(id),
+    // Optimistic update: immediately mark task as todo in cache
+    onMutate: async (taskId: string) => {
+      await queryClient.cancelQueries({ queryKey: taskKeys.lists() });
+      await queryClient.cancelQueries({ queryKey: taskKeys.completed() });
+
+      const previousLists = queryClient.getQueriesData<TaskListResponse>({
+        queryKey: taskKeys.lists(),
+      });
+
+      // Optimistically update task status to todo
+      queryClient.setQueriesData<TaskListResponse>(
+        { queryKey: taskKeys.lists() },
+        (old) => {
+          if (!old?.tasks) return old;
+          return {
+            ...old,
+            tasks: old.tasks.map((task) =>
+              task.id === taskId
+                ? { ...task, status: 'todo' as const, completed_at: undefined }
+                : task
+            ),
+          };
+        }
+      );
+
+      return { previousLists };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: taskKeys.completed() });
+      queryClient.invalidateQueries({ queryKey: gamificationKeys.all });
+      queryClient.invalidateQueries({ queryKey: analyticsKeys.all });
+      toast.success('Task restored to todo');
+    },
+    onError: (err: unknown, _taskId, context) => {
+      if (context?.previousLists) {
+        context.previousLists.forEach(([queryKey, data]) => {
+          if (data) {
+            queryClient.setQueryData(queryKey, data);
+          }
+        });
+      }
+      toast.error(getApiErrorMessage(err, 'Failed to uncomplete task', 'Task Uncomplete'));
     },
   });
 }
@@ -371,11 +455,27 @@ export function useDeleteTask() {
 
       return { previousLists };
     },
-    onSuccess: () => {
+    onSuccess: (_response, taskId) => {
       // Targeted invalidation
       queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
       queryClient.invalidateQueries({ queryKey: analyticsKeys.all });
-      toast.success('Task deleted');
+      // Show toast with undo action
+      toast.success('Task deleted', {
+        duration: 5000,
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            // Restore the task using the API
+            taskAPI.restore(taskId).then(() => {
+              queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+              queryClient.invalidateQueries({ queryKey: analyticsKeys.all });
+              toast.success('Task restored');
+            }).catch(() => {
+              toast.error('Failed to restore task');
+            });
+          },
+        },
+      });
     },
     onError: (err: unknown, _taskId, context) => {
       // Rollback on error
@@ -387,6 +487,24 @@ export function useDeleteTask() {
         });
       }
       toast.error(getApiErrorMessage(err, 'Failed to delete task', 'Task Delete'));
+    },
+  });
+}
+
+export function useRestoreTask() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => taskAPI.restore(id),
+    onSuccess: () => {
+      // Invalidate all task-related queries
+      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: taskKeys.completed() });
+      queryClient.invalidateQueries({ queryKey: analyticsKeys.all });
+      toast.success('Task restored');
+    },
+    onError: (err: unknown) => {
+      toast.error(getApiErrorMessage(err, 'Failed to restore task', 'Task Restore'));
     },
   });
 }
