@@ -296,7 +296,7 @@ export function CreateTaskDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={createTask.isPending || !formData.title}>
+            <Button type="submit" loading={createTask.isPending} disabled={!formData.title}>
               {createTask.isPending ? 'Creating...' : 'Create Task'}
             </Button>
           </DialogFooter>
