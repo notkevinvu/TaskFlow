@@ -23,9 +23,11 @@ type TaskService interface {
 	List(ctx context.Context, userID string, filter *domain.TaskListFilter) ([]*domain.Task, error)
 	Update(ctx context.Context, userID, taskID string, dto *domain.UpdateTaskDTO) (*domain.Task, error)
 	Delete(ctx context.Context, userID, taskID string) error
+	Restore(ctx context.Context, userID, taskID string) (*domain.Task, error)
 	Bump(ctx context.Context, userID, taskID string) (*domain.Task, error)
 	Complete(ctx context.Context, userID, taskID string) (*domain.Task, error)
 	CompleteWithOptions(ctx context.Context, userID, taskID string, req *domain.TaskCompletionRequest) (*domain.TaskCompletionResponse, error)
+	Uncomplete(ctx context.Context, userID, taskID string) (*domain.Task, error)
 	GetAtRiskTasks(ctx context.Context, userID string) ([]*domain.Task, error)
 	GetCalendar(ctx context.Context, userID string, filter *domain.CalendarFilter) (*domain.CalendarResponse, error)
 	RenameCategory(ctx context.Context, userID, oldName, newName string) (int, error)
@@ -117,6 +119,12 @@ type GamificationService interface {
 	// Async version that processes gamification in background goroutine
 	// Allows API to return immediately while gamification processing continues
 	ProcessTaskCompletionAsync(userID string, task *domain.Task)
+
+	// Called when a task completion is reversed - decrements stats and revokes invalid achievements
+	ProcessTaskUncompletion(ctx context.Context, userID string, task *domain.Task) error
+
+	// Async version that processes uncompletion in background goroutine
+	ProcessTaskUncompletionAsync(userID string, task *domain.Task)
 
 	// Stats computation (can be called to refresh cache)
 	ComputeStats(ctx context.Context, userID string) (*domain.GamificationStats, error)

@@ -218,6 +218,7 @@ func (r *TaskRepository) FindByID(ctx context.Context, id string) (*domain.Task,
 
 // List retrieves tasks with filters (kept as manual SQL due to dynamic query building)
 // Note: Excludes subtasks from main list - they should only appear under their parent
+// Note: Excludes soft-deleted tasks
 func (r *TaskRepository) List(ctx context.Context, userID string, filter *domain.TaskListFilter) ([]*domain.Task, error) {
 	query := `
 		SELECT id, user_id, title, description, status, user_priority,
@@ -225,7 +226,7 @@ func (r *TaskRepository) List(ctx context.Context, userID string, filter *domain
 			   priority_score, bump_count, created_at, updated_at, completed_at,
 			   series_id, parent_task_id
 		FROM tasks
-		WHERE user_id = $1 AND (task_type IS NULL OR task_type != 'subtask')
+		WHERE user_id = $1 AND (task_type IS NULL OR task_type != 'subtask') AND deleted_at IS NULL
 	`
 	args := []interface{}{userID}
 	argNum := 2
@@ -397,7 +398,7 @@ func (r *TaskRepository) Update(ctx context.Context, task *domain.Task) error {
 	return nil
 }
 
-// Delete deletes a task from the database
+// Delete soft-deletes a task by setting deleted_at timestamp
 func (r *TaskRepository) Delete(ctx context.Context, id, userID string) error {
 	idUUID, err := stringToPgtypeUUID(id)
 	if err != nil {
@@ -408,8 +409,10 @@ func (r *TaskRepository) Delete(ctx context.Context, id, userID string) error {
 		return err
 	}
 
-	// Use manual query to check rows affected
-	result, err := r.db.Exec(ctx, "DELETE FROM tasks WHERE id = $1 AND user_id = $2", idUUID, userUUID)
+	// Soft delete by setting deleted_at timestamp
+	result, err := r.db.Exec(ctx,
+		"UPDATE tasks SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL",
+		idUUID, userUUID)
 	if err != nil {
 		return err
 	}
@@ -419,6 +422,85 @@ func (r *TaskRepository) Delete(ctx context.Context, id, userID string) error {
 	}
 
 	return nil
+}
+
+// Restore undeletes a soft-deleted task by clearing deleted_at timestamp
+func (r *TaskRepository) Restore(ctx context.Context, id, userID string) error {
+	idUUID, err := stringToPgtypeUUID(id)
+	if err != nil {
+		return err
+	}
+	userUUID, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return err
+	}
+
+	// Restore by clearing deleted_at timestamp
+	result, err := r.db.Exec(ctx,
+		"UPDATE tasks SET deleted_at = NULL, updated_at = NOW() WHERE id = $1 AND user_id = $2 AND deleted_at IS NOT NULL",
+		idUUID, userUUID)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return domain.ErrTaskNotFound
+	}
+
+	return nil
+}
+
+// FindByIDIncludingDeleted retrieves a task by ID including soft-deleted tasks
+func (r *TaskRepository) FindByIDIncludingDeleted(ctx context.Context, id string) (*domain.Task, error) {
+	pguuid, err := stringToPgtypeUUID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		SELECT id, user_id, title, description, status, user_priority,
+			   due_date, estimated_effort, category, context, related_people,
+			   priority_score, bump_count, created_at, updated_at, completed_at,
+			   series_id, parent_task_id, deleted_at
+		FROM tasks
+		WHERE id = $1
+	`
+
+	var task domain.Task
+	var seriesID, parentTaskID pgtype.UUID
+	err = r.db.QueryRow(ctx, query, pguuid).Scan(
+		&task.ID,
+		&task.UserID,
+		&task.Title,
+		&task.Description,
+		&task.Status,
+		&task.UserPriority,
+		&task.DueDate,
+		&task.EstimatedEffort,
+		&task.Category,
+		&task.Context,
+		&task.RelatedPeople,
+		&task.PriorityScore,
+		&task.BumpCount,
+		&task.CreatedAt,
+		&task.UpdatedAt,
+		&task.CompletedAt,
+		&seriesID,
+		&parentTaskID,
+		&task.DeletedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrTaskNotFound
+		}
+		return nil, err
+	}
+
+	task.TaskType = deriveTaskType(seriesID, parentTaskID)
+	task.SeriesID = pgtypeUUIDToStringPtr(seriesID)
+	task.ParentTaskID = pgtypeUUIDToStringPtr(parentTaskID)
+
+	return &task, nil
 }
 
 // IncrementBumpCount increments the bump counter for a task

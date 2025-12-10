@@ -657,3 +657,148 @@ func (s *GamificationService) SetUserTimezone(ctx context.Context, userID, timez
 func (s *GamificationService) GetUserTimezone(ctx context.Context, userID string) (string, error) {
 	return s.gamificationRepo.GetUserTimezone(ctx, userID)
 }
+
+// ProcessTaskUncompletion reverses gamification effects when a task is uncompleted
+func (s *GamificationService) ProcessTaskUncompletion(
+	ctx context.Context,
+	userID string,
+	task *domain.Task,
+) error {
+	// 1. Decrement category mastery if task had category
+	if task.Category != nil && *task.Category != "" {
+		if err := s.gamificationRepo.DecrementCategoryMastery(ctx, userID, *task.Category); err != nil {
+			slog.Warn("Failed to decrement category mastery",
+				"user_id", userID,
+				"category", *task.Category,
+				"error", err,
+			)
+		}
+	}
+
+	// 2. Recompute stats from source of truth (completed tasks)
+	stats, err := s.ComputeStats(ctx, userID)
+	if err != nil {
+		slog.Error("Failed to recompute stats during uncompletion",
+			"user_id", userID,
+			"error", err,
+		)
+		return err
+	}
+
+	// 3. Check and revoke achievements user no longer qualifies for
+	if err := s.revokeInvalidAchievements(ctx, userID, stats); err != nil {
+		slog.Warn("Failed to revoke invalid achievements",
+			"user_id", userID,
+			"error", err,
+		)
+	}
+
+	// 4. Persist updated stats
+	if err := s.gamificationRepo.UpsertStats(ctx, stats); err != nil {
+		slog.Error("Failed to persist updated gamification stats",
+			"user_id", userID,
+			"error", err,
+		)
+		return err
+	}
+
+	return nil
+}
+
+// ProcessTaskUncompletionAsync runs uncompletion processing in background goroutine
+func (s *GamificationService) ProcessTaskUncompletionAsync(userID string, task *domain.Task) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := s.ProcessTaskUncompletion(ctx, userID, task); err != nil {
+			slog.Error("Async gamification uncompletion failed",
+				"user_id", userID,
+				"task_id", task.ID,
+				"error", err,
+			)
+		}
+	}()
+}
+
+// revokeInvalidAchievements checks all earned achievements and revokes those the user no longer qualifies for
+func (s *GamificationService) revokeInvalidAchievements(
+	ctx context.Context,
+	userID string,
+	stats *domain.GamificationStats,
+) error {
+	achievements, err := s.gamificationRepo.GetAchievements(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("failed to get achievements: %w", err)
+	}
+
+	// Get category mastery data for checking category master achievements
+	categoryMastery, err := s.gamificationRepo.GetAllCategoryMastery(ctx, userID)
+	if err != nil {
+		slog.Warn("Failed to get category mastery for achievement check",
+			"user_id", userID, "error", err)
+		categoryMastery = []*domain.CategoryMastery{}
+	}
+
+	for _, achievement := range achievements {
+		stillQualifies := s.checkAchievementQualification(achievement.AchievementType, stats, categoryMastery, achievement)
+
+		if !stillQualifies {
+			slog.Info("Revoking achievement - user no longer qualifies",
+				"user_id", userID,
+				"achievement_type", achievement.AchievementType,
+			)
+			if err := s.gamificationRepo.RevokeAchievement(ctx, userID, achievement.AchievementType); err != nil {
+				slog.Warn("Failed to revoke achievement",
+					"achievement_type", achievement.AchievementType,
+					"error", err,
+				)
+			}
+		}
+	}
+
+	return nil
+}
+
+// checkAchievementQualification checks if user still qualifies for a specific achievement
+func (s *GamificationService) checkAchievementQualification(
+	achievementType domain.AchievementType,
+	stats *domain.GamificationStats,
+	categoryMastery []*domain.CategoryMastery,
+	achievement *domain.UserAchievement,
+) bool {
+	// Check milestone achievements
+	if threshold, ok := domain.MilestoneThresholds[achievementType]; ok {
+		return stats.TotalCompleted >= threshold
+	}
+
+	// Check streak achievements
+	if threshold, ok := domain.StreakThresholds[achievementType]; ok {
+		// For streaks, we check against LongestStreak since that's historical
+		// If they achieved a streak once, it stays (even if current streak is broken)
+		return stats.LongestStreak >= threshold
+	}
+
+	// Check category master achievement
+	if achievementType == domain.AchievementCategoryMaster {
+		// Extract category from achievement metadata
+		if achievement.Metadata != nil {
+			if category, ok := achievement.Metadata["category"].(string); ok {
+				// Find mastery for this category
+				for _, mastery := range categoryMastery {
+					if mastery.Category == category {
+						// Category master threshold is 10 tasks
+						return mastery.CompletedCount >= 10
+					}
+				}
+				// Category not found in mastery list - no longer qualifies
+				return false
+			}
+		}
+		// No metadata - can't verify, be conservative and keep
+		return true
+	}
+
+	// For unknown achievements, keep them (conservative)
+	return true
+}

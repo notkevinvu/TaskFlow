@@ -14,7 +14,7 @@ SELECT id, user_id, title, description, status, user_priority,
        priority_score, bump_count, created_at, updated_at, completed_at,
        series_id, parent_task_id
 FROM tasks
-WHERE id = $1;
+WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: UpdateTask :exec
 UPDATE tasks

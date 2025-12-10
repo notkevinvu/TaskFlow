@@ -59,6 +59,7 @@ type Task struct {
 	CreatedAt       time.Time   `json:"created_at"`
 	UpdatedAt       time.Time   `json:"updated_at"`
 	CompletedAt     *time.Time  `json:"completed_at,omitempty"`
+	DeletedAt       *time.Time  `json:"deleted_at,omitempty"` // Soft delete timestamp
 	// Relationship fields (interpretation depends on TaskType)
 	SeriesID     *string `json:"series_id,omitempty"`      // Links to task_series if recurring
 	ParentTaskID *string `json:"parent_task_id,omitempty"` // For subtasks: parent task; for recurring: previous in series

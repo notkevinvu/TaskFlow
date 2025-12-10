@@ -124,6 +124,22 @@ func (m *MockTaskService) BulkRestore(ctx context.Context, userID string, taskID
 	return args.Get(0).(*domain.BulkOperationResponse), args.Error(1)
 }
 
+func (m *MockTaskService) Restore(ctx context.Context, userID, taskID string) (*domain.Task, error) {
+	args := m.Called(ctx, userID, taskID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Task), args.Error(1)
+}
+
+func (m *MockTaskService) Uncomplete(ctx context.Context, userID, taskID string) (*domain.Task, error) {
+	args := m.Called(ctx, userID, taskID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Task), args.Error(1)
+}
+
 // setupTaskTest creates a test router and mock service
 func setupTaskTest() (*gin.Engine, *MockTaskService) {
 	router := testutil.SetupTestRouter()

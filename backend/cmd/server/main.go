@@ -189,6 +189,8 @@ func main() {
 			tasks.DELETE("/:id", taskHandler.Delete)
 			tasks.POST("/:id/bump", taskHandler.Bump)
 			tasks.POST("/:id/complete", taskHandler.Complete)
+			tasks.POST("/:id/uncomplete", taskHandler.Uncomplete)
+			tasks.POST("/:id/restore", taskHandler.Restore)
 			tasks.GET("/:id/estimate", insightsHandler.GetTimeEstimate)
 		}
 

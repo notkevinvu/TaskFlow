@@ -410,6 +410,93 @@ func (s *TaskService) CompleteWithOptions(ctx context.Context, userID, taskID st
 	return response, nil
 }
 
+// Restore undeletes a soft-deleted task
+func (s *TaskService) Restore(ctx context.Context, userID, taskID string) (*domain.Task, error) {
+	// Use FindByIDIncludingDeleted to find soft-deleted tasks
+	task, err := s.taskRepo.FindByIDIncludingDeleted(ctx, taskID)
+	if err != nil {
+		return nil, domain.NewInternalError("failed to find task", err)
+	}
+	if task == nil {
+		return nil, domain.NewNotFoundError("task", taskID)
+	}
+	if task.UserID != userID {
+		return nil, domain.NewForbiddenError("task", "access")
+	}
+
+	// Only allow restore if task is deleted
+	if task.DeletedAt == nil {
+		return nil, domain.NewValidationError("status", "task is not deleted")
+	}
+
+	// Restore the task
+	if err := s.taskRepo.Restore(ctx, taskID, userID); err != nil {
+		return nil, domain.NewInternalError("failed to restore task", err)
+	}
+
+	// Fetch the restored task to return
+	restoredTask, err := s.taskRepo.FindByID(ctx, taskID)
+	if err != nil {
+		return nil, domain.NewInternalError("failed to fetch restored task", err)
+	}
+
+	// Log history with proper restored event type
+	if err := s.logHistory(ctx, userID, taskID, domain.EventTaskRestored, nil, restoredTask); err != nil {
+		slog.Warn("Failed to log task restoration history",
+			"user_id", userID, "task_id", taskID, "error", err)
+	}
+
+	return restoredTask, nil
+}
+
+// Uncomplete reverses a task completion, setting it back to "todo" status
+func (s *TaskService) Uncomplete(ctx context.Context, userID, taskID string) (*domain.Task, error) {
+	task, err := s.taskRepo.FindByID(ctx, taskID)
+	if err != nil {
+		return nil, domain.NewInternalError("failed to find task", err)
+	}
+	if task == nil {
+		return nil, domain.NewNotFoundError("task", taskID)
+	}
+	if task.UserID != userID {
+		return nil, domain.NewForbiddenError("task", "access")
+	}
+
+	// Only allow uncomplete if task is done
+	if task.Status != domain.TaskStatusDone {
+		return nil, domain.NewValidationError("status", "task is not completed")
+	}
+
+	// Store previous state for history
+	previousState := *task
+
+	// Reverse gamification asynchronously (before status change for accurate category)
+	if s.gamificationService != nil {
+		s.gamificationService.ProcessTaskUncompletionAsync(userID, task)
+	}
+
+	// Update task status
+	task.Status = domain.TaskStatusTodo
+	task.CompletedAt = nil
+	task.UpdatedAt = time.Now()
+
+	// Recalculate priority
+	task.PriorityScore = s.priorityCalc.Calculate(task)
+
+	// Save
+	if err := s.taskRepo.Update(ctx, task); err != nil {
+		return nil, domain.NewInternalError("failed to update task", err)
+	}
+
+	// Log history
+	if err := s.logHistory(ctx, userID, taskID, domain.EventTaskUncompleted, &previousState, task); err != nil {
+		slog.Warn("Failed to log task uncompletion history",
+			"user_id", userID, "task_id", taskID, "error", err)
+	}
+
+	return task, nil
+}
+
 // GetAtRiskTasks retrieves tasks that are at risk
 func (s *TaskService) GetAtRiskTasks(ctx context.Context, userID string) ([]*domain.Task, error) {
 	tasks, err := s.taskRepo.FindAtRiskTasks(ctx, userID)

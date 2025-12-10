@@ -27,9 +27,11 @@ type UserRepository interface {
 type TaskRepository interface {
 	Create(ctx context.Context, task *domain.Task) error
 	FindByID(ctx context.Context, id string) (*domain.Task, error)
+	FindByIDIncludingDeleted(ctx context.Context, id string) (*domain.Task, error)
 	List(ctx context.Context, userID string, filter *domain.TaskListFilter) ([]*domain.Task, error)
 	Update(ctx context.Context, task *domain.Task) error
 	Delete(ctx context.Context, id, userID string) error
+	Restore(ctx context.Context, id, userID string) error
 	IncrementBumpCount(ctx context.Context, id, userID string) error
 	FindAtRiskTasks(ctx context.Context, userID string) ([]*domain.Task, error)
 	GetCategories(ctx context.Context, userID string) ([]string, error)
@@ -139,11 +141,13 @@ type GamificationRepository interface {
 	GetAchievements(ctx context.Context, userID string) ([]*domain.UserAchievement, error)
 	GetRecentAchievements(ctx context.Context, userID string, limit int) ([]*domain.UserAchievement, error)
 	HasAchievement(ctx context.Context, userID string, achievementType domain.AchievementType, category *string) (bool, error)
+	RevokeAchievement(ctx context.Context, userID string, achievementType domain.AchievementType) error
 
 	// Category mastery operations
 	GetCategoryMastery(ctx context.Context, userID, category string) (*domain.CategoryMastery, error)
 	GetAllCategoryMastery(ctx context.Context, userID string) ([]*domain.CategoryMastery, error)
 	IncrementCategoryMastery(ctx context.Context, userID, category string) (*domain.CategoryMastery, error)
+	DecrementCategoryMastery(ctx context.Context, userID, category string) error
 
 	// Analytics queries for stats computation
 	GetTotalCompletedTasks(ctx context.Context, userID string) (int, error)
