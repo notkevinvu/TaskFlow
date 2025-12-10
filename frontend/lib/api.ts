@@ -396,7 +396,7 @@ export const taskAPI = {
     api.get<Task>(`/api/v1/tasks/${id}`),
 
   // Update task
-  update: (id: string, data: Partial<CreateTaskDTO>) =>
+  update: (id: string, data: Partial<UpdateTaskDTO>) =>
     api.put<Task>(`/api/v1/tasks/${id}`, data),
 
   // Bump task (delay it)
