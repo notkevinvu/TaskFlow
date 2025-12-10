@@ -38,6 +38,7 @@ type CreateUserParams struct {
 }
 
 // User queries for sqlc code generation
+// NOTE: After migration 000009 is applied, regenerate sqlc to include user_type and expires_at
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	_, err := q.db.Exec(ctx, createUser,
 		arg.ID,
