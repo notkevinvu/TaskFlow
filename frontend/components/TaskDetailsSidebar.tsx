@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTask, useBumpTask, useCompleteTask, useDeleteTask, useUncompleteTask } from '@/hooks/useTasks';
+import { useTask, useBumpTask, useCompleteTask, useDeleteTask, useUncompleteTask, useUpdateTask } from '@/hooks/useTasks';
 import { useCanCompleteParent } from '@/hooks/useSubtasks';
 import { useCanCompleteDependencies } from '@/hooks/useDependencies';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { X, Pencil, Trash2, Repeat, ListChecks, Lock, RotateCcw, Pause, Ban } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EditTaskDialog } from '@/components/EditTaskDialog';
 import { PriorityBreakdownPanel } from '@/components/PriorityBreakdownPanel';
 import { SubtaskList } from '@/components/SubtaskList';
@@ -28,6 +29,7 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
   const completeTask = useCompleteTask();
   const deleteTask = useDeleteTask();
   const uncompleteTask = useUncompleteTask();
+  const updateTask = useUpdateTask();
 
   // Check if this task can be completed (all subtasks done)
   const { data: canCompleteSubtasks } = useCanCompleteParent(taskId);
@@ -276,31 +278,52 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                       >
                         Done
                       </Badge>
-                    ) : task.status === 'on_hold' ? (
-                      <Badge
-                        variant="outline"
-                        className="text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-600"
-                      >
-                        <Pause className="h-3 w-3 mr-1" />
-                        On Hold
-                      </Badge>
-                    ) : task.status === 'blocked' ? (
-                      <Badge
-                        variant="outline"
-                        style={{ borderColor: tokens.status.error.default, color: tokens.status.error.default }}
-                      >
-                        <Ban className="h-3 w-3 mr-1" />
-                        Blocked
-                      </Badge>
-                    ) : task.status === 'in_progress' ? (
-                      <Badge variant="outline">In Progress</Badge>
                     ) : (
-                      <Badge
-                        variant="outline"
-                        style={{ borderColor: tokens.status.warning.default, color: tokens.status.warning.default }}
+                      <Select
+                        value={task.status}
+                        onValueChange={(value: 'todo' | 'in_progress' | 'on_hold' | 'blocked') => {
+                          updateTask.mutate({ id: taskId, data: { status: value } });
+                        }}
+                        disabled={updateTask.isPending}
                       >
-                        To Do
-                      </Badge>
+                        <SelectTrigger className="w-[140px] h-8">
+                          <SelectValue>
+                            {task.status === 'on_hold' ? (
+                              <span className="flex items-center gap-1 text-purple-600 dark:text-purple-400">
+                                <Pause className="h-3 w-3" />
+                                On Hold
+                              </span>
+                            ) : task.status === 'blocked' ? (
+                              <span className="flex items-center gap-1" style={{ color: tokens.status.error.default }}>
+                                <Ban className="h-3 w-3" />
+                                Blocked
+                              </span>
+                            ) : task.status === 'in_progress' ? (
+                              <span>In Progress</span>
+                            ) : (
+                              <span style={{ color: tokens.status.warning.default }}>To Do</span>
+                            )}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todo">
+                            <span style={{ color: tokens.status.warning.default }}>To Do</span>
+                          </SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="on_hold">
+                            <span className="flex items-center gap-1 text-purple-600 dark:text-purple-400">
+                              <Pause className="h-3 w-3" />
+                              On Hold
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="blocked">
+                            <span className="flex items-center gap-1" style={{ color: tokens.status.error.default }}>
+                              <Ban className="h-3 w-3" />
+                              Blocked
+                            </span>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     )}
                   </div>
                   <div className="flex justify-between items-center">
