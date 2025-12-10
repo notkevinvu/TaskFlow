@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTask, useBumpTask, useCompleteTask, useDeleteTask } from '@/hooks/useTasks';
+import { useTask, useBumpTask, useCompleteTask, useDeleteTask, useUncompleteTask } from '@/hooks/useTasks';
 import { useCanCompleteParent } from '@/hooks/useSubtasks';
 import { useCanCompleteDependencies } from '@/hooks/useDependencies';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { X, Pencil, Trash2, Repeat, ListChecks, Lock } from 'lucide-react';
+import { X, Pencil, Trash2, Repeat, ListChecks, Lock, RotateCcw, Pause, Ban } from 'lucide-react';
 import { EditTaskDialog } from '@/components/EditTaskDialog';
 import { PriorityBreakdownPanel } from '@/components/PriorityBreakdownPanel';
 import { SubtaskList } from '@/components/SubtaskList';
@@ -27,6 +27,7 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
   const bumpTask = useBumpTask();
   const completeTask = useCompleteTask();
   const deleteTask = useDeleteTask();
+  const uncompleteTask = useUncompleteTask();
 
   // Check if this task can be completed (all subtasks done)
   const { data: canCompleteSubtasks } = useCanCompleteParent(taskId);
@@ -154,27 +155,40 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                     >
                       Bump
                     </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        completeTask.mutate(taskId);
-                        onClose();
-                      }}
-                      loading={completeTask.isPending}
-                      disabled={hasAnyBlocker}
-                      title={
-                        hasDependencyBlocker
-                          ? 'Complete all blocking tasks first'
-                          : hasSubtaskBlocker
-                          ? 'Complete all subtasks first'
-                          : undefined
-                      }
-                      className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
-                    >
-                      {hasDependencyBlocker && <Lock className="mr-1 h-3 w-3" />}
-                      {hasSubtaskBlocker && !hasDependencyBlocker && <ListChecks className="mr-1 h-3 w-3" />}
-                      Complete
-                    </Button>
+                    {task.status === 'done' ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => uncompleteTask.mutate(taskId)}
+                        loading={uncompleteTask.isPending}
+                        className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
+                      >
+                        <RotateCcw className="mr-1 h-4 w-4" />
+                        Uncomplete
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          completeTask.mutate(taskId);
+                          onClose();
+                        }}
+                        loading={completeTask.isPending}
+                        disabled={hasAnyBlocker}
+                        title={
+                          hasDependencyBlocker
+                            ? 'Complete all blocking tasks first'
+                            : hasSubtaskBlocker
+                            ? 'Complete all subtasks first'
+                            : undefined
+                        }
+                        className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
+                      >
+                        {hasDependencyBlocker && <Lock className="mr-1 h-3 w-3" />}
+                        {hasSubtaskBlocker && !hasDependencyBlocker && <ListChecks className="mr-1 h-3 w-3" />}
+                        Complete
+                      </Button>
+                    )}
                     <Button
                       variant="destructive"
                       size="sm"
@@ -255,7 +269,39 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                   )}
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Status</span>
-                    <Badge variant="outline" className="capitalize">{task.status}</Badge>
+                    {task.status === 'done' ? (
+                      <Badge
+                        variant="outline"
+                        style={{ borderColor: tokens.status.success.default, color: tokens.status.success.default }}
+                      >
+                        Done
+                      </Badge>
+                    ) : task.status === 'on_hold' ? (
+                      <Badge
+                        variant="outline"
+                        className="text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-600"
+                      >
+                        <Pause className="h-3 w-3 mr-1" />
+                        On Hold
+                      </Badge>
+                    ) : task.status === 'blocked' ? (
+                      <Badge
+                        variant="outline"
+                        style={{ borderColor: tokens.status.error.default, color: tokens.status.error.default }}
+                      >
+                        <Ban className="h-3 w-3 mr-1" />
+                        Blocked
+                      </Badge>
+                    ) : task.status === 'in_progress' ? (
+                      <Badge variant="outline">In Progress</Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        style={{ borderColor: tokens.status.warning.default, color: tokens.status.warning.default }}
+                      >
+                        To Do
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">User Priority</span>

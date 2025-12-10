@@ -200,7 +200,7 @@ export interface UpdateTaskSeriesDTO {
 export interface SeriesHistoryEntry {
   task_id: string;
   title: string;
-  status: 'todo' | 'in_progress' | 'done';
+  status: 'todo' | 'in_progress' | 'done' | 'on_hold' | 'blocked';
   due_date?: string;
   completed_at?: string;
   created_at: string;
@@ -272,7 +272,7 @@ export interface Task {
   user_id: string;
   title: string;
   description?: string;
-  status: 'todo' | 'in_progress' | 'done';
+  status: 'todo' | 'in_progress' | 'done' | 'on_hold' | 'blocked';
   task_type: TaskType;
   user_priority: number;
   due_date?: string;
@@ -333,7 +333,7 @@ export interface SubtaskCompletionResponse {
 export interface DependencyWithTask {
   task_id: string;
   title: string;
-  status: 'todo' | 'in_progress' | 'done';
+  status: 'todo' | 'in_progress' | 'done' | 'on_hold' | 'blocked';
   created_at: string;
 }
 

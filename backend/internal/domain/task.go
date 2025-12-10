@@ -19,6 +19,8 @@ const (
 	TaskStatusTodo       TaskStatus = "todo"
 	TaskStatusInProgress TaskStatus = "in_progress"
 	TaskStatusDone       TaskStatus = "done"
+	TaskStatusOnHold     TaskStatus = "on_hold"  // Paused - user chose to defer
+	TaskStatusBlocked    TaskStatus = "blocked"  // Manually marked as blocked (separate from auto-blocking)
 )
 
 // TaskEffort represents the estimated effort for a task
@@ -130,7 +132,7 @@ type CalendarResponse struct {
 // Validate validates the task status
 func (s TaskStatus) Validate() error {
 	switch s {
-	case TaskStatusTodo, TaskStatusInProgress, TaskStatusDone:
+	case TaskStatusTodo, TaskStatusInProgress, TaskStatusDone, TaskStatusOnHold, TaskStatusBlocked:
 		return nil
 	default:
 		return ErrInvalidTaskStatus
