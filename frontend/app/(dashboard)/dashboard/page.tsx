@@ -498,7 +498,7 @@ export default function DashboardPage() {
                         e.stopPropagation();
                         completeTask.mutate(task.id);
                       }}
-                      disabled={completeTask.isPending}
+                      loading={completeTask.isPending}
                       className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
                     >
                       Complete

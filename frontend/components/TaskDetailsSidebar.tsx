@@ -149,7 +149,7 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                       variant="outline"
                       size="sm"
                       onClick={() => bumpTask.mutate({ id: taskId })}
-                      disabled={bumpTask.isPending}
+                      loading={bumpTask.isPending}
                       className="transition-all hover:scale-105 hover:shadow-md cursor-pointer"
                     >
                       Bump
@@ -160,7 +160,8 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                         completeTask.mutate(taskId);
                         onClose();
                       }}
-                      disabled={completeTask.isPending || hasAnyBlocker}
+                      loading={completeTask.isPending}
+                      disabled={hasAnyBlocker}
                       title={
                         hasDependencyBlocker
                           ? 'Complete all blocking tasks first'
@@ -183,7 +184,7 @@ export function TaskDetailsSidebar({ taskId, onClose }: TaskDetailsSidebarProps)
                           onClose();
                         }
                       }}
-                      disabled={deleteTask.isPending}
+                      loading={deleteTask.isPending}
                       className="transition-all hover:scale-105 hover:shadow-lg cursor-pointer"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />

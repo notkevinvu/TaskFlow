@@ -201,8 +201,8 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={updateTask.isPending || !formData.title}>
-              {updateTask.isPending ? 'Updating...' : 'Update Task'}
+            <Button type="submit" loading={updateTask.isPending} disabled={!formData.title}>
+              {updateTask.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
         </form>
