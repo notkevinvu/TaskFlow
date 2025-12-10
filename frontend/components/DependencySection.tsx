@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ChevronDown, ChevronRight, Plus, Lock, X, ArrowRight, Link2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Lock, X, ArrowRight, Link2, Pause, Ban } from 'lucide-react';
 import { useDependencyInfo, useAddBlocker, useRemoveBlocker } from '@/hooks/useDependencies';
 import { useTasks } from '@/hooks/useTasks';
 import { Task, DependencyWithTask } from '@/lib/api';
@@ -277,7 +277,7 @@ function DependencyItem({
 }
 
 // Helper component for status badges
-function StatusBadge({ status }: { status: 'todo' | 'in_progress' | 'done' }) {
+function StatusBadge({ status }: { status: 'todo' | 'in_progress' | 'done' | 'on_hold' | 'blocked' }) {
   if (status === 'done') {
     return (
       <Badge
@@ -293,6 +293,29 @@ function StatusBadge({ status }: { status: 'todo' | 'in_progress' | 'done' }) {
     return (
       <Badge variant="outline" className="text-xs">
         In Progress
+      </Badge>
+    );
+  }
+  if (status === 'on_hold') {
+    return (
+      <Badge
+        variant="outline"
+        className="text-xs text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-600"
+      >
+        <Pause className="h-2.5 w-2.5 mr-1" />
+        On Hold
+      </Badge>
+    );
+  }
+  if (status === 'blocked') {
+    return (
+      <Badge
+        variant="outline"
+        className="text-xs"
+        style={{ borderColor: tokens.status.error.default, color: tokens.status.error.default }}
+      >
+        <Ban className="h-2.5 w-2.5 mr-1" />
+        Blocked
       </Badge>
     );
   }
