@@ -249,6 +249,11 @@ export interface CreateTaskDTO {
   recurrence?: RecurrenceRule;
 }
 
+// UpdateTaskDTO includes all CreateTaskDTO fields plus status for updates
+export interface UpdateTaskDTO extends CreateTaskDTO {
+  status?: 'todo' | 'in_progress' | 'on_hold' | 'blocked';
+}
+
 // PriorityBreakdown shows the individual components of the priority calculation
 export interface PriorityBreakdown {
   // Raw component values (0-100 scale, except effort_boost which is 1.0-1.3)

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { taskAPI, CreateTaskDTO, getApiErrorMessage, AchievementEarnedEvent, Task } from '@/lib/api';
+import { taskAPI, CreateTaskDTO, UpdateTaskDTO, getApiErrorMessage, AchievementEarnedEvent, Task } from '@/lib/api';
 import { toast } from 'sonner';
 import { gamificationKeys, getAchievementIcon, getAchievementTitle } from './useGamification';
 import { taskKeys, analyticsKeys } from '@/lib/queryKeys';
@@ -118,7 +118,7 @@ export function useUpdateTask() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<CreateTaskDTO> }) =>
+    mutationFn: ({ id, data }: { id: string; data: Partial<UpdateTaskDTO> }) =>
       taskAPI.update(id, data),
     // Optimistic update: immediately update task in cache
     onMutate: async ({ id, data }) => {
