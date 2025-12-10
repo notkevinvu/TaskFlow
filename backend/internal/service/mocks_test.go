@@ -231,6 +231,21 @@ func (m *MockTaskRepository) CountIncompleteSubtasks(ctx context.Context, parent
 	return args.Int(0), args.Error(1)
 }
 
+// Soft delete/restore methods
+
+func (m *MockTaskRepository) FindByIDIncludingDeleted(ctx context.Context, id string) (*domain.Task, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Task), args.Error(1)
+}
+
+func (m *MockTaskRepository) Restore(ctx context.Context, id, userID string) error {
+	args := m.Called(ctx, id, userID)
+	return args.Error(0)
+}
+
 // MockTaskHistoryRepository is a mock implementation of ports.TaskHistoryRepository
 type MockTaskHistoryRepository struct {
 	mock.Mock

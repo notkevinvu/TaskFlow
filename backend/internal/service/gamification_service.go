@@ -732,8 +732,16 @@ func (s *GamificationService) revokeInvalidAchievements(
 		return fmt.Errorf("failed to get achievements: %w", err)
 	}
 
+	// Get category mastery data for checking category master achievements
+	categoryMastery, err := s.gamificationRepo.GetAllCategoryMastery(ctx, userID)
+	if err != nil {
+		slog.Warn("Failed to get category mastery for achievement check",
+			"user_id", userID, "error", err)
+		categoryMastery = []*domain.CategoryMastery{}
+	}
+
 	for _, achievement := range achievements {
-		stillQualifies := s.checkAchievementQualification(achievement.AchievementType, stats)
+		stillQualifies := s.checkAchievementQualification(achievement.AchievementType, stats, categoryMastery, achievement)
 
 		if !stillQualifies {
 			slog.Info("Revoking achievement - user no longer qualifies",
@@ -756,6 +764,8 @@ func (s *GamificationService) revokeInvalidAchievements(
 func (s *GamificationService) checkAchievementQualification(
 	achievementType domain.AchievementType,
 	stats *domain.GamificationStats,
+	categoryMastery []*domain.CategoryMastery,
+	achievement *domain.UserAchievement,
 ) bool {
 	// Check milestone achievements
 	if threshold, ok := domain.MilestoneThresholds[achievementType]; ok {
@@ -769,10 +779,26 @@ func (s *GamificationService) checkAchievementQualification(
 		return stats.LongestStreak >= threshold
 	}
 
-	// Category master and other dynamic achievements are not revoked
-	// because they depend on category counts that are separately tracked
-	// and would require additional context (which category) to validate
+	// Check category master achievement
+	if achievementType == domain.AchievementCategoryMaster {
+		// Extract category from achievement metadata
+		if achievement.Metadata != nil {
+			if category, ok := achievement.Metadata["category"].(string); ok {
+				// Find mastery for this category
+				for _, mastery := range categoryMastery {
+					if mastery.Category == category {
+						// Category master threshold is 10 tasks
+						return mastery.CompletedCount >= 10
+					}
+				}
+				// Category not found in mastery list - no longer qualifies
+				return false
+			}
+		}
+		// No metadata - can't verify, be conservative and keep
+		return true
+	}
 
-	// For unknown or category-specific achievements, keep them (conservative)
+	// For unknown achievements, keep them (conservative)
 	return true
 }

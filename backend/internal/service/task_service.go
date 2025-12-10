@@ -440,8 +440,8 @@ func (s *TaskService) Restore(ctx context.Context, userID, taskID string) (*doma
 		return nil, domain.NewInternalError("failed to fetch restored task", err)
 	}
 
-	// Log history (using EventTaskCreated to indicate task was brought back)
-	if err := s.logHistory(ctx, userID, taskID, domain.EventTaskCreated, nil, restoredTask); err != nil {
+	// Log history with proper restored event type
+	if err := s.logHistory(ctx, userID, taskID, domain.EventTaskRestored, nil, restoredTask); err != nil {
 		slog.Warn("Failed to log task restoration history",
 			"user_id", userID, "task_id", taskID, "error", err)
 	}

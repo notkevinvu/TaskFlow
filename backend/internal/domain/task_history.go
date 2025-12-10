@@ -12,6 +12,7 @@ const (
 	EventTaskCompleted   TaskHistoryEventType = "completed"
 	EventTaskUncompleted TaskHistoryEventType = "uncompleted"
 	EventTaskDeleted     TaskHistoryEventType = "deleted"
+	EventTaskRestored    TaskHistoryEventType = "restored"
 	EventStatusChanged   TaskHistoryEventType = "status_changed"
 )
 
