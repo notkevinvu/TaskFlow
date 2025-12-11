@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
@@ -434,50 +435,20 @@ func (h *TaskHandler) GetCalendar(c *gin.Context) {
 	c.JSON(http.StatusOK, calendar)
 }
 
-// splitAndTrim splits a string by delimiter and trims whitespace
+// splitAndTrim splits a string by delimiter and trims whitespace from each part.
+// Uses standard library functions for correctness and performance.
 func splitAndTrim(s, delimiter string) []string {
 	if s == "" {
 		return []string{}
 	}
-	parts := []string{}
-	for _, part := range splitString(s, delimiter) {
-		trimmed := trimSpace(part)
-		if trimmed != "" {
-			parts = append(parts, trimmed)
+	parts := strings.Split(s, delimiter)
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			result = append(result, trimmed)
 		}
-	}
-	return parts
-}
-
-// splitString splits a string by delimiter
-func splitString(s, delimiter string) []string {
-	result := []string{}
-	current := ""
-	for _, char := range s {
-		if string(char) == delimiter {
-			result = append(result, current)
-			current = ""
-		} else {
-			current += string(char)
-		}
-	}
-	if current != "" {
-		result = append(result, current)
 	}
 	return result
-}
-
-// trimSpace removes leading/trailing whitespace
-func trimSpace(s string) string {
-	start := 0
-	end := len(s)
-	for start < len(s) && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n') {
-		start++
-	}
-	for end > start && (s[end-1] == ' ' || s[end-1] == '\t' || s[end-1] == '\n') {
-		end--
-	}
-	return s[start:end]
 }
 
 // BulkDelete handles bulk task deletion
