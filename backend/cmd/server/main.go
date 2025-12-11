@@ -49,8 +49,21 @@ func main() {
 		"log_format", cfg.LogFormat,
 	)
 
-	// Initialize database connection pool
-	dbPool, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
+	// Initialize database connection pool with proper configuration
+	poolConfig, err := pgxpool.ParseConfig(cfg.DatabaseURL)
+	if err != nil {
+		slog.Error("Failed to parse database URL", "error", err)
+		os.Exit(1)
+	}
+
+	// Configure connection pool for production workloads
+	poolConfig.MaxConns = 25                       // Max connections - based on expected concurrent requests
+	poolConfig.MinConns = 5                        // Keep minimum connections warm
+	poolConfig.MaxConnLifetime = 30 * time.Minute  // Recycle connections every 30 minutes
+	poolConfig.MaxConnIdleTime = 5 * time.Minute   // Close idle connections after 5 minutes
+	poolConfig.HealthCheckPeriod = 1 * time.Minute // Check connection health every minute
+
+	dbPool, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
 	if err != nil {
 		slog.Error("Failed to connect to database", "error", err)
 		os.Exit(1)

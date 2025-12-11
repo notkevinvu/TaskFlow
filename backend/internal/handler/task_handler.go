@@ -12,6 +12,14 @@ import (
 	"github.com/notkevinvu/taskflow/backend/internal/ports"
 )
 
+// Pagination constants
+const (
+	// DefaultLimit is the default number of tasks returned if no limit is specified
+	DefaultLimit = 20
+	// MaxLimit is the maximum number of tasks that can be requested in a single query
+	MaxLimit = 100
+)
+
 // TaskHandler handles HTTP requests for tasks
 type TaskHandler struct {
 	taskService ports.TaskService
@@ -68,7 +76,7 @@ func (h *TaskHandler) List(c *gin.Context) {
 
 	// Parse query parameters
 	filter := &domain.TaskListFilter{
-		Limit:  20, // Default limit
+		Limit:  DefaultLimit,
 		Offset: 0,
 	}
 
@@ -87,6 +95,10 @@ func (h *TaskHandler) List(c *gin.Context) {
 
 	if limitStr := c.Query("limit"); limitStr != "" {
 		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
+			// Clamp to MaxLimit to prevent memory issues
+			if limit > MaxLimit {
+				limit = MaxLimit
+			}
 			filter.Limit = limit
 		}
 	}

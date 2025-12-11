@@ -264,6 +264,46 @@ func (r *DependencyRepository) GetTasksBlockedBy(ctx context.Context, blockerTas
 	return ids, rows.Err()
 }
 
+// CountIncompleteBlockersBatch returns the count of incomplete blockers for multiple tasks in a single query.
+// Returns a map of taskID -> incomplete blocker count. Tasks with no incomplete blockers will have count 0.
+func (r *DependencyRepository) CountIncompleteBlockersBatch(ctx context.Context, taskIDs []string) (map[string]int, error) {
+	result := make(map[string]int)
+
+	// Initialize all task IDs with 0 count
+	for _, id := range taskIDs {
+		result[id] = 0
+	}
+
+	if len(taskIDs) == 0 {
+		return result, nil
+	}
+
+	// Build query with placeholders for all task IDs
+	rows, err := r.db.Query(ctx, `
+		SELECT td.task_id, COUNT(*)::int as incomplete_count
+		FROM task_dependencies td
+		INNER JOIN tasks t ON t.id = td.blocked_by_id
+		WHERE td.task_id = ANY($1)
+		  AND t.status != 'done'
+		GROUP BY td.task_id
+	`, taskIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var taskID string
+		var count int
+		if err := rows.Scan(&taskID, &count); err != nil {
+			return nil, err
+		}
+		result[taskID] = count
+	}
+
+	return result, rows.Err()
+}
+
 // isPgUniqueViolation checks if an error is a PostgreSQL unique violation
 func isPgUniqueViolation(err error) bool {
 	if err == nil {
