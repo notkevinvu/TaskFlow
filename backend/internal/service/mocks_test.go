@@ -218,6 +218,14 @@ func (m *MockTaskRepository) GetSubtasks(ctx context.Context, parentTaskID strin
 	return args.Get(0).([]*domain.Task), args.Error(1)
 }
 
+func (m *MockTaskRepository) GetSubtasksBatch(ctx context.Context, parentTaskIDs []string) (map[string][]*domain.Task, error) {
+	args := m.Called(ctx, parentTaskIDs)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(map[string][]*domain.Task), args.Error(1)
+}
+
 func (m *MockTaskRepository) GetSubtaskInfo(ctx context.Context, parentTaskID string) (*domain.SubtaskInfo, error) {
 	args := m.Called(ctx, parentTaskID)
 	if args.Get(0) == nil {
