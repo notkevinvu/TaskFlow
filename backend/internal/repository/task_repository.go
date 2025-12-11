@@ -1373,6 +1373,79 @@ func (r *TaskRepository) GetSubtasks(ctx context.Context, parentTaskID string) (
 	return tasks, rows.Err()
 }
 
+// GetSubtasksBatch retrieves subtasks for multiple parent tasks in a single query.
+// Returns map[parentTaskID] -> [subtasks]
+// Eliminates N+1 queries when loading subtasks for multiple tasks.
+func (r *TaskRepository) GetSubtasksBatch(ctx context.Context, parentTaskIDs []string) (map[string][]*domain.Task, error) {
+	if len(parentTaskIDs) == 0 {
+		return make(map[string][]*domain.Task), nil
+	}
+
+	query := `
+		SELECT id, user_id, title, description, status, user_priority,
+			   due_date, estimated_effort, category, context, related_people,
+			   priority_score, bump_count, created_at, updated_at, completed_at,
+			   series_id, parent_task_id, task_type
+		FROM tasks
+		WHERE parent_task_id = ANY($1)
+		  AND task_type = 'subtask'
+		  AND deleted_at IS NULL
+		ORDER BY parent_task_id, created_at ASC
+	`
+
+	rows, err := r.db.Query(ctx, query, parentTaskIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string][]*domain.Task)
+	for rows.Next() {
+		var task domain.Task
+		err := rows.Scan(
+			&task.ID,
+			&task.UserID,
+			&task.Title,
+			&task.Description,
+			&task.Status,
+			&task.UserPriority,
+			&task.DueDate,
+			&task.EstimatedEffort,
+			&task.Category,
+			&task.Context,
+			&task.RelatedPeople,
+			&task.PriorityScore,
+			&task.BumpCount,
+			&task.CreatedAt,
+			&task.UpdatedAt,
+			&task.CompletedAt,
+			&task.SeriesID,
+			&task.ParentTaskID,
+			&task.TaskType,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if task.ParentTaskID != nil {
+			result[*task.ParentTaskID] = append(result[*task.ParentTaskID], &task)
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Ensure all requested IDs have entries (even if empty)
+	for _, id := range parentTaskIDs {
+		if _, exists := result[id]; !exists {
+			result[id] = []*domain.Task{}
+		}
+	}
+
+	return result, nil
+}
+
 // GetSubtaskInfo returns aggregated subtask statistics for a parent task
 func (r *TaskRepository) GetSubtaskInfo(ctx context.Context, parentTaskID string) (*domain.SubtaskInfo, error) {
 	parentUUID, err := stringToPgtypeUUID(parentTaskID)

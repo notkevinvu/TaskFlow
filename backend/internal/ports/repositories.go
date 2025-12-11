@@ -59,6 +59,7 @@ type TaskRepository interface {
 	BulkUpdateStatus(ctx context.Context, userID string, taskIDs []string, newStatus domain.TaskStatus) (int, []string, error)
 	// Subtask operations
 	GetSubtasks(ctx context.Context, parentTaskID string) ([]*domain.Task, error)
+	GetSubtasksBatch(ctx context.Context, parentTaskIDs []string) (map[string][]*domain.Task, error)
 	GetSubtaskInfo(ctx context.Context, parentTaskID string) (*domain.SubtaskInfo, error)
 	CountIncompleteSubtasks(ctx context.Context, parentTaskID string) (int, error)
 }
