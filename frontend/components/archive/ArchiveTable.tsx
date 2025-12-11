@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Task } from '@/lib/api';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -42,7 +42,7 @@ interface ArchiveTableProps {
   onTaskClick?: (task: Task) => void;
 }
 
-export function ArchiveTable({ tasks, selectedIds, onSelectionChange, onTaskClick }: ArchiveTableProps) {
+export const ArchiveTable = memo(function ArchiveTable({ tasks, selectedIds, onSelectionChange, onTaskClick }: ArchiveTableProps) {
   const [sortField, setSortField] = useState<SortField>('completed_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
@@ -194,4 +194,4 @@ export function ArchiveTable({ tasks, selectedIds, onSelectionChange, onTaskClic
       </Table>
     </div>
   );
-}
+});
