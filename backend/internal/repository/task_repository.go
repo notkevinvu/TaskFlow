@@ -1331,6 +1331,7 @@ func (r *TaskRepository) GetSubtasks(ctx context.Context, parentTaskID string) (
 		FROM tasks
 		WHERE parent_task_id = $1
 		  AND task_type = 'subtask'
+		  AND deleted_at IS NULL
 		ORDER BY created_at ASC
 	`
 
