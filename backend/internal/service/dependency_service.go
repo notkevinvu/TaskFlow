@@ -180,21 +180,24 @@ func (s *DependencyService) GetBlockerCompletionInfo(ctx context.Context, blocke
 		return nil, domain.NewInternalError("failed to get blocked tasks", err)
 	}
 
-	// For each blocked task, check if it's now fully unblocked
+	// Use batch query to check all blocked tasks at once (eliminates N+1 pattern)
 	var unblockedIDs []string
-	for _, taskID := range blockedTaskIDs {
-		incompleteCount, err := s.dependencyRepo.CountIncompleteBlockers(ctx, taskID)
+	if len(blockedTaskIDs) > 0 {
+		blockerCounts, err := s.dependencyRepo.CountIncompleteBlockersBatch(ctx, blockedTaskIDs)
 		if err != nil {
-			// Log error but continue with partial data - graceful degradation
-			slog.Warn("failed to count incomplete blockers",
+			// Log error but continue with empty list - graceful degradation
+			slog.Warn("failed to count incomplete blockers in batch",
 				"blocker_task_id", blockerTaskID,
-				"blocked_task_id", taskID,
+				"blocked_task_count", len(blockedTaskIDs),
 				"error", err,
 			)
-			continue
-		}
-		if incompleteCount == 0 {
-			unblockedIDs = append(unblockedIDs, taskID)
+		} else {
+			// Find tasks with no remaining incomplete blockers
+			for _, taskID := range blockedTaskIDs {
+				if blockerCounts[taskID] == 0 {
+					unblockedIDs = append(unblockedIDs, taskID)
+				}
+			}
 		}
 	}
 

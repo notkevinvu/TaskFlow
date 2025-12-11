@@ -126,6 +126,8 @@ type DependencyRepository interface {
 	GetDependencyGraph(ctx context.Context, userID string) (map[string][]string, error)
 	// CountIncompleteBlockers returns the number of incomplete blockers for a task
 	CountIncompleteBlockers(ctx context.Context, taskID string) (int, error)
+	// CountIncompleteBlockersBatch returns incomplete blocker counts for multiple tasks in a single query
+	CountIncompleteBlockersBatch(ctx context.Context, taskIDs []string) (map[string]int, error)
 	// GetTasksBlockedBy returns tasks that will be unblocked when this task completes
 	GetTasksBlockedBy(ctx context.Context, blockerTaskID string) ([]string, error)
 }
