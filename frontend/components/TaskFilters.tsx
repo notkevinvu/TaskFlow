@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, memo } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -119,7 +119,7 @@ interface TaskFiltersProps {
   availableCategories: string[]; // Categories passed from parent to avoid duplicate fetch
 }
 
-export function TaskFilters({ filters, onChange, onClear, availableCategories }: TaskFiltersProps) {
+export const TaskFilters = memo(function TaskFilters({ filters, onChange, onClear, availableCategories }: TaskFiltersProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Pending filters - local state that only applies on "Apply" click
@@ -599,4 +599,4 @@ export function TaskFilters({ filters, onChange, onClear, availableCategories }:
       )}
     </div>
   );
-}
+});
