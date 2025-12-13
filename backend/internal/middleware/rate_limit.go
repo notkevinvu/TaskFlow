@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -12,13 +13,32 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// InMemoryRateLimiterConfig holds the cleanup resources for graceful shutdown
+type InMemoryRateLimiterConfig struct {
+	stopCleanup chan struct{}
+	stopped     bool
+	mu          sync.Mutex
+}
+
+// Stop gracefully stops the cleanup goroutine
+func (c *InMemoryRateLimiterConfig) Stop() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.stopped {
+		close(c.stopCleanup)
+		c.stopped = true
+		slog.Info("In-memory rate limiter cleanup stopped")
+	}
+}
+
 // RateLimiter creates a rate limiting middleware
 // If Redis limiter is provided, uses Redis for horizontal scalability
 // If Redis is nil, falls back to in-memory rate limiting (single instance only)
 func RateLimiter(redisLimiter *ratelimit.RedisLimiter, requestsPerMinute int) gin.HandlerFunc {
 	// If Redis is not available, create in-memory fallback
 	if redisLimiter == nil {
-		return inMemoryRateLimiter(requestsPerMinute)
+		_, handler := inMemoryRateLimiter(context.Background(), requestsPerMinute)
+		return handler
 	}
 
 	// Redis-backed rate limiting
@@ -68,8 +88,21 @@ func RateLimiter(redisLimiter *ratelimit.RedisLimiter, requestsPerMinute int) gi
 	}
 }
 
+// RateLimiterWithContext creates a rate limiting middleware with context-aware cleanup
+// Returns the config for stopping the cleanup goroutine on shutdown
+func RateLimiterWithContext(ctx context.Context, redisLimiter *ratelimit.RedisLimiter, requestsPerMinute int) (*InMemoryRateLimiterConfig, gin.HandlerFunc) {
+	// If Redis is available, no cleanup goroutine needed
+	if redisLimiter != nil {
+		return nil, RateLimiter(redisLimiter, requestsPerMinute)
+	}
+
+	// Create in-memory rate limiter with context-aware cleanup
+	return inMemoryRateLimiter(ctx, requestsPerMinute)
+}
+
 // inMemoryRateLimiter provides in-memory rate limiting for single-instance deployments
-func inMemoryRateLimiter(requestsPerMinute int) gin.HandlerFunc {
+// Returns the config for cleanup control and the middleware handler
+func inMemoryRateLimiter(ctx context.Context, requestsPerMinute int) (*InMemoryRateLimiterConfig, gin.HandlerFunc) {
 	type client struct {
 		limiter  *rate.Limiter
 		lastSeen time.Time
@@ -80,21 +113,41 @@ func inMemoryRateLimiter(requestsPerMinute int) gin.HandlerFunc {
 		clients = make(map[string]*client)
 	)
 
-	// Cleanup old clients every 3 minutes
+	config := &InMemoryRateLimiterConfig{
+		stopCleanup: make(chan struct{}),
+	}
+
+	// Cleanup old clients every 3 minutes with proper cancellation
 	go func() {
+		ticker := time.NewTicker(3 * time.Minute)
+		defer ticker.Stop()
+
 		for {
-			time.Sleep(3 * time.Minute)
-			mu.Lock()
-			for id, c := range clients {
-				if time.Since(c.lastSeen) > 3*time.Minute {
-					delete(clients, id)
+			select {
+			case <-ctx.Done():
+				slog.Info("Rate limiter cleanup stopped via context cancellation")
+				return
+			case <-config.stopCleanup:
+				slog.Info("Rate limiter cleanup stopped via stop signal")
+				return
+			case <-ticker.C:
+				mu.Lock()
+				cleanedCount := 0
+				for id, c := range clients {
+					if time.Since(c.lastSeen) > 3*time.Minute {
+						delete(clients, id)
+						cleanedCount++
+					}
 				}
+				if cleanedCount > 0 {
+					slog.Debug("Rate limiter cleaned up stale clients", "count", cleanedCount)
+				}
+				mu.Unlock()
 			}
-			mu.Unlock()
 		}
 	}()
 
-	return func(c *gin.Context) {
+	handler := func(c *gin.Context) {
 		// Use user_id if authenticated, otherwise use IP
 		identifier := c.ClientIP()
 		if userID, exists := GetUserID(c); exists {
@@ -122,4 +175,6 @@ func inMemoryRateLimiter(requestsPerMinute int) gin.HandlerFunc {
 
 		c.Next()
 	}
+
+	return config, handler
 }
