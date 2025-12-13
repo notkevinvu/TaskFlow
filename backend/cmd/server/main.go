@@ -145,7 +145,9 @@ func main() {
 	router.Use(middleware.RequestLogger())                             // Log all requests with error context
 	router.Use(middleware.CORS(cfg.AllowedOrigins))                    // CORS
 	router.Use(gzip.Gzip(gzip.DefaultCompression))                     // Response compression (reduces payload size by 70-80%)
-	router.Use(middleware.RateLimiter(redisLimiter, cfg.RateLimitRPM)) // Rate limiting with Redis backend
+	// Rate limiting with context-aware cleanup for graceful shutdown
+	rateLimiterConfig, rateLimiterMiddleware := middleware.RateLimiterWithContext(context.Background(), redisLimiter, cfg.RateLimitRPM)
+	router.Use(rateLimiterMiddleware)
 	router.Use(middleware.ErrorHandler())                              // Error handler must be last to catch errors from routes
 
 	// Prometheus metrics endpoint (no auth required for scraping)
@@ -344,6 +346,11 @@ func main() {
 	<-quit
 
 	slog.Info("Received shutdown signal, gracefully shutting down server...")
+
+	// Stop rate limiter cleanup goroutine if using in-memory fallback
+	if rateLimiterConfig != nil {
+		rateLimiterConfig.Stop()
+	}
 
 	// Graceful shutdown with timeout matching WriteTimeout to allow in-flight requests to complete
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
