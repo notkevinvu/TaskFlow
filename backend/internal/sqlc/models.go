@@ -261,6 +261,12 @@ type Task struct {
 	ParentTaskID    pgtype.UUID        `json:"parent_task_id"`
 }
 
+type TaskDependency struct {
+	TaskID      pgtype.UUID        `json:"task_id"`
+	BlockedByID pgtype.UUID        `json:"blocked_by_id"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type TaskHistory struct {
 	ID        pgtype.UUID          `json:"id"`
 	UserID    pgtype.UUID          `json:"user_id"`

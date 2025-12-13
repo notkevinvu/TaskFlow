@@ -7,29 +7,49 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/notkevinvu/taskflow/backend/internal/domain"
+	"github.com/notkevinvu/taskflow/backend/internal/sqlc"
 )
 
-// DependencyRepository handles database operations for task dependencies
+// DependencyRepository handles database operations for task dependencies using sqlc
 type DependencyRepository struct {
-	db *pgxpool.Pool
+	db      *pgxpool.Pool
+	queries *sqlc.Queries
 }
 
 // NewDependencyRepository creates a new dependency repository
 func NewDependencyRepository(db *pgxpool.Pool) *DependencyRepository {
-	return &DependencyRepository{db: db}
+	return &DependencyRepository{
+		db:      db,
+		queries: sqlc.New(db),
+	}
 }
 
 // Add creates a new dependency (taskID is blocked by blockedByID)
 // Validates both tasks exist and belong to the user
 func (r *DependencyRepository) Add(ctx context.Context, userID, taskID, blockedByID string) (*domain.TaskDependency, error) {
+	// Convert string UUIDs to pgtype.UUID
+	taskUUID, err := stringToPgtypeUUID(taskID)
+	if err != nil {
+		return nil, err
+	}
+	blockedByUUID, err := stringToPgtypeUUID(blockedByID)
+	if err != nil {
+		return nil, err
+	}
+	userUUID, err := stringToPgtypeUUID(userID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Verify both tasks exist and belong to the user
-	var count int
-	err := r.db.QueryRow(ctx, `
-		SELECT COUNT(*) FROM tasks
-		WHERE id IN ($1, $2) AND user_id = $3
-	`, taskID, blockedByID, userID).Scan(&count)
+	count, err := r.queries.VerifyTasksExistForUser(ctx, sqlc.VerifyTasksExistForUserParams{
+		ID:     taskUUID,
+		ID_2:   blockedByUUID,
+		UserID: userUUID,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -39,10 +59,11 @@ func (r *DependencyRepository) Add(ctx context.Context, userID, taskID, blockedB
 
 	// Insert the dependency
 	now := time.Now()
-	_, err = r.db.Exec(ctx, `
-		INSERT INTO task_dependencies (task_id, blocked_by_id, created_at)
-		VALUES ($1, $2, $3)
-	`, taskID, blockedByID, now)
+	err = r.queries.AddDependency(ctx, sqlc.AddDependencyParams{
+		TaskID:      taskUUID,
+		BlockedByID: blockedByUUID,
+		CreatedAt:   timeToPgtypeTimestamptz(now),
+	})
 	if err != nil {
 		// Check for unique constraint violation
 		if isPgUniqueViolation(err) {
@@ -60,20 +81,30 @@ func (r *DependencyRepository) Add(ctx context.Context, userID, taskID, blockedB
 
 // Remove deletes a dependency relationship
 func (r *DependencyRepository) Remove(ctx context.Context, userID, taskID, blockedByID string) error {
-	// Verify the task belongs to the user before deleting
-	result, err := r.db.Exec(ctx, `
-		DELETE FROM task_dependencies td
-		USING tasks t
-		WHERE td.task_id = $1
-		  AND td.blocked_by_id = $2
-		  AND t.id = td.task_id
-		  AND t.user_id = $3
-	`, taskID, blockedByID, userID)
+	// Convert string UUIDs to pgtype.UUID
+	taskUUID, err := stringToPgtypeUUID(taskID)
+	if err != nil {
+		return err
+	}
+	blockedByUUID, err := stringToPgtypeUUID(blockedByID)
+	if err != nil {
+		return err
+	}
+	userUUID, err := stringToPgtypeUUID(userID)
 	if err != nil {
 		return err
 	}
 
-	if result.RowsAffected() == 0 {
+	rowsAffected, err := r.queries.RemoveDependency(ctx, sqlc.RemoveDependencyParams{
+		TaskID:      taskUUID,
+		BlockedByID: blockedByUUID,
+		UserID:      userUUID,
+	})
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
 		return domain.ErrDependencyNotFound
 	}
 
@@ -82,78 +113,69 @@ func (r *DependencyRepository) Remove(ctx context.Context, userID, taskID, block
 
 // Exists checks if a specific dependency exists
 func (r *DependencyRepository) Exists(ctx context.Context, taskID, blockedByID string) (bool, error) {
-	var exists bool
-	err := r.db.QueryRow(ctx, `
-		SELECT EXISTS(
-			SELECT 1 FROM task_dependencies
-			WHERE task_id = $1 AND blocked_by_id = $2
-		)
-	`, taskID, blockedByID).Scan(&exists)
-	return exists, err
+	taskUUID, err := stringToPgtypeUUID(taskID)
+	if err != nil {
+		return false, err
+	}
+	blockedByUUID, err := stringToPgtypeUUID(blockedByID)
+	if err != nil {
+		return false, err
+	}
+
+	return r.queries.CheckDependencyExists(ctx, sqlc.CheckDependencyExistsParams{
+		TaskID:      taskUUID,
+		BlockedByID: blockedByUUID,
+	})
 }
 
 // GetBlockers returns all tasks blocking the given task (with task details)
 func (r *DependencyRepository) GetBlockers(ctx context.Context, taskID string) ([]*domain.DependencyWithTask, error) {
-	rows, err := r.db.Query(ctx, `
-		SELECT t.id, t.title, t.status, td.created_at
-		FROM task_dependencies td
-		INNER JOIN tasks t ON t.id = td.blocked_by_id
-		WHERE td.task_id = $1
-		ORDER BY td.created_at ASC
-	`, taskID)
+	taskUUID, err := stringToPgtypeUUID(taskID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var blockers []*domain.DependencyWithTask
-	for rows.Next() {
-		var d domain.DependencyWithTask
-		var status string
-		if err := rows.Scan(&d.TaskID, &d.Title, &status, &d.CreatedAt); err != nil {
-			return nil, err
-		}
-		d.Status = domain.TaskStatus(status)
-		blockers = append(blockers, &d)
+	rows, err := r.queries.GetBlockerTasks(ctx, taskUUID)
+	if err != nil {
+		return nil, err
 	}
 
-	if blockers == nil {
-		blockers = []*domain.DependencyWithTask{}
+	blockers := make([]*domain.DependencyWithTask, 0, len(rows))
+	for _, row := range rows {
+		blockers = append(blockers, &domain.DependencyWithTask{
+			TaskID:    pgtypeUUIDToString(row.ID),
+			Title:     row.Title,
+			Status:    domain.TaskStatus(row.Status),
+			CreatedAt: row.CreatedAt.Time,
+		})
 	}
 
-	return blockers, rows.Err()
+	return blockers, nil
 }
 
 // GetBlocking returns all tasks that the given task is blocking (with task details)
 func (r *DependencyRepository) GetBlocking(ctx context.Context, taskID string) ([]*domain.DependencyWithTask, error) {
-	rows, err := r.db.Query(ctx, `
-		SELECT t.id, t.title, t.status, td.created_at
-		FROM task_dependencies td
-		INNER JOIN tasks t ON t.id = td.task_id
-		WHERE td.blocked_by_id = $1
-		ORDER BY td.created_at ASC
-	`, taskID)
+	taskUUID, err := stringToPgtypeUUID(taskID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var blocking []*domain.DependencyWithTask
-	for rows.Next() {
-		var d domain.DependencyWithTask
-		var status string
-		if err := rows.Scan(&d.TaskID, &d.Title, &status, &d.CreatedAt); err != nil {
-			return nil, err
-		}
-		d.Status = domain.TaskStatus(status)
-		blocking = append(blocking, &d)
+	rows, err := r.queries.GetBlockingTasks(ctx, taskUUID)
+	if err != nil {
+		return nil, err
 	}
 
-	if blocking == nil {
-		blocking = []*domain.DependencyWithTask{}
+	blocking := make([]*domain.DependencyWithTask, 0, len(rows))
+	for _, row := range rows {
+		blocking = append(blocking, &domain.DependencyWithTask{
+			TaskID:    pgtypeUUIDToString(row.ID),
+			Title:     row.Title,
+			Status:    domain.TaskStatus(row.Status),
+			CreatedAt: row.CreatedAt.Time,
+		})
 	}
 
-	return blocking, rows.Err()
+	return blocking, nil
 }
 
 // GetDependencyInfo returns complete dependency info for a task
@@ -173,95 +195,80 @@ func (r *DependencyRepository) GetDependencyInfo(ctx context.Context, taskID str
 
 // GetAllBlockerIDs returns just the blocker task IDs (for cycle detection)
 func (r *DependencyRepository) GetAllBlockerIDs(ctx context.Context, taskID string) ([]string, error) {
-	rows, err := r.db.Query(ctx, `
-		SELECT blocked_by_id FROM task_dependencies
-		WHERE task_id = $1
-	`, taskID)
+	taskUUID, err := stringToPgtypeUUID(taskID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
+	rows, err := r.queries.GetBlockerIDs(ctx, taskUUID)
+	if err != nil {
+		return nil, err
 	}
 
-	if ids == nil {
-		ids = []string{}
+	ids := make([]string, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, pgtypeUUIDToString(row))
 	}
 
-	return ids, rows.Err()
+	return ids, nil
 }
 
 // GetDependencyGraph returns all dependencies for cycle detection
 // Returns map of task_id -> [blocked_by_ids]
 func (r *DependencyRepository) GetDependencyGraph(ctx context.Context, userID string) (map[string][]string, error) {
-	rows, err := r.db.Query(ctx, `
-		SELECT td.task_id, td.blocked_by_id
-		FROM task_dependencies td
-		INNER JOIN tasks t ON t.id = td.task_id
-		WHERE t.user_id = $1
-	`, userID)
+	userUUID, err := stringToPgtypeUUID(userID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+
+	rows, err := r.queries.GetDependencyGraph(ctx, userUUID)
+	if err != nil {
+		return nil, err
+	}
 
 	graph := make(map[string][]string)
-	for rows.Next() {
-		var taskID, blockedByID string
-		if err := rows.Scan(&taskID, &blockedByID); err != nil {
-			return nil, err
-		}
+	for _, row := range rows {
+		taskID := pgtypeUUIDToString(row.TaskID)
+		blockedByID := pgtypeUUIDToString(row.BlockedByID)
 		graph[taskID] = append(graph[taskID], blockedByID)
 	}
 
-	return graph, rows.Err()
+	return graph, nil
 }
 
 // CountIncompleteBlockers returns the number of incomplete blockers for a task
 func (r *DependencyRepository) CountIncompleteBlockers(ctx context.Context, taskID string) (int, error) {
-	var count int
-	err := r.db.QueryRow(ctx, `
-		SELECT COUNT(*)
-		FROM task_dependencies td
-		INNER JOIN tasks t ON t.id = td.blocked_by_id
-		WHERE td.task_id = $1
-		  AND t.status != 'done'
-	`, taskID).Scan(&count)
-	return count, err
+	taskUUID, err := stringToPgtypeUUID(taskID)
+	if err != nil {
+		return 0, err
+	}
+
+	count, err := r.queries.CountIncompleteBlockers(ctx, taskUUID)
+	if err != nil {
+		return 0, err
+	}
+
+	return int(count), nil
 }
 
 // GetTasksBlockedBy returns task IDs that are blocked by the given task
 func (r *DependencyRepository) GetTasksBlockedBy(ctx context.Context, blockerTaskID string) ([]string, error) {
-	rows, err := r.db.Query(ctx, `
-		SELECT task_id FROM task_dependencies
-		WHERE blocked_by_id = $1
-	`, blockerTaskID)
+	blockerUUID, err := stringToPgtypeUUID(blockerTaskID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
+	rows, err := r.queries.GetTasksBlockedByTask(ctx, blockerUUID)
+	if err != nil {
+		return nil, err
 	}
 
-	if ids == nil {
-		ids = []string{}
+	ids := make([]string, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, pgtypeUUIDToString(row))
 	}
 
-	return ids, rows.Err()
+	return ids, nil
 }
 
 // CountIncompleteBlockersBatch returns the count of incomplete blockers for multiple tasks in a single query.
@@ -278,30 +285,27 @@ func (r *DependencyRepository) CountIncompleteBlockersBatch(ctx context.Context,
 		return result, nil
 	}
 
-	// Build query with placeholders for all task IDs
-	rows, err := r.db.Query(ctx, `
-		SELECT td.task_id, COUNT(*)::int as incomplete_count
-		FROM task_dependencies td
-		INNER JOIN tasks t ON t.id = td.blocked_by_id
-		WHERE td.task_id = ANY($1)
-		  AND t.status != 'done'
-		GROUP BY td.task_id
-	`, taskIDs)
+	// Convert string UUIDs to pgtype.UUID slice
+	uuids := make([]pgtype.UUID, 0, len(taskIDs))
+	for _, id := range taskIDs {
+		uuid, err := stringToPgtypeUUID(id)
+		if err != nil {
+			return nil, err
+		}
+		uuids = append(uuids, uuid)
+	}
+
+	rows, err := r.queries.CountIncompleteBlockersBatch(ctx, uuids)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var taskID string
-		var count int
-		if err := rows.Scan(&taskID, &count); err != nil {
-			return nil, err
-		}
-		result[taskID] = count
+	for _, row := range rows {
+		taskID := pgtypeUUIDToString(row.TaskID)
+		result[taskID] = int(row.IncompleteCount)
 	}
 
-	return result, rows.Err()
+	return result, nil
 }
 
 // isPgUniqueViolation checks if an error is a PostgreSQL unique violation
