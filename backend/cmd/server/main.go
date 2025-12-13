@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
@@ -139,12 +140,13 @@ func main() {
 	router := gin.New() // Use gin.New() instead of Default() to have full control over middleware
 
 	// Apply middleware in order (RequestLogger before ErrorHandler to capture error context)
-	router.Use(gin.Recovery())                        // Recover from panics
-	router.Use(metrics.Middleware())                  // Prometheus metrics (before other middleware to capture all requests)
-	router.Use(middleware.RequestLogger())            // Log all requests with error context
-	router.Use(middleware.CORS(cfg.AllowedOrigins))   // CORS
+	router.Use(gin.Recovery())                                         // Recover from panics
+	router.Use(metrics.Middleware())                                   // Prometheus metrics (before other middleware to capture all requests)
+	router.Use(middleware.RequestLogger())                             // Log all requests with error context
+	router.Use(middleware.CORS(cfg.AllowedOrigins))                    // CORS
+	router.Use(gzip.Gzip(gzip.DefaultCompression))                     // Response compression (reduces payload size by 70-80%)
 	router.Use(middleware.RateLimiter(redisLimiter, cfg.RateLimitRPM)) // Rate limiting with Redis backend
-	router.Use(middleware.ErrorHandler())             // Error handler must be last to catch errors from routes
+	router.Use(middleware.ErrorHandler())                              // Error handler must be last to catch errors from routes
 
 	// Prometheus metrics endpoint (no auth required for scraping)
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
@@ -311,10 +313,15 @@ func main() {
 		}
 	}
 
-	// Create HTTP server
+	// Create HTTP server with timeout configurations to prevent resource exhaustion
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", cfg.Port),
-		Handler: router,
+		Addr:              fmt.Sprintf(":%s", cfg.Port),
+		Handler:           router,
+		ReadHeaderTimeout: 10 * time.Second,  // Time to read request headers
+		ReadTimeout:       15 * time.Second,  // Time to read entire request (including body)
+		WriteTimeout:      30 * time.Second,  // Time for handler to write response
+		IdleTimeout:       120 * time.Second, // Time to keep idle connections open
+		MaxHeaderBytes:    1 << 20,           // 1 MB max header size
 	}
 
 	// Start server in goroutine
@@ -338,8 +345,8 @@ func main() {
 
 	slog.Info("Received shutdown signal, gracefully shutting down server...")
 
-	// Graceful shutdown with 5 second timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// Graceful shutdown with timeout matching WriteTimeout to allow in-flight requests to complete
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
