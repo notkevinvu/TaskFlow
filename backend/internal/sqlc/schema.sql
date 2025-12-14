@@ -139,3 +139,18 @@ CREATE TABLE category_preferences (
 
 -- Create index for category preferences
 CREATE INDEX idx_category_preferences_user_id ON category_preferences(user_id);
+
+-- Create task_dependencies table (blocked-by relationships)
+CREATE TABLE task_dependencies (
+    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    blocked_by_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (task_id, blocked_by_id),
+    CONSTRAINT no_self_dependency CHECK (task_id != blocked_by_id)
+);
+
+-- Index for efficient "what blocks this task?" queries
+CREATE INDEX idx_task_dependencies_task ON task_dependencies(task_id);
+
+-- Index for efficient "what does this task block?" queries
+CREATE INDEX idx_task_dependencies_blocker ON task_dependencies(blocked_by_id);
