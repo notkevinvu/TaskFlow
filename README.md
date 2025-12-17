@@ -6,12 +6,27 @@ An intelligent task management system that automatically prioritizes tasks using
 
 ## Features
 
+### Core Features
 - **Intelligent Prioritization** - Automatically calculates task priority based on multiple factors
 - **Task Details Sidebar** - View comprehensive task information with smooth animations
 - **Quick Task Creation** - Rapidly add new tasks with a streamlined modal interface
 - **Analytics Dashboard** - Visualize your task patterns and completion rates
 - **Responsive Design** - Works seamlessly on desktop, tablet, and mobile
 - **Dark Mode Ready** - Built with light/dark mode support
+
+### Advanced Features
+- **Subtasks** - Break down tasks into smaller subtasks with progress tracking
+- **Task Dependencies** - Block tasks until prerequisites are completed
+- **Task Templates** - Save and reuse common task configurations
+- **Recurring Tasks** - Schedule daily, weekly, or monthly task recurrence
+- **Soft Delete & Undo** - Recover accidentally deleted tasks
+- **Anonymous Mode** - Try TaskFlow without registration (30-day trial)
+
+### Gamification
+- **Productivity Score** - Track your overall productivity (completion rate, streaks, on-time delivery)
+- **Achievement Badges** - Earn badges for milestones (10, 50, 100 tasks), streaks, and category mastery
+- **Streak Tracking** - Build momentum with daily completion streaks
+- **Category Mastery** - Level up in your most-used categories
 
 ## Tech Stack
 
@@ -24,11 +39,12 @@ An intelligent task management system that automatically prioritizes tasks using
 - **Zustand** for state management
 
 ### Backend
-- **Go 1.23** with Gin framework
+- **Go 1.24** with Gin framework
 - **Supabase** (managed PostgreSQL 16)
 - **JWT Authentication** (golang-jwt)
 - **Clean Architecture** pattern
 - **Full-text search** with PostgreSQL tsvector
+- **sqlc** for type-safe SQL queries
 
 ### Database
 - **Supabase PostgreSQL** - Managed cloud database
@@ -41,7 +57,7 @@ An intelligent task management system that automatically prioritizes tasks using
 ### Prerequisites
 
 - **Node.js** 20+ and npm
-- **Go 1.23+**
+- **Go 1.24+**
 - **Supabase Account** (free tier available)
 
 ### Installation
@@ -52,11 +68,12 @@ An intelligent task management system that automatically prioritizes tasks using
    cd TaskFlow
    ```
 
-2. **Set up Supabase**
+2. **Set up Supabase Database**
    - Create a free account at [supabase.com](https://supabase.com)
    - Create a new project
-   - Get your database connection string from **Settings → Database**
-   - Copy the **URI** format connection string
+   - Go to **SQL Editor** in your Supabase dashboard
+   - Copy the contents of [`supabase/setup.sql`](supabase/setup.sql) and run it
+   - Get your database connection string from **Settings → Database → URI**
 
 3. **Configure backend**
    ```bash
@@ -65,11 +82,11 @@ An intelligent task management system that automatically prioritizes tasks using
    # Edit .env and set DATABASE_URL to your Supabase connection string
    ```
 
-4. **Run database migrations**
+4. **Verify database setup**
    ```bash
    cd backend
    go run cmd/server/main.go
-   # Migrations run automatically on startup
+   # Backend should start without migration errors
    ```
 
 5. **Install frontend dependencies**
@@ -142,8 +159,10 @@ TaskFlow/
 │   │   ├── handler/    # HTTP handlers
 │   │   ├── middleware/ # Auth, CORS, rate limiting
 │   │   └── config/     # Configuration
-│   ├── migrations/     # Database migrations (auto-run)
+│   ├── migrations/     # Individual migration files (for incremental updates)
 │   └── Makefile       # Build commands
+├── supabase/           # Supabase configuration
+│   └── setup.sql      # Consolidated database setup script
 ├── docs/              # Project documentation
 │   ├── product/      # PRD, data model, priority algorithm
 │   ├── architecture/ # System design and tech stack
@@ -215,18 +234,32 @@ make test-coverage # Run tests with coverage report
   - Effort Boost multiplier
 - Full-text search (PostgreSQL tsvector + GIN indexes)
 - Task history/audit log
-- Rate limiting (100 req/min per user)
+- Rate limiting (300 req/min per user)
 - CORS middleware
 - Unit tests for priority calculator (100% coverage)
-- Database migrations (auto-run on startup)
 
-### 🚧 Phase 3 (Planned - Analytics & Advanced Features)
-- Background job for auto-reprioritization
-- Advanced analytics (estimation accuracy tracking)
-- Category breakdown charts
+### ✅ Phase 2.5 Complete (Advanced Task Features)
+- **Subtasks** - Parent-child task relationships with progress tracking
+- **Task Dependencies** - Block tasks until prerequisites complete (with cycle detection)
+- **Task Templates** - Save and reuse task configurations
+- **Recurring Tasks** - Daily, weekly, monthly recurrence patterns
+- **Soft Delete** - Undo task deletion within time window
+- **Additional Task Statuses** - On Hold, Blocked states
+- **Anonymous Users** - 30-day trial without registration
+- **Row Level Security** - Supabase RLS for database protection
+
+### ✅ Phase 2.5B Complete (Gamification)
+- **Productivity Score** - Weighted score (completion rate, streaks, on-time delivery, effort mix)
+- **Achievement System** - Milestone, streak, category mastery, and special badges
+- **Streak Tracking** - Daily completion streaks with timezone support
+- **Category Mastery** - Track progress per category
+
+### 🚧 Phase 3 (Planned - Analytics & Polish)
+- Advanced analytics dashboard (charts, trends)
 - Velocity tracking over time
 - At-risk task email alerts
-- Design system token improvements
+- Background job for auto-reprioritization
+- Performance optimizations
 
 ## API Documentation
 
@@ -250,16 +283,30 @@ For detailed API documentation and examples, see `backend/README.md`.
 
 ## Database Schema
 
-### Tables
-- **users** - User accounts with email/password auth
-- **tasks** - Task records with priority scores
+### Core Tables
+- **users** - User accounts (registered or anonymous)
+- **tasks** - Task records with priority scores and relationships
 - **task_history** - Audit log of all task changes
+
+### Advanced Feature Tables
+- **task_series** - Recurring task configuration
+- **task_dependencies** - Task blocking relationships
+- **task_templates** - Reusable task templates
+- **user_preferences** - User settings and timezone
+- **category_preferences** - Per-category settings
+
+### Gamification Tables
+- **user_achievements** - Earned badges and achievements
+- **gamification_stats** - Cached productivity stats
+- **category_mastery** - Per-category completion tracking
 
 ### Key Features
 - **Full-text search** using tsvector + GIN indexes
-- **Automatic triggers** for search_vector updates
-- **PostgreSQL enums** for task_status, task_effort, event_type
-- **Optimized indexes** for priority sorting and filtering
+- **Automatic triggers** for search_vector and updated_at
+- **PostgreSQL enums** for type safety (task_status, task_effort, etc.)
+- **Optimized partial indexes** for common query patterns
+- **Row Level Security** enabled on all tables
+- **Soft delete support** for task recovery
 
 See `docs/product/data-model.md` for complete schema details.
 
@@ -267,7 +314,7 @@ See `docs/product/data-model.md` for complete schema details.
 
 Tasks are automatically scored based on:
 
-1. **User Priority (40%)** - Your explicit importance rating (0-100)
+1. **User Priority (40%)** - Your explicit importance rating (1-10 scale)
 2. **Time Decay (30%)** - How long the task has existed (linear growth over 30 days)
 3. **Deadline Urgency (20%)** - Quadratic urgency increase in final 7 days before due date
 4. **Bump Penalty (10%)** - +10 points per delay/postponement (max 50)
@@ -379,19 +426,22 @@ curl http://localhost:8080/health
 # Linux/Mac: lsof -i :8080
 ```
 
-### Database migration errors
+### Database setup errors
 
-Migrations run automatically on backend startup. If you see errors:
+Database setup is done via `supabase/setup.sql`. If you see errors:
 
 ```bash
-# Check backend logs for migration status
-cd backend
-go run cmd/server/main.go
-# Look for "Migration X applied successfully" messages
+# For fresh setup:
+# 1. Go to Supabase Dashboard → SQL Editor
+# 2. Run the contents of supabase/setup.sql
 
-# Manually check database schema
+# For incremental migrations (existing database):
+# Individual migrations are in backend/migrations/
+# Apply them in order via Supabase SQL Editor
+
+# Verify tables exist
 psql "YOUR_SUPABASE_CONNECTION_STRING"
-\dt  # List tables - should see: users, tasks, task_history
+\dt  # List tables - should see 13+ tables
 ```
 
 ### Common Issues
@@ -455,6 +505,6 @@ MIT
 
 ---
 
-**Current Status:** Phase 2 Complete ✅
-**Last Updated:** 2025-01-22
-**Next Up:** Phase 3 - Analytics & Advanced Features
+**Current Status:** Phase 2.5B Complete ✅
+**Last Updated:** 2025-12-16
+**Next Up:** Phase 3 - Analytics & Polish
